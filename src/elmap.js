@@ -78,6 +78,8 @@ ElMap.prototype.from_ccp4 = function (buf) {
   //console.log('buf type: ' + Object.prototype.toString.call(buf));
   var iview = new Int32Array(buf);
   var fview = new Float32Array(buf);
+  // map has 3 dimensions referred to as columns (fastest changing), rows
+  // and sections (c-r-s)
   var n_crs = [iview[0], iview[1], iview[2]];
   this.mode = iview[3];
   if (this.mode !== 2) {
@@ -88,8 +90,8 @@ ElMap.prototype.from_ccp4 = function (buf) {
   this.unit_cell = new UnitCell(fview[10], fview[11], fview[12],
                                 fview[13], fview[14], fview[15]);
   var c = iview[16] - 1;  // MAPC - axis corresp to cols (1,2,3 for X,Y,Z)
-  var r = iview[17] - 1;  // MAPR - rows
-  var s = iview[18] - 1;  // MAPR - sections
+  var r = iview[17] - 1;  // MAPR - axis corresp to rows
+  var s = iview[18] - 1;  // MAPS - axis corresp to sections
   this.min = fview[19];
   this.max = fview[20];
   this.mean = fview[21];  // is it reliable?
@@ -100,21 +102,23 @@ ElMap.prototype.from_ccp4 = function (buf) {
   //            '  rms: ' + this.rms.toFixed(4));
   var n_real = [n_crs[c], n_crs[r], n_crs[s]];
   this.grid = new GridArray(n_real, n_grid);
-  var idx = 256;
-  var end_crs = [n_crs[0] + start[0],
-                 n_crs[1] + start[1],
-                 n_crs[2] + start[2]];
+  var nsymbt = iview[23]; // size of extended header in bytes
+  if (1024 + nsymbt + 4 * n_crs[0] * n_crs[1] * n_crs[2] !== buf.byteLength) {
+    throw Error('ccp4 file too short or too long');
+  }
+  if (nsymbt % 4 !== 0) {
+    throw Error('CCP4 map with NSYMBT not divisible by 4 is not supported.');
+  }
+  var idx = 256 + nsymbt / 4;
+  var end = [start[0] + n_crs[0], start[1] + n_crs[1], start[2] + n_crs[2]];
   var it = [0, 0, 0];
-  for (it[2] = start[2]; it[2] < end_crs[2]; it[2]++) {
-    for (it[1] = start[1]; it[1] < end_crs[1]; it[1]++) {
-      for (it[0] = start[0]; it[0] < end_crs[0]; it[0]++) {
+  for (it[2] = start[2]; it[2] < end[2]; it[2]++) {
+    for (it[1] = start[1]; it[1] < end[1]; it[1]++) {
+      for (it[0] = start[0]; it[0] < end[0]; it[0]++) {
         this.grid.set_grid_value(it[c], it[r], it[s], fview[idx]);
         idx++;
       }
     }
-  }
-  if (idx !== iview.length) {
-    throw Error('ccp4 file too short or too long');
   }
 };
 
