@@ -789,6 +789,19 @@ Viewer.prototype.toggle_cell_box = function () {
   }
 };
 
+Viewer.prototype.shift_clip = function (away) {
+  var eye = this.camera.position.clone().sub(target).setLength(1);
+  if (!away) {
+    eye.negate();
+  }
+  target.add(eye);
+  this.camera.position.add(eye);
+  this.update_camera();
+  this.redraw_maps();
+  hud('clip shifted by [' + eye.x.toFixed(2) + ' ' + eye.y.toFixed(2) +
+      ' ' + eye.z.toFixed(2) + ']');
+};
+
 Viewer.prototype.redraw_all = function () {
   this.scene.fog.color = Colors.bg;
   this.renderer.setClearColor(Colors.bg, 1);
@@ -800,8 +813,7 @@ function next(elem, arr) {
   return arr[(arr.indexOf(elem) + 1) % arr.length];
 }
 
-Viewer.prototype.keydown = function (evt) {
-  var eye;
+Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
   var key = evt.keyCode;
   switch (key) {
     case 84:  // t
@@ -846,18 +858,11 @@ Viewer.prototype.keydown = function (evt) {
       break;
     case 51:  // 3
     case 99:  // numpad 3
+      this.shift_clip(true);
+      break;
     case 108:  // numpad period (Linux)
     case 110:  // decimal point (Mac)
-      eye = this.camera.position.clone().sub(target).setLength(1);
-      if (key === 108 || key === 110) {
-        eye.negate();
-      }
-      target.add(eye);
-      this.camera.position.add(eye);
-      this.update_camera();
-      this.redraw_maps();
-      hud('clip shifted by [' + eye.x.toFixed(2) + ' ' + eye.y.toFixed(2) +
-          ' ' + eye.z.toFixed(2) + ']');
+      this.shift_clip(false);
       break;
     case 85:  // u
       hud('toggled unit cell box');

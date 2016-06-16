@@ -24,3 +24,8 @@
     no-multiple-empty-lines: [2, {'max': 2}]
     operator-linebreak: [2, 'after', {'overrides': {':': 'ignore'}}]
     camelcase: 0
+    no-mixed-operators: 0
+    object-property-newline: 0
+    no-warning-comments: 0
+    max-depth: 0
+    max-lines: 0

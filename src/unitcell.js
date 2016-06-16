@@ -2,6 +2,7 @@
 var UnitCell = (function () {
 'use strict';
 
+// eslint-disable-next-line max-params
 function UnitCell(a /*:number*/, b /*:number*/, c /*:number*/,
                   alpha /*:number*/, beta /*:number*/, gamma /*:number*/) {
   if (a <= 0 || b <= 0 || c <= 0 || alpha <= 0 || beta <= 0 || gamma <= 0) {
