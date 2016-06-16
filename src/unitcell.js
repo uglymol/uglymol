@@ -38,7 +38,8 @@ function UnitCell(a /*:number*/, b /*:number*/, c /*:number*/,
     -(cos_gamma * cos_alpha_star_sin_beta + cos_beta * sin_gamma) /
         (sin_beta * s1rca2 * sin_gamma * a),
     0.0,
-    1.0 / (sin_gamma * b),  cos_alpha_star / (s1rca2 * sin_gamma * b),
+    1.0 / (sin_gamma * b),
+    cos_alpha_star / (s1rca2 * sin_gamma * b),
     0.0,
     0.0,
     1.0 / (sin_beta * s1rca2 * c)

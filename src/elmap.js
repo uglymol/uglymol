@@ -18,7 +18,7 @@ GridArray.prototype.grid2index = function (i, j, k) {
   if (i_ < 0) { i_ += this.n_real[0]; }
   if (j_ < 0) { j_ += this.n_real[1]; }
   if (k_ < 0) { k_ += this.n_real[2]; }
-  return ((i_ * this.n_real[1] + j_) * this.n_real[2] + k_);
+  return (i_ * this.n_real[1] + j_) * this.n_real[2] + k_;
 };
 
 GridArray.prototype.grid2frac = function (i, j, k) {
@@ -92,6 +92,16 @@ ElMap.prototype.from_ccp4 = function (buf) {
   var c = iview[16] - 1;  // MAPC - axis corresp to cols (1,2,3 for X,Y,Z)
   var r = iview[17] - 1;  // MAPR - axis corresp to rows
   var s = iview[18] - 1;  // MAPS - axis corresp to sections
+
+  var order = [0, 0, 0];
+  order[c] = 0;
+  order[r] = 1;
+  order[s] = 2;
+  c = order[0]; r = order[1]; s = order[2];
+  /*
+  */
+
+  console.log(c, r, s);
   this.min = fview[19];
   this.max = fview[20];
   this.mean = fview[21];  // is it reliable?
@@ -109,7 +119,7 @@ ElMap.prototype.from_ccp4 = function (buf) {
   if (nsymbt % 4 !== 0) {
     throw Error('CCP4 map with NSYMBT not divisible by 4 is not supported.');
   }
-  var idx = 256 + nsymbt / 4;
+  var idx = 256 + (nsymbt / 4 + 0.1 | 0);
   var end = [start[0] + n_crs[0], start[1] + n_crs[1], start[2] + n_crs[2]];
   var it = [0, 0, 0];
   for (it[2] = start[2]; it[2] < end[2]; it[2]++) {
@@ -217,9 +227,9 @@ ElMap.prototype.extract_block = function (radius, center) {
   var nz = grid_max[2] - grid_min[2] + 1;
   var points = [];
   var values = [];
-  for (var k = grid_min[2]; k <= grid_max[2]; k++) {
+  for (var i = grid_min[0]; i <= grid_max[0]; i++) {
     for (var j = grid_min[1]; j <= grid_max[1]; j++) {
-      for (var i = grid_min[0]; i <= grid_max[0]; i++) {
+      for (var k = grid_min[2]; k <= grid_max[2]; k++) {
         var frac = grid.grid2frac(i, j, k);
         var orth = unit_cell.orthogonalize(frac);
         points.push(orth);
