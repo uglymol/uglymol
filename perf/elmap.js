@@ -19,14 +19,8 @@ suite.add('ElMap#from_ccp4', function () {
   map.from_ccp4(cmap_buf.slice(0));
 });
 
-suite.add('ElMap#extract_block', function () {
-  map.extract_block(15, [25, 26, 35]);
-});
-
 suite.on('cycle', function (event) {
-  if (event.target.name.indexOf('#from_') > -1) {
-    console.log('mean/rms: ' + [map.mean, map.rms]);
-  }
+  console.log('mean/rms: ' + [map.mean, map.rms]);
 });
 
 suite.run();
