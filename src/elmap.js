@@ -6,7 +6,12 @@ var ElMap = (function () {
 
 function GridArray(dim) {
   this.dim = dim; // dimensions of the grid for the entire unit cell
-  this.values = new Float32Array(dim[0] * dim[1] * dim[2]);
+  // in some browsers typed array are seriously slow
+  //this.values = new Float32Array(dim[0] * dim[1] * dim[2]);
+  this.values = [];
+  for (var i = 0; i < dim[0] * dim[1] * dim[2]; i++) {
+    this.values.push(0.0);
+  }
 }
 
 function modulo(a, b) {
