@@ -4,48 +4,43 @@ var UnitCell = UnitCell || require('./unitcell'); // eslint-disable-line
 var ElMap = (function () {
 'use strict';
 
-function GridArray(n_real, n_grid) {
-  this.n_real = n_real; // actual dimensions of the map area
-  this.n_grid = n_grid; // dimensions of the grid for the entire unit cell
-  this.size = n_real[0] * n_real[1] * n_real[2];
-  this.values = new Float32Array(this.size);
+function GridArray(dim) {
+  this.dim = dim; // dimensions of the grid for the entire unit cell
+  this.values = new Float32Array(dim[0] * dim[1] * dim[2]);
+}
+
+function modulo(a, b) {
+  var reminder = a % b;
+  return reminder >= 0 ? reminder : reminder + b;
 }
 
 GridArray.prototype.grid2index = function (i, j, k) {
-  var i_ = i % this.n_real[0];
-  var j_ = j % this.n_real[1];
-  var k_ = k % this.n_real[2];
-  if (i_ < 0) { i_ += this.n_real[0]; }
-  if (j_ < 0) { j_ += this.n_real[1]; }
-  if (k_ < 0) { k_ += this.n_real[2]; }
-  return (i_ * this.n_real[1] + j_) * this.n_real[2] + k_;
+  i = modulo(i, this.dim[0]);
+  j = modulo(j, this.dim[1]);
+  k = modulo(k, this.dim[2]);
+  return this.dim[2] * (this.dim[1] * i + j) + k;
 };
 
 GridArray.prototype.grid2frac = function (i, j, k) {
-  return [i / this.n_grid[0], j / this.n_grid[1], k / this.n_grid[2]];
+  return [i / this.dim[0], j / this.dim[1], k / this.dim[2]];
 };
 
-// return the equivalent grid coordinates (rounded down) for the given
-// fractional coordinates.
+// return grid coordinates (rounded down) for the given fractional coordinates
 GridArray.prototype.frac2grid = function (xyz) {
-  return [Math.floor(xyz[0] * this.n_grid[0]),
-          Math.floor(xyz[1] * this.n_grid[1]),
-          Math.floor(xyz[2] * this.n_grid[2])];
+  // at one point "| 0" here made extract_block() 40% faster on V8 3.14,
+  // but I don't see any effect now
+  return [Math.floor(xyz[0] * this.dim[0]) | 0,
+          Math.floor(xyz[1] * this.dim[1]) | 0,
+          Math.floor(xyz[2] * this.dim[2]) | 0];
 };
 
 GridArray.prototype.set_grid_value = function (i, j, k, value) {
   var idx = this.grid2index(i, j, k);
-  if (idx >= this.size) {
-    throw Error('Array overflow with indices ' + i + ',' + j + ',' + k);
-  }
   this.values[idx] = value;
 };
 
 GridArray.prototype.get_grid_value = function (i, j, k) {
   var idx = this.grid2index(i, j, k);
-  if (idx >= this.size) {
-    throw Error('Array overflow with indices ' + i + ',' + j + ',' + k);
-  }
   return this.values[idx];
 };
 
@@ -99,9 +94,9 @@ ElMap.prototype.from_ccp4 = function (buf) {
   order[s] = 2;
   c = order[0]; r = order[1]; s = order[2];
   /*
+  console.log(c, r, s);
   */
 
-  console.log(c, r, s);
   this.min = fview[19];
   this.max = fview[20];
   this.mean = fview[21];  // is it reliable?
@@ -111,7 +106,7 @@ ElMap.prototype.from_ccp4 = function (buf) {
   //console.log('map mean: ' + this.mean.toFixed(4) +
   //            '  rms: ' + this.rms.toFixed(4));
   var n_real = [n_crs[c], n_crs[r], n_crs[s]];
-  this.grid = new GridArray(n_real, n_grid);
+  this.grid = new GridArray(n_grid);
   var nsymbt = iview[23]; // size of extended header in bytes
   if (1024 + nsymbt + 4 * n_crs[0] * n_crs[1] * n_crs[2] !== buf.byteLength) {
     throw Error('ccp4 file too short or too long');
@@ -119,7 +114,7 @@ ElMap.prototype.from_ccp4 = function (buf) {
   if (nsymbt % 4 !== 0) {
     throw Error('CCP4 map with NSYMBT not divisible by 4 is not supported.');
   }
-  var idx = 256 + (nsymbt / 4 + 0.1 | 0);
+  var idx = 256 + nsymbt / 4 | 0;
   var end = [start[0] + n_crs[0], start[1] + n_crs[1], start[2] + n_crs[2]];
   var it = [0, 0, 0];
   for (it[2] = start[2]; it[2] < end[2]; it[2]++) {
@@ -147,7 +142,7 @@ ElMap.prototype.from_dsn6 = function (buf) {
     for (var n = 0; n < len; n++) {
       // swapping bytes with Uint8Array like this:
       // var tmp=u8data[n*2]; u8data[n*2]=u8data[n*2+1]; u8data[n*2+1]=tmp;
-      // was slowing down this whole function 5x times (!?) on Node.
+      // was slowing down this whole function 5x times (!?) on V8.
       var val = iview[n];
       iview[n] = ((val & 0xff) << 8) | ((val >> 8) & 0xff);
     }
@@ -165,7 +160,7 @@ ElMap.prototype.from_dsn6 = function (buf) {
                                 cell_mult * iview[12],
                                 cell_mult * iview[13],
                                 cell_mult * iview[14]);
-  this.grid = new GridArray(n_real, n_grid);
+  this.grid = new GridArray(n_grid);
   var prod = iview[15] / 100;
   var plus = iview[16];
   //var data_scale_factor = iview[15] / iview[18] + iview[16];
@@ -206,9 +201,8 @@ ElMap.prototype.from_dsn6 = function (buf) {
 };
 
 ElMap.prototype.show_debug_info = function () {
-  console.log('map size: ' + this.grid.n_real);
   console.log('unit cell: ' + this.unit_cell.parameters.join(', '));
-  console.log('unit cell grid: ' + this.grid.n_grid);
+  console.log('grid: ' + this.grid.dim);
 };
 
 // Extract a block of density for calculating an isosurface using the
