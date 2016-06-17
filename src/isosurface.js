@@ -337,11 +337,10 @@ function isosurface(points, values, size, isolevel) {
   }
 
   var vertices = new Float32Array(8);
+  var vertex_points = [null, null, null, null, null, null, null, null];
   for (var x = 0; x < size_x - 1; x++) {
     for (var y = 0; y < size_y - 1; y++) {
       for (var z = 0; z < size_z - 1; z++) {
-        // index of base point, and also adjacent points on cube
-        var vertex_points = [];
         var cubeindex = 0;
         var i;
         for (i = 0; i < 8; ++i) {
@@ -349,7 +348,7 @@ function isosurface(points, values, size, isolevel) {
           var j = z + v[0] + size_z * ((y + v[1]) + size_y * (x + v[2]));
           var s = values[j];
           vertices[i] = s;
-          vertex_points.push(points[j]);
+          vertex_points[i] = points[j];
           cubeindex |= (s < isolevel) ? 1 << i : 0;
         }
 
