@@ -84,18 +84,11 @@ ElMap.prototype.from_ccp4 = function (buf) {
   var n_grid = [iview[7], iview[8], iview[9]];
   this.unit_cell = new UnitCell(fview[10], fview[11], fview[12],
                                 fview[13], fview[14], fview[15]);
-  var c = iview[16] - 1;  // MAPC - axis corresp to cols (1,2,3 for X,Y,Z)
-  var r = iview[17] - 1;  // MAPR - axis corresp to rows
-  var s = iview[18] - 1;  // MAPS - axis corresp to sections
-
-  var order = [0, 0, 0];
-  order[c] = 0;
-  order[r] = 1;
-  order[s] = 2;
-  c = order[0]; r = order[1]; s = order[2];
-  /*
-  console.log(c, r, s);
-  */
+  // MAPC, MAPR, MAPS - axis corresp to cols, rows, sections (1,2,3 for X,Y,Z)
+  var map_crs = [iview[16], iview[17], iview[18]];
+  var ax = map_crs.indexOf(1);
+  var ay = map_crs.indexOf(2);
+  var az = map_crs.indexOf(3);
 
   this.min = fview[19];
   this.max = fview[20];
@@ -103,9 +96,7 @@ ElMap.prototype.from_ccp4 = function (buf) {
   this.sg_number = iview[22];
   this.lskflg = iview[24];
   this.rms = fview[54]; // is it reliable?
-  //console.log('map mean: ' + this.mean.toFixed(4) +
-  //            '  rms: ' + this.rms.toFixed(4));
-  var n_real = [n_crs[c], n_crs[r], n_crs[s]];
+  //console.log('map mean and rms:', this.mean.toFixed(4), this.rms.toFixed(4));
   this.grid = new GridArray(n_grid);
   var nsymbt = iview[23]; // size of extended header in bytes
   if (1024 + nsymbt + 4 * n_crs[0] * n_crs[1] * n_crs[2] !== buf.byteLength) {
@@ -117,10 +108,10 @@ ElMap.prototype.from_ccp4 = function (buf) {
   var idx = 256 + nsymbt / 4 | 0;
   var end = [start[0] + n_crs[0], start[1] + n_crs[1], start[2] + n_crs[2]];
   var it = [0, 0, 0];
-  for (it[2] = start[2]; it[2] < end[2]; it[2]++) {
-    for (it[1] = start[1]; it[1] < end[1]; it[1]++) {
-      for (it[0] = start[0]; it[0] < end[0]; it[0]++) {
-        this.grid.set_grid_value(it[c], it[r], it[s], fview[idx]);
+  for (it[2] = start[2]; it[2] < end[2]; it[2]++) { // sections
+    for (it[1] = start[1]; it[1] < end[1]; it[1]++) { // rows
+      for (it[0] = start[0]; it[0] < end[0]; it[0]++) { // cols
+        this.grid.set_grid_value(it[ax], it[ay], it[az], fview[idx]);
         idx++;
       }
     }
@@ -210,12 +201,16 @@ ElMap.prototype.show_debug_info = function () {
 ElMap.prototype.extract_block = function (radius, center) {
   var grid = this.grid;
   var unit_cell = this.unit_cell;
-  var xyz_min = [center[0] - radius, center[1] - radius, center[2] - radius];
-  var xyz_max = [center[0] + radius, center[1] + radius, center[2] + radius];
-  var frac_min = unit_cell.fractionalize(xyz_min);
-  var frac_max = unit_cell.fractionalize(xyz_max);
-  var grid_min = grid.frac2grid(frac_min);
-  var grid_max = grid.frac2grid(frac_max);
+  var grid_min = [0, 0, 0];
+  var grid_max = grid.dim;
+  if (center) {
+    var xyz_min = [center[0] - radius, center[1] - radius, center[2] - radius];
+    var xyz_max = [center[0] + radius, center[1] + radius, center[2] + radius];
+    var frac_min = unit_cell.fractionalize(xyz_min);
+    var frac_max = unit_cell.fractionalize(xyz_max);
+    grid_min = grid.frac2grid(frac_min);
+    grid_max = grid.frac2grid(frac_max);
+  }
   var nx = grid_max[0] - grid_min[0] + 1;
   var ny = grid_max[1] - grid_min[1] + 1;
   var nz = grid_max[2] - grid_min[2] + 1;

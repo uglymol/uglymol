@@ -13,6 +13,14 @@ function toArrayBuffer(buffer) {
   return ab;
 }
 
+/* Note: axis order in ccp4 maps is tricky. It was tested by re-sectioning,
+ * i.e. changing axis order, of a map with CCP4 mapmask:
+  mapmask mapin 1mru_2mFo-DFc.ccp4 mapout 1mru_yzx.ccp4 << eof
+  AXIS Y Z X
+  MODE mapin
+  eof
+*/
+
 describe('ElMap', function () {
   'use strict';
   var dsn6_file = __dirname + '/../data/1mru.omap';
