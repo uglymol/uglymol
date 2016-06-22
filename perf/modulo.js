@@ -1,6 +1,6 @@
 'use strict';
 
-var Benchmark = Benchmark || require('benchmark');
+var Benchmark = Benchmark || require('benchmark'); // eslint-disable-line
 var suite = new Benchmark.Suite();
 
 var VALUES = [21.2, 30.5, 25.9, -7.2, 0.4, -0.4];
