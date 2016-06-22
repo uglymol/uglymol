@@ -5,7 +5,7 @@
   "homepage": "https://uglymol.github.io",
   "main": "src/viewer.js",
   "dependencies": {
-    "three": "~0.77.1"
+    "three": "~0.78.0"
   },
   "devDependencies": {
     "benchmark": "^2.1.0",

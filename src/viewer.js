@@ -89,9 +89,8 @@ var selected_atom = null;
 function raycast_intersect(coords, camera) {
   if (pickable_model === null) { return null; }
   raycaster.setFromCamera(coords, camera);
-  // https://github.com/mrdoob/three.js/issues/9009 and 0.8 because fog
-  raycaster.near = 1e-3;
-  raycaster.far = 0.8 * (camera.far - camera.near);
+  raycaster.near = camera.near;
+  raycaster.far = camera.far - 0.2 * (camera.far - camera.near); // because fog
   raycaster.linePrecision = 0.2;
   return raycaster.intersectObjects(pickable_model.atomic_objects);
 }
