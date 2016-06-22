@@ -94,10 +94,10 @@
   <div id="inset">
   <script>
     V = new Viewer("viewer");
-    V.load_pdb("data/1mru.pdb", "1mru");
-    V.load_map("data/1mru.omap", "2mFo-DFc", false, "dsn6");
-    //V.load_map("data/1mru_2mFo-DFc.ccp4", "2mFo-DFc", false, "ccp4");
-    V.load_map("data/1mru_diff.omap", "mFo-DFc", true, "dsn6");
+    V.load_pdb("data/1mru.pdb");
+    V.load_map("data/1mru.omap", false, "dsn6");
+    //V.load_map("data/1mru_2mFo-DFc.ccp4", false, "ccp4");
+    V.load_map("data/1mru_diff.omap",  true, "dsn6");
     //V.show_nav("inset");
     V.render();
   </script>

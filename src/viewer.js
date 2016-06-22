@@ -1062,10 +1062,10 @@ Viewer.prototype.render = function render() {
   }
 };
 
-Viewer.prototype.add_map_bag = function (map, name, is_diff_map) {
+Viewer.prototype.add_map_bag = function (map, is_diff_map) {
   var map_bag = {
     map: map,
-    name: name,
+    name: '',
     isolevel: is_diff_map ? 3.0 : 1.5,
     visible: true,
     types: is_diff_map ? ['map_pos', 'map_neg'] : ['map_den'],
@@ -1077,10 +1077,10 @@ Viewer.prototype.add_map_bag = function (map, name, is_diff_map) {
   //this.update_camera();
 };
 
-Viewer.prototype.add_model_bag = function (model, name) {
+Viewer.prototype.add_model_bag = function (model) {
   var model_bag = {
     model: model,
-    name: name,
+    name: '',
     visible: true,
     conf: this.model_config,
     atomic_objects: null // list of three.js objects
@@ -1089,7 +1089,7 @@ Viewer.prototype.add_model_bag = function (model, name) {
   this.set_atomic_objects(model_bag);
 };
 
-Viewer.prototype.load_pdb = function (url, name) {
+Viewer.prototype.load_pdb = function (url) {
   var req = new XMLHttpRequest();
   req.open('GET', url, true);
   var self = this;
@@ -1099,7 +1099,7 @@ Viewer.prototype.load_pdb = function (url, name) {
       if (req.status === 200 || req.status === 0) {
         var model = new Model();
         model.from_pdb(req.responseText);
-        self.add_model_bag(model, name);
+        self.add_model_bag(model);
         self.recenter(null, 1);
       } else {
         console.log('Error fetching ' + url);
@@ -1109,7 +1109,7 @@ Viewer.prototype.load_pdb = function (url, name) {
   req.send(null);
 };
 
-Viewer.prototype.load_map = function (url, map_name, is_diff_map, filetype) {
+Viewer.prototype.load_map = function (url, is_diff_map, filetype) {
   var req = new XMLHttpRequest();
   req.responseType = 'arraybuffer';
   req.open('GET', url, true);
@@ -1126,7 +1126,7 @@ Viewer.prototype.load_map = function (url, map_name, is_diff_map, filetype) {
           throw Error('Unknown map filetype.');
         }
         //map.show_debug_info();
-        self.add_map_bag(map, map_name, is_diff_map);
+        self.add_map_bag(map, is_diff_map);
         self.redraw_maps();
       } else {
         console.log('Error fetching ' + url);
