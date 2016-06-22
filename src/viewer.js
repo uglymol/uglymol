@@ -537,21 +537,16 @@ function make_unitcell_box(uc) {
     throw Error('Unit cell not defined!');
   }
   var geometry = new THREE.Geometry();
-  var i;
-  for (i = 0; i < CUBE_EDGES.length; i += 2) {
-    var xyz1 = uc.orthogonalize(CUBE_EDGES[i]);
-    var xyz2 = uc.orthogonalize(CUBE_EDGES[i+1]);
-    geometry.vertices.push(
-      new THREE.Vector3(xyz1[0], xyz1[1], xyz1[2]),
-      new THREE.Vector3(xyz2[0], xyz2[1], xyz2[2])
-    );
+  for (var i = 0; i < CUBE_EDGES.length; i++) {
+    var xyz = uc.orthogonalize(CUBE_EDGES[i]);
+    geometry.vertices.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]));
   }
   geometry.colors.push(
     new THREE.Color(0xff0000), new THREE.Color(0xffaa00),
     new THREE.Color(0x00ff00), new THREE.Color(0xaaff00),
     new THREE.Color(0x0000ff), new THREE.Color(0x00aaff)
   );
-  for (i = 6; i < CUBE_EDGES.length; i++) {
+  for (var j = 6; j < CUBE_EDGES.length; j++) {
     geometry.colors.push(Colors.cell_box);
   }
   var material = new THREE.LineBasicMaterial({vertexColors:
