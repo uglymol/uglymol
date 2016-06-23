@@ -1,4 +1,5 @@
 'use strict';
+// Node.js only
 
 var fs = require('fs');
 var Benchmark = require('benchmark');
@@ -7,12 +8,12 @@ function data_path(filename) {
   return __dirname + '/../data/' + filename;
 }
 
-function open_as_utf8(filename) {
+exports.open_as_utf8 = function (filename) {
   var path = data_path(filename);
   return fs.readFileSync(path, {encoding: 'utf8'});
-}
+};
 
-function open_as_array_buffer(filename) {
+exports.open_as_array_buffer = function (filename) {
   var path = data_path(filename);
   var buffer = fs.readFileSync(path);
   // http://stackoverflow.com/a/12101012/104453
@@ -22,17 +23,24 @@ function open_as_array_buffer(filename) {
     view[i] = buffer[i];
   }
   return ab;
-}
+};
 
-function new_benchmark_suite() {
-  var suite = new Benchmark.Suite();
-  suite.on('cycle', function (event) {
+var bench_to_run = process.argv[2];
+
+exports.bench = function (name, fn, options) {
+  var b = new Benchmark(name, fn, options);
+  //b.on('start', function () { console.log('started ' + b.name); });
+  b.on('complete', function (event) {
     console.log(' ' + event.target);
   });
-  return suite;
-}
+  b.on('error', function () {
+    console.log(b.error);
+  });
+  if (bench_to_run === undefined || name.indexOf(bench_to_run) > -1) {
+    b.run();
+  } else {
+    b.fn(); // run once, for possible side effects
+  }
+  return b;
+};
 
-exports.data_path = data_path;
-exports.open_as_array_buffer = open_as_array_buffer;
-exports.new_benchmark_suite = new_benchmark_suite;
-exports.open_as_utf8 = open_as_utf8;

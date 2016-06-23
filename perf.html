@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+ <meta charset="utf-8">
+ <style>
+   body { font: 18px sans-serif; }
+ </style>
+ <script src="node_modules/lodash/lodash.js"></script>
+ <script src="node_modules/platform/platform.js"></script>
+ <script src="node_modules/benchmark/benchmark.js"></script>
+ <script src="node_modules/three/build/three.min.js"></script>
+ <script>
+  function onload() {
+    document.getElementById('platform').innerHTML = Benchmark.platform;
+  };
+ </script>
+</head>
+<body onload="onload();">
+ <p>Platform: <span id="platform">-</span></p>
+ <p>Click one and wait.</p><ul id="run"></ul>
+
+ <script src="src/unitcell.js"></script>
+ <script src="src/elmap.js"></script>
+ <script src="src/model.js"></script>
+ <script src="src/isosurface.js"></script>
+ <script src="src/viewer.js"></script>
+ <script>
+  var suites = [];
+
+  function output(html, style) {
+    var p = document.createElement('p');
+    p.innerHTML = html;
+    if (style === 'E') {
+      p.style.color = '#d00';
+    }
+    document.body.appendChild(p);
+  }
+
+  window.onerror = function (msg, url, lineNo) {
+    output(url + ':' + lineNo + ':\n' + msg, 'E')
+    return false;
+  };
+
+  function add_this_suite() {
+    for (var i = 0; i != this.length; i++) {
+      (function (bench) {
+        bench.on('complete', function (event) {
+        });
+      })(this[i]);
+    }
+  };
+  var util = {
+    open_as_utf8: function(filename) {
+      var req = new XMLHttpRequest();
+      req.open('GET', 'data/' + filename, false);
+      req.send(null);
+      return req.response;
+    },
+    open_as_array_buffer: function (filename) {
+      var req = new XMLHttpRequest();
+      req.overrideMimeType('text\/plain; charset=x-user-defined');
+      req.open('GET', 'data/' + filename, false);
+      req.send(null);
+      var str = req.response;
+      var ab = new ArrayBuffer(str.length);
+      var view = new Uint8Array(ab);
+      for (var i = 0; i < str.length; ++i) {
+        view[i] = str.charCodeAt(i);
+      }
+      return ab;
+    },
+    bench: function (name, fn, options) {
+      var b = new Benchmark(name, fn, options);
+      b.on('start', function () { console.log('started ' + b.name); });
+      b.on('complete', function (event) {
+        output(' ' + event.target);
+      });
+      b.on('error', function (event) {
+        output(b.error, 'E');
+      });
+      b.fn(); // run once, for possible side effects
+      var li = document.createElement('li');
+      li.innerHTML = ' <a href="#">' + b.name + '</a>';
+      li.onclick = function () { b.run(); return false; };
+      document.getElementById('run').appendChild(li);
+      return b;
+    }
+  };
+ </script>
+ <script src="perf/elmap.js"></script>
+ <script src="perf/model.js"></script>
+ <script src="perf/isosurface.js"></script>
+ <script src="perf/viewer.js"></script>
+</body>
+</html>

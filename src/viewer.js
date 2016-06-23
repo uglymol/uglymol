@@ -586,6 +586,9 @@ function Viewer(element_id) {
   this.resize();
   this.camera.zoom = this.camera.right / 35.0;
   var container = document.getElementById(element_id);
+  if (container === null) { // for testing
+    return;
+  }
   container.appendChild(this.renderer.domElement);
   this.controls = new Controls(this.camera);
 

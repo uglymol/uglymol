@@ -1,25 +1,26 @@
 'use strict';
 
-var util = require('./util');
-var Model = require('../src/model.js');
-var Viewer = require('../src/viewer.js');
+var util = util || require('./util'); // eslint-disable-line
+var Model = Model || require('../src/model.js'); // eslint-disable-line
+var Viewer = Viewer || require('../src/viewer.js'); // eslint-disable-line
 
-var suite = util.new_benchmark_suite();
-var pdb_string = util.open_as_utf8('1mru.pdb');
+(function () {
+  var pdb_string = util.open_as_utf8('1mru.pdb');
 
-var viewer = new Viewer();
-var model = new Model();
-model.from_pdb(pdb_string);
-viewer.add_model_bag(model, '1mru');
+  var viewer = new Viewer();
+  var model = new Model();
+  model.from_pdb(pdb_string);
+  viewer.add_model_bag(model);
 
-suite.add('make_trace', function () {
-  viewer.model_config.render_style = 'trace';
-  viewer.set_atomic_objects(viewer.models[0]);
-});
+  util.bench('make_trace', function () {
+    viewer.model_config.render_style = 'trace';
+    viewer.set_atomic_objects(viewer.model_bags[0]);
+    viewer.clear_atomic_objects(viewer.model_bags[0]);
+  });
 
-suite.add('make_bonds', function () {
-  viewer.model_config.render_style = 'lines';
-  viewer.set_atomic_objects(viewer.models[0]);
-});
-
-suite.run();
+  util.bench('make_bonds', function () {
+    viewer.model_config.render_style = 'lines';
+    viewer.set_atomic_objects(viewer.model_bags[0]);
+    viewer.clear_atomic_objects(viewer.model_bags[0]);
+  });
+})();

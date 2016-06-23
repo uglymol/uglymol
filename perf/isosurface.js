@@ -1,21 +1,17 @@
-'use strict';
+//'use strict';
 
-var ElMap = require('../src/elmap');
-var isosurface = require('../src/isosurface');
-var util = require('./util');
+var ElMap = ElMap || require('../src/elmap'); // eslint-disable-line
+var isosurface = isosurface || require('../src/isosurface'); // eslint-disable-line
+var util = util || require('./util'); // eslint-disable-line
 
-var dsn6_file = '1mru.omap';
-var dmap_buf = util.open_as_array_buffer(dsn6_file);
+(function () {
+  var dmap_buf = util.open_as_array_buffer('1mru.omap');
+  var map = new ElMap();
+  map.from_dsn6(dmap_buf.slice(0));
+  map.extract_block(15, [25, 26, 35]);
 
-var suite = util.new_benchmark_suite();
-var map = new ElMap();
-map.from_dsn6(dmap_buf.slice(0));
-map.extract_block(15, [25, 26, 35]);
-var geometry;
-
-suite.add('isosurface', function () {
-  var bl = map.block;
-  geometry = isosurface(bl.points, bl.values, bl.size, 1.0);
-});
-
-suite.run();
+  util.bench('isosurface', function () {
+    var bl = map.block;
+    var geometry = isosurface(bl.points, bl.values, bl.size, 1.0);
+  });
+})();
