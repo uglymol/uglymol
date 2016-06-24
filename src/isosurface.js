@@ -336,7 +336,8 @@ function isosurface(points, values, size, isolevel) {
     throw Error('isosurface: array size mismatch');
   }
   var vert_offsets = [];
-  for (var i = 0; i < 8; ++i) {
+  var i;
+  for (i = 0; i < 8; ++i) {
     var v = cubeVerts[i];
     vert_offsets.push(v[0] + size_z * (v[1] + size_y * v[2]));
   }
@@ -347,9 +348,7 @@ function isosurface(points, values, size, isolevel) {
       for (var z = 0; z < size_z - 1; z++) {
         var j0 = z + size_z * (y + size_y * x);
         var cubeindex = 0;
-        var i;
         for (i = 0; i < 8; ++i) {
-          var v = cubeVerts[i];
           var j = j0 + vert_offsets[i];
           var s = values[j];
           vertices[i] = s;
