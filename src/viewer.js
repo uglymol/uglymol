@@ -87,7 +87,7 @@ var pickable_model = null;
 var selected_atom = null;
 
 function raycast_intersect(coords, camera) {
-  if (pickable_model === null) { return null; }
+  if (pickable_model === null) return null;
   raycaster.setFromCamera(coords, camera);
   raycaster.near = camera.near;
   raycaster.far = camera.far - 0.2 * (camera.far - camera.near); // because fog
@@ -97,7 +97,7 @@ function raycast_intersect(coords, camera) {
 
 function pick_atom(coords, camera) {
   var intersects = raycast_intersect(coords, camera);
-  if (intersects.length < 1) { return null; }
+  if (intersects.length < 1) return null;
   var p = intersects[0].point;
   return pickable_model.model.get_nearest_atom(p.x, p.y, p.z);
 }
@@ -328,10 +328,10 @@ var Controls = function (camera) {
     _go_func = function () {
       var a = alphas.shift();
       camera.position.sub(target); //XXX
-      if (targ) { target.lerp(targ, a); }
+      if (targ) target.lerp(targ, a);
       camera.position.add(target); //XXX
-      if (cam_pos) { camera.position.lerp(cam_pos, a); }
-      if (cam_up) { camera.up.lerp(cam_up, a); }
+      if (cam_pos) camera.position.lerp(cam_pos, a);
+      if (cam_up) camera.up.lerp(cam_up, a);
       if (alphas.length === 0) {
         _state = STATE.NONE;
         _go_func = null;
@@ -379,8 +379,8 @@ function color_by(style, atoms) {
     var vmax = -Infinity;
     for (i = 0; i < atoms.length; i++) {
       var v = atoms[i].b;
-      if (v > vmax) { vmax = v; }
-      if (v < vmin) { vmin = v; }
+      if (v > vmax) vmax = v;
+      if (v < vmin) vmin = v;
     }
     console.log('B-factors in [' + vmin + ', ' + vmax + ']');
     color_func = function (atom) {
@@ -446,15 +446,15 @@ function make_bonds(model, params, ligands_only, ball_size) {
   for (i = 0; i < visible_atoms.length; i++) {
     var atom = visible_atoms[i];
     var color = colors[i];
-    if (ligands_only && !atom.is_ligand) { continue; }
+    if (ligands_only && !atom.is_ligand) continue;
     if (atom.bonds.length === 0 && !opt.balls) { // nonbonded, draw star
       add_isolated_atom(geometry, atom, color);
     } else { // bonded, draw lines
       for (var j = 0; j < atom.bonds.length; j++) {
         // TODO: one line per bond (not trivial, because coloring)
         var other = model.atoms[atom.bonds[j]];
-        if (!opt.hydrogens && other.element === 'H') { continue; }
-        if (opt.ligands_only && !other.is_ligand) { continue; }
+        if (!opt.hydrogens && other.element === 'H') continue;
+        if (opt.ligands_only && !other.is_ligand) continue;
         var mid = atom.midpoint(other);
         var vmid = new THREE.Vector3(mid[0], mid[1], mid[2]);
         var vatom = new THREE.Vector3(atom.xyz[0], atom.xyz[1], atom.xyz[2]);
@@ -762,7 +762,7 @@ Viewer.prototype.redraw_models = function () {
 };
 
 Viewer.prototype.add_el_objects = function (map_bag) {
-  if (!map_bag.visible) { return; }
+  if (!map_bag.visible) return;
   if (!map_bag.map.block) {
     map_bag.block_ctr.copy(target);
     map_bag.map.extract_block(this.map_radius, [target.x, target.y, target.z]);
@@ -785,7 +785,7 @@ Viewer.prototype.add_el_objects = function (map_bag) {
 };
 
 Viewer.prototype.change_isolevel_by = function (map_idx, delta) {
-  if (map_idx >= this.map_bags.length) { return; }
+  if (map_idx >= this.map_bags.length) return;
   var map_bag = this.map_bags[map_idx];
   map_bag.isolevel += delta;
   var abs_level = map_bag.map.abs_level(map_bag.isolevel);
@@ -957,7 +957,7 @@ Viewer.prototype.mousedown = function (event) {
 };
 
 Viewer.prototype.dblclick = function (event) {
-  if (event.button !== 0) { return; }
+  if (event.button !== 0) return;
   if (this.decor.selection) {
     this.scene.remove(this.decor.selection);
     this.decor.selection = null;
@@ -1037,7 +1037,7 @@ Viewer.prototype.resize = function (/*evt*/) {
 Viewer.prototype.recenter = function (xyz, steps) {
   if (!xyz) { // recenter on the last model
     var len = this.model_bags.length;
-    if (len === 0) { return; }
+    if (len === 0) return;
     xyz = this.model_bags[len - 1].model.get_center();
   }
   this.controls.go_to(new THREE.Vector3(xyz[0], xyz[1], xyz[2]),
@@ -1047,7 +1047,7 @@ Viewer.prototype.recenter = function (xyz, steps) {
 };
 
 Viewer.prototype.center_next_residue = function (back) {
-  if (!pickable_model) { return; }
+  if (!pickable_model) return;
   var a = pickable_model.model.next_residue(selected_atom, back);
   if (a) {
     hud('-> ' + a.long_label());
@@ -1172,7 +1172,7 @@ Viewer.prototype.load_map = function (url, is_diff_map, filetype) {
 /*
 Viewer.prototype.show_nav = function (inset_id) {
   var inset = document.getElementById(inset_id);
-  if (!inset) { return; }
+  if (!inset) return;
   inset.style.display = 'block';
   var nav = {};
   nav.renderer = new THREE.WebGLRenderer();
@@ -1190,4 +1190,4 @@ Viewer.prototype.show_nav = function (inset_id) {
 return Viewer;
 })();
 
-if (typeof module !== 'undefined') { module.exports = Viewer; }
+if (typeof module !== 'undefined') module.exports = Viewer;

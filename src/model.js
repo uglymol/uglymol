@@ -76,8 +76,8 @@ Model.prototype.calculate_bounds = function () {
     var atom = this.atoms[i];
     for (var j = 0; j < 3; j++) {
       var v = atom.xyz[j];
-      if (v < lower[j]) { lower[j] = v; }
-      if (v > upper[j]) { upper[j] = v; }
+      if (v < lower[j]) lower[j] = v;
+      if (v > upper[j]) upper[j] = v;
     }
   }
   // with a margin
@@ -93,7 +93,7 @@ Model.prototype.next_residue = function (atom, backward) {
   for (var i = (atom ? 1 : 0); i < len; i++) {
     var idx = (start + (backward ? -i : i)) % len;
     var a = this.atoms[idx];
-    if (!a.is_main_conformer()) { continue; }
+    if (!a.is_main_conformer()) continue;
     if ((a.name === 'CA' && a.element === 'C') || a.name === 'P') {
       return a;
     }
@@ -107,7 +107,7 @@ Model.prototype.extract_trace = function () {
   var i;
   for (i = 0; i < this.atoms.length; i++) {
     var atom = this.atoms[i];
-    if (atom.altloc !== '' && atom.altloc !== 'A') { continue; }
+    if (atom.altloc !== '' && atom.altloc !== 'A') continue;
     if ((atom.name === 'CA' && atom.element === 'C') || atom.name === 'P') {
       var start_new = true;
       if (last_atom !== null && last_atom.chain_index === atom.chain_index) {
@@ -261,10 +261,10 @@ Atom.prototype.is_bonded_to = function (other) {
   /** @const */ var MAX_DIST_H_SQ = 1.3 * 1.3;
   /** @const */ var MAX_DIST_SP_SQ = 2.2 * 2.2;
 
-  if (!this.is_same_conformer(other)) { return false; }
-  if (this.element === 'H' && other.element === 'H') { return false; }
+  if (!this.is_same_conformer(other)) return false;
+  if (this.element === 'H' && other.element === 'H') return false;
   var dxyz2 = this.distance_sq(other);
-  if (dxyz2 > MAX_DIST_SP_SQ) { return false; }
+  if (dxyz2 > MAX_DIST_SP_SQ) return false;
   if (this.element === 'H' || other.element === 'H') {
     return dxyz2 <= MAX_DIST_H_SQ;
   }
@@ -320,11 +320,11 @@ Cubicles.prototype.get_nearby_atoms = function (box_id) {
   var w = Math.floor(box_id / xydim);
   console.assert((w * xydim) + (v * this.xdim) + u === box_id);
   for (var iu = u-1; iu <= u+1; iu++) {
-    if (iu < 0 || iu >= this.xdim) { continue; }
+    if (iu < 0 || iu >= this.xdim) continue;
     for (var iv = v-1; iv <= v+1; iv++) {
-      if (iv < 0 || iv >= this.ydim) { continue; }
+      if (iv < 0 || iv >= this.ydim) continue;
       for (var iw = w-1; iw <= w+1; iw++) {
-        if (iw < 0 || iw >= this.zdim) { continue; }
+        if (iw < 0 || iw >= this.zdim) continue;
         var other_box_id = (iw * xydim) + (iv * this.xdim) + iu;
         if (other_box_id >= this.boxes.length || other_box_id < 0) {
           throw Error('Box out of bounds: ID ' + other_box_id);
@@ -345,7 +345,7 @@ Model.prototype.calculate_connectivity = function () {
   var cnt = 0;
   for (var i = 0; i < cubes.boxes.length; i++) {
     var box = cubes.boxes[i];
-    if (box.length === 0) { continue; }
+    if (box.length === 0) continue;
     var nearby_atoms = cubes.get_nearby_atoms(i);
     for (var a = 0; a < box.length; a++) {
       var atom_id = box[a];
@@ -385,4 +385,4 @@ Model.prototype.get_nearest_atom = function (x, y, z) {
 return Model;
 })();
 
-if (typeof module !== 'undefined') { module.exports = Model; }
+if (typeof module !== 'undefined') module.exports = Model;

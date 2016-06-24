@@ -12,6 +12,6 @@ var util = util || require('./util'); // eslint-disable-line
 
   util.bench('isosurface', function () {
     var bl = map.block;
-    var geometry = isosurface(bl.points, bl.values, bl.size, 1.0);
+    isosurface(bl.points, bl.values, bl.size, 1.0);
   });
 })();

@@ -13,7 +13,8 @@
     indent: [0, 2, {'SwitchCase': 1}]
     # relaxing rules
     brace-style: [2, '1tbs', {'allowSingleLine': true}]
-    max-statements-per-line: [ 2, {'max': 2}] # sometimes 2 is ok
+    max-statements-per-line: [2, {'max': 2}] # sometimes 2 is ok
+    curly: [2, 'multi-line', 'consistent']
     spaced-comment: 0  # comments are spaced, but not commented out code
     space-infix-ops: 0  # no space is useful for visual grouping
     no-path-concat: 0

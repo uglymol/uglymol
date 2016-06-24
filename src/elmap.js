@@ -233,4 +233,4 @@ ElMap.prototype.extract_block = function (radius, center) {
 return ElMap;
 })();
 
-if (typeof module !== 'undefined') { module.exports = ElMap; }
+if (typeof module !== 'undefined') module.exports = ElMap;

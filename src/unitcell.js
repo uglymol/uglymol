@@ -59,4 +59,4 @@ function UnitCell(a /*:number*/, b /*:number*/, c /*:number*/,
 return UnitCell;
 })();
 
-if (typeof module !== 'undefined') { module.exports = UnitCell; }
+if (typeof module !== 'undefined') module.exports = UnitCell;

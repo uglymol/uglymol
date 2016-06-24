@@ -361,7 +361,7 @@ function isosurface(points, values, size, isolevel) {
         var edge_mask = edgeTable[cubeindex];
 
         // if none are crossed, proceed to next iteration
-        if (edge_mask === 0) { continue; }
+        if (edge_mask === 0) continue;
         // check which edges are crossed, and estimate the point location
         //    using a weighted average of scalar values at edge endpoints.
         // store the vertex in an array for use later.
@@ -409,4 +409,4 @@ function isosurface(points, values, size, isolevel) {
 return isosurface;
 })();
 
-if (typeof module !== 'undefined') { module.exports = isosurface; }
+if (typeof module !== 'undefined') module.exports = isosurface;
