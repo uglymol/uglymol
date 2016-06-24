@@ -354,7 +354,7 @@ var CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
                   [0, 1, 1], [1, 1, 1]];
 
 var COLOR_SCHEMES = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
-var RENDER_STYLES = ['lines', 'trace', 'lines+balls'];
+var RENDER_STYLES = ['lines', 'trace', 'ribbon', 'lines+balls'];
 
 function rainbow_value(v, vmin, vmax) {
   var c = new THREE.Color(0xe0e0e0);
@@ -477,29 +477,55 @@ function make_bonds(model, params, ligands_only, ball_size) {
                    : [lines];
 }
 
-function make_trace(model, params) {
+function make_trace(model, params, smoothness) {
   var segments = model.extract_trace();
   var visible_atoms = [].concat.apply([], segments);
   var colors = color_by(params.color_scheme, visible_atoms);
   var k = 0;
-  var geometry = new THREE.Geometry();
-  for (var i = 0; i < segments.length; i++) {
-    for (var j = 0; j < segments[i].length - 1; j++) {
-      var xyz = segments[i][j].xyz;
-      var next_xyz = segments[i][j+1].xyz;
-      var color = colors[k];
-      k++;
-      geometry.vertices.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]),
-                    new THREE.Vector3(next_xyz[0], next_xyz[1], next_xyz[2]));
-      geometry.colors.push(color, color);
-    }
-    k++;  // for the last item of segments[i]
-  }
   var material = new THREE.LineBasicMaterial({
     vertexColors: THREE.VertexColors,
     linewidth: params.line_width
   });
-  return [new THREE.LineSegments(geometry, material)];
+  var lines = [];
+  for (var i = 0; i < segments.length; i++) {
+    var geom = make_segment_geometry(segments[i], colors, k, smoothness);
+    k += segments[i].length;
+    var line = new THREE.Line(geom, material);
+    lines.push(line);
+  }
+  return lines;
+}
+
+function make_segment_geometry(segment, colors, c_offset, smooth) {
+  var geometry = new THREE.Geometry();
+  var i, xyz;
+  if (!smooth || smooth < 2) {
+    for (i = 0; i < segment.length; i++) {
+      xyz = segment[i].xyz;
+      geometry.vertices.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]));
+      geometry.colors.push(colors[c_offset+i]);
+    }
+  } else {
+    var points = [];
+    for (i = 0; i < segment.length; i++) {
+      xyz = segment[i].xyz;
+      points.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]));
+    }
+    for (i = 0; i < segment.length - 1; i++) {
+      for (var j = 0; j < smooth; ++j) {
+        geometry.colors.push(colors[c_offset+i]);
+      }
+    }
+    geometry.colors.push(colors[c_offset+i]);
+    var curve = new THREE.CatmullRomCurve3(points);
+    geometry.vertices = curve.getPoints(geometry.colors.length - 1);
+  }
+  return geometry;
+}
+
+function make_ribbon(model, params) {
+  // for now it's not really a ribbon
+  return make_trace(model, params, 8);
 }
 
 // Add a representation of an unbonded atom as a cross to geometry
@@ -690,6 +716,10 @@ Viewer.prototype.set_atomic_objects = function (model_bag) {
       break;
     case 'trace':  // + lines for ligands
       model_bag.atomic_objects = [].concat(make_trace(model, conf),
+                                           make_bonds(model, conf, true));
+      break;
+    case 'ribbon':
+      model_bag.atomic_objects = [].concat(make_ribbon(model, conf),
                                            make_bonds(model, conf, true));
       break;
   }
