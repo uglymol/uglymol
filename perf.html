@@ -5,6 +5,11 @@
  <title>benchmarks for uglymol</title>
  <style>
    body { font: 18px sans-serif; }
+   a { text-color: #22b; text-decoration: none; }
+   li { list-style-type: circle; }
+   li:hover { list-style-type: disc; }
+   li.running a { background-color: #fa0; }
+   body.busy * { cursor: progress; }
  </style>
  <script src="node_modules/lodash/lodash.js"></script>
  <script src="node_modules/platform/platform.js"></script>
@@ -72,17 +77,30 @@
     },
     bench: function (name, fn, options) {
       var b = new Benchmark(name, fn, options);
-      b.on('start', function () { console.log('started ' + b.name); });
+      b.on('start', function () {
+        console.log('started ' + b.name);
+      });
       b.on('complete', function (event) {
         output(' ' + event.target);
       });
       b.on('error', function (event) {
+        document.body.classList.remove('busy');
         output(b.error, 'E');
       });
       b.fn(); // run once, for possible side effects
       var li = document.createElement('li');
-      li.innerHTML = ' <a href="#">' + b.name + '</a>';
-      li.onclick = function () { b.run(); return false; };
+      li.innerHTML = '<a href="#">' + b.name + '</a>';
+      li.firstChild.onclick = function () {
+        if (document.body.classList.contains('busy')) return false;
+        document.body.classList.add('busy');
+        li.classList.add('running');
+        setTimeout(function () {
+          b.run();
+          document.body.classList.remove('busy');
+          li.classList.remove('running');
+        }, 50);
+        return false;
+      };
       document.getElementById('run').appendChild(li);
       return b;
     }
