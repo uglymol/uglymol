@@ -4,8 +4,11 @@ var ElMap = ElMap || require('./elmap'); // eslint-disable-line
 var Model = Model || require('./model'); // eslint-disable-line
 var isosurface = isosurface || require('./isosurface'); // eslint-disable-line
 
-// colors are made global for easier tweaking in a browser
-var ColorSchemes = {
+var Viewer = (function () {
+'use strict';
+
+
+var ColorSchemes = { // accessible as Viewer.ColorSchemes
   dark: {
     bg: 0x000000,
     map_den: 0x3362B2,
@@ -46,61 +49,7 @@ var ColorSchemes = {
   }
 };
 
-var auto_speed = 1.0;
-
-var Viewer = (function () {
-'use strict';
-
-function set_colors(palette, o) {
-  var scheme = ColorSchemes[palette];
-  for (var key in scheme) {
-    if (o[key]) {
-      o[key].set(scheme[key]);
-    } else {
-      o[key] = new THREE.Color(scheme[key]);
-    }
-  }
-  o.name = palette;
-  return o;
-}
-
-var Colors = set_colors('dark', {});
-
-var initial_hud_text = null;
-
-function hud(text) {
-  var el = document.getElementById('hud');
-  if (el) {
-    if (initial_hud_text === null) {
-      initial_hud_text = el.textContent;
-    }
-    el.textContent = (text !== undefined ? text : initial_hud_text);
-  } else {
-    console.log('hud: ' + text);
-  }
-}
-
-var target = new THREE.Vector3();
-var raycaster = new THREE.Raycaster();
-var pickable_model = null;
-
-var selected_atom = null;
-
-function raycast_intersect(coords, camera) {
-  if (pickable_model === null) return null;
-  raycaster.setFromCamera(coords, camera);
-  raycaster.near = camera.near;
-  raycaster.far = camera.far - 0.2 * (camera.far - camera.near); // because fog
-  raycaster.linePrecision = 0.2;
-  return raycaster.intersectObjects(pickable_model.atomic_objects);
-}
-
-function pick_atom(coords, camera) {
-  var intersects = raycast_intersect(coords, camera);
-  if (intersects.length < 1) return null;
-  var p = intersects[0].point;
-  return pickable_model.model.get_nearest_atom(p.x, p.y, p.z);
-}
+var auto_speed = 1.0;  // accessible as Viewer.auto_speed
 
 // relative position on canvas in normalized device coordinates [-1, +1]
 function relX(evt) { return 2 * evt.pageX / window.innerWidth - 1; }
@@ -120,21 +69,21 @@ function project_on_ball(x, y) {
   return [x, y, z];  // guaranteed to be normalized
 }
 
-// for two-finger touch events
-function touch_info(evt) {
-  var touches = evt.touches;
-  var dx = touches[0].pageX - touches[1].pageX;
-  var dy = touches[0].pageY - touches[1].pageY;
-  return {pageX: (touches[0].pageX + touches[1].pageX) / 2,
-          pageY: (touches[0].pageY + touches[1].pageY) / 2,
-          dist: Math.sqrt(dx * dx + dy * dy)};
+var _raycaster;
+function get_raycaster(coords, camera) {
+  if (_raycaster === undefined) _raycaster = new THREE.Raycaster();
+  _raycaster.setFromCamera(coords, camera);
+  _raycaster.near = camera.near;
+  _raycaster.far = camera.far - 0.2 * (camera.far - camera.near); // 20% in fog
+  _raycaster.linePrecision = 0.2;
+  return _raycaster;
 }
 
 var STATE = {NONE: -1, ROTATE: 0, PAN: 1, ZOOM: 2, PAN_ZOOM: 3, SLAB: 4,
              ROLL: 5, AUTO_ROTATE: 6, GO: 7};
 
 // based on three.js/examples/js/controls/OrthographicTrackballControls.js
-var Controls = function (camera) {
+var Controls = function (camera, target) {
   var _state = STATE.NONE;
   var _rotate_start = new THREE.Vector3();
   var _rotate_end = new THREE.Vector3();
@@ -291,10 +240,10 @@ var Controls = function (camera) {
     }
   };
 
-  this.stop = function () {
+  this.stop = function (model_bag) {
     var atom = null;
-    if (_state === STATE.PAN && !_panned) {
-      atom = pick_atom(_pan_start, camera);
+    if (_state === STATE.PAN && !_panned && model_bag) {
+      atom = model_bag.pick_atom(get_raycaster(_pan_start, camera));
     }
     _state = STATE.NONE;
     _rotate_start.copy(_rotate_end);
@@ -340,6 +289,9 @@ var Controls = function (camera) {
   };
 };
 
+
+// constants
+
 var CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
                   [0, 0, 0], [0, 1, 0],
                   [0, 0, 0], [0, 0, 1],
@@ -353,7 +305,7 @@ var CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
                   [1, 1, 0], [1, 1, 1],
                   [0, 1, 1], [1, 1, 1]];
 
-var COLOR_SCHEMES = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
+var COLOR_AIMS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
 var RENDER_STYLES = ['lines', 'trace', 'ribbon', 'lines+balls'];
 
 function rainbow_value(v, vmin, vmax) {
@@ -366,7 +318,7 @@ function rainbow_value(v, vmin, vmax) {
   return c;
 }
 
-function color_by(style, atoms) {
+function color_by(style, atoms, elem_colors) {
   var color_func;
   var i;
   var last_atom = atoms[atoms.length-1];
@@ -396,7 +348,7 @@ function color_by(style, atoms) {
     };
   } else { // element
     color_func = function (atom) {
-      return Colors[atom.element] || Colors.def;
+      return elem_colors[atom.element] || elem_colors.def;
     };
   }
   var colors = [];
@@ -423,12 +375,12 @@ function make_balls(visible_atoms, colors, ball_size) {
   return new THREE.Points(pt_geometry, pt_material);
 }
 
-function make_bonds(model, params, ligands_only, ball_size) {
+function make_bonds(model, conf, ligands_only, ball_size) {
   //console.time('bonds');
   var visible_atoms = [];
   var all_atoms = model.atoms;
   var i;
-  if (!params.hydrogens && model.has_hydrogens) {
+  if (!conf.hydrogens && model.has_hydrogens) {
     for (i = 0; i < all_atoms.length; i++) {
       if (all_atoms[i].element !== 'H') {
         visible_atoms.push(all_atoms[i]);
@@ -437,12 +389,12 @@ function make_bonds(model, params, ligands_only, ball_size) {
   } else {
     visible_atoms = all_atoms;
   }
-  var color_style = ligands_only ? 'element' : params.color_scheme;
-  var colors = color_by(color_style, visible_atoms);
+  var color_style = ligands_only ? 'element' : conf.color_aim;
+  var colors = color_by(color_style, visible_atoms, conf.colors);
   var geometry = new THREE.Geometry();
-  var opt = { hydrogens: params.hydrogens,
+  var opt = { hydrogens: conf.hydrogens,
               ligands_only: ligands_only,
-              balls: params.render_style === 'lines+balls' };
+              balls: conf.render_style === 'lines+balls' };
   for (i = 0; i < visible_atoms.length; i++) {
     var atom = visible_atoms[i];
     var color = colors[i];
@@ -469,7 +421,7 @@ function make_bonds(model, params, ligands_only, ball_size) {
   //console.timeEnd('bonds');
   var material = new THREE.LineBasicMaterial({
     vertexColors: THREE.VertexColors,
-    linewidth: params.line_width
+    linewidth: conf.line_width
   });
   //console.log('make_bonds() vertex count: ' + geometry.vertices.length);
   var lines = new THREE.LineSegments(geometry, material);
@@ -477,14 +429,14 @@ function make_bonds(model, params, ligands_only, ball_size) {
                    : [lines];
 }
 
-function make_trace(model, params, smoothness) {
+function make_trace(model, conf, smoothness) {
   var segments = model.extract_trace();
   var visible_atoms = [].concat.apply([], segments);
-  var colors = color_by(params.color_scheme, visible_atoms);
+  var colors = color_by(conf.color_aim, visible_atoms, conf.colors);
   var k = 0;
   var material = new THREE.LineBasicMaterial({
     vertexColors: THREE.VertexColors,
-    linewidth: params.line_width
+    linewidth: conf.line_width
   });
   var lines = [];
   for (var i = 0; i < segments.length; i++) {
@@ -523,9 +475,9 @@ function make_segment_geometry(segment, colors, c_offset, smooth) {
   return geometry;
 }
 
-function make_ribbon(model, params) {
+function make_ribbon(model, conf) {
   // for now it's not really a ribbon
-  return make_trace(model, params, 8);
+  return make_trace(model, conf, 8);
 }
 
 // Add a representation of an unbonded atom as a cross to geometry
@@ -543,7 +495,7 @@ function add_isolated_atom(geometry, atom, color) {
   }
 }
 
-function make_center_cube(size, ctr) {
+function make_center_cube(size, ctr, color) {
   var geometry = new THREE.Geometry();
   for (var i = 0; i < CUBE_EDGES.length; i++) {
     var a = CUBE_EDGES[i];
@@ -552,12 +504,11 @@ function make_center_cube(size, ctr) {
     var z = ctr.z + size * (a[2] - 0.5);
     geometry.vertices.push(new THREE.Vector3(x, y, z));
   }
-  var material = new THREE.LineBasicMaterial({color: Colors.center,
-                                              linewidth: 2});
+  var material = new THREE.LineBasicMaterial({color: color, linewidth: 2});
   return new THREE.LineSegments(geometry, material);
 }
 
-function make_unitcell_box(uc) {
+function make_unitcell_box(uc, color) {
   if (!uc) {
     throw Error('Unit cell not defined!');
   }
@@ -572,23 +523,34 @@ function make_unitcell_box(uc) {
     new THREE.Color(0x0000ff), new THREE.Color(0x00aaff)
   );
   for (var j = 6; j < CUBE_EDGES.length; j++) {
-    geometry.colors.push(Colors.cell_box);
+    geometry.colors.push(color);
   }
   var material = new THREE.LineBasicMaterial({vertexColors:
                                                 THREE.VertexColors});
   return new THREE.LineSegments(geometry, material);
 }
 
-function Viewer(element_id) {
-  // options
-  // on Linux the same width gives different results in Chrome and FF
-  this.bond_line = 4.0; // for 700px height (in Coot it also depends on height)
-  this.map_line = 1.25;  // for any height
-  this.map_radius = 10.0;
+function set_colors(palette, o) {
+  var scheme = ColorSchemes[palette];
+  for (var key in scheme) {
+    if (o[key]) {
+      o[key].set(scheme[key]);
+    } else {
+      o[key] = new THREE.Color(scheme[key]);
+    }
+  }
+  o.name = palette;
+  return o;
+}
 
-  this.model_config = {
+function Viewer(element_id) {
+  this.config = {
+    bond_line: 4.0, // for 700px height (in Coot it also depends on height)
+    map_line: 1.25,  // for any height
+    map_radius: 10.0,
     render_style: 'lines',
-    color_scheme: 'element',
+    color_aim: 'element',
+    colors: set_colors('dark', {}),
     hydrogens: false,
     line_width: 0 // it will be set in resize()
   };
@@ -599,15 +561,20 @@ function Viewer(element_id) {
   this.decor = {cell_box: null, selection: null};
   this.nav = null;
 
+  this.last_ctr = new THREE.Vector3(Infinity, 0, 0);
+  this.initial_hud_text = null;
+  this.selected_atom = null;
+  this.pickable_model = null;
   this.scene = new THREE.Scene();
+  this.target = new THREE.Vector3();
   this.camera = new THREE.OrthographicCamera();
   this.scene.add(this.camera);
-  this.scene.fog = new THREE.Fog(Colors.bg, 0, 1);
+  this.scene.fog = new THREE.Fog(this.config.colors.bg, 0, 1);
   if (typeof document === 'undefined') { // for testing on node
     return;
   }
   this.renderer = new THREE.WebGLRenderer({antialias: true});
-  this.renderer.setClearColor(Colors.bg, 1);
+  this.renderer.setClearColor(this.config.colors.bg, 1);
   this.renderer.setPixelRatio(window.devicePixelRatio);
   this.resize();
   this.camera.zoom = this.camera.right / 35.0;
@@ -616,7 +583,7 @@ function Viewer(element_id) {
     return;
   }
   container.appendChild(this.renderer.domElement);
-  this.controls = new Controls(this.camera);
+  this.controls = new Controls(this.camera, this.target);
 
   this.light = new THREE.AmbientLight(0xffffff);
   this.scene.add(this.light);
@@ -646,12 +613,24 @@ function Viewer(element_id) {
   this.mouseup = function (event) {
     event.preventDefault();
     event.stopPropagation();
-    self.controls.stop();
+    self.controls.stop(self.pickable_model);
     document.removeEventListener('mousemove', self.mousemove);
     document.removeEventListener('mouseup', self.mouseup);
     self.redraw_maps();
   };
 }
+
+Viewer.prototype.hud = function (text) {
+  var el = document.getElementById('hud');
+  if (el) {
+    if (this.initial_hud_text === null) {
+      this.initial_hud_text = el.textContent;
+    }
+    el.textContent = (text !== undefined ? text : this.initial_hud_text);
+  } else {
+    console.log('hud: ' + text);
+  }
+};
 
 Viewer.prototype.toggle_help = function () {
   var el = document.getElementById('help');
@@ -660,25 +639,22 @@ Viewer.prototype.toggle_help = function () {
   }
 };
 
-Viewer.prototype.redraw_center = (function () {
-  var prev = new THREE.Vector3(Infinity, 0, 0);
-  return function () {
-    if (target.distanceToSquared(prev) > 0.0001) {
-      prev.copy(target);
-      if (this.mark) {
-        this.scene.remove(this.mark);
-      }
-      this.mark = make_center_cube(0.1, target);
-      this.scene.add(this.mark);
+Viewer.prototype.redraw_center = function () {
+  if (this.target.distanceToSquared(this.last_ctr) > 0.0001) {
+    this.last_ctr.copy(this.target);
+    if (this.mark) {
+      this.scene.remove(this.mark);
     }
-  };
-})();
+    this.mark = make_center_cube(0.1, this.target, this.config.colors.center);
+    this.scene.add(this.mark);
+  }
+};
 
 Viewer.prototype.redraw_maps = function (force) {
   this.redraw_center();
   for (var i = 0; i < this.map_bags.length; i++) {
     var map_bag = this.map_bags[i];
-    if (force || target.distanceToSquared(map_bag.block_ctr) > 0.01) {
+    if (force || this.target.distanceToSquared(map_bag.block_ctr) > 0.01) {
       this.clear_el_objects(map_bag);
       map_bag.map.block = null;
       this.add_el_objects(map_bag);
@@ -726,7 +702,7 @@ Viewer.prototype.set_atomic_objects = function (model_bag) {
   for (var i = 0; i < model_bag.atomic_objects.length; i++) {
     this.scene.add(model_bag.atomic_objects[i]);
   }
-  pickable_model = model_bag;
+  this.pickable_model = model_bag;
 };
 
 Viewer.prototype.toggle_map_visibility = function (map_bag, visible) {
@@ -764,8 +740,9 @@ Viewer.prototype.redraw_models = function () {
 Viewer.prototype.add_el_objects = function (map_bag) {
   if (!map_bag.visible) return;
   if (!map_bag.map.block) {
-    map_bag.block_ctr.copy(target);
-    map_bag.map.extract_block(this.map_radius, [target.x, target.y, target.z]);
+    map_bag.block_ctr.copy(this.target);
+    map_bag.map.extract_block(this.config.map_radius,
+                              [this.target.x, this.target.y, this.target.z]);
   }
   for (var i = 0; i < map_bag.types.length; i++) {
     var mtype = map_bag.types[i];
@@ -774,9 +751,9 @@ Viewer.prototype.add_el_objects = function (map_bag) {
     var bl = map_bag.map.block;
     var geometry = isosurface(bl.points, bl.values, bl.size, abs_level);
     var material = new THREE.MeshBasicMaterial({
-      color: Colors[mtype],
+      color: this.config.colors[mtype],
       wireframe: true,
-      wireframeLinewidth: this.map_line
+      wireframeLinewidth: this.config.map_line
     });
     var mesh = new THREE.Mesh(geometry, material);
     map_bag.el_objects.push(mesh);
@@ -789,8 +766,8 @@ Viewer.prototype.change_isolevel_by = function (map_idx, delta) {
   var map_bag = this.map_bags[map_idx];
   map_bag.isolevel += delta;
   var abs_level = map_bag.map.abs_level(map_bag.isolevel);
-  hud('map ' + (map_idx+1) + ' level =  ' + abs_level.toFixed(4) +
-      'e/A^3 (' + map_bag.isolevel.toFixed(2) + ' rmsd)');
+  this.hud('map ' + (map_idx+1) + ' level =  ' + abs_level.toFixed(4) +
+           'e/A^3 (' + map_bag.isolevel.toFixed(2) + ' rmsd)');
   //TODO: move slow part into update()
   this.clear_el_objects(map_bag);
   this.add_el_objects(map_bag);
@@ -810,28 +787,28 @@ Viewer.prototype.toggle_cell_box = function () {
       uc = this.map_bags[0].map.unit_cell;
     }
     if (uc) {
-      this.decor.cell_box = make_unitcell_box(uc);
+      this.decor.cell_box = make_unitcell_box(uc, this.config.colors.cell_box);
       this.scene.add(this.decor.cell_box);
     }
   }
 };
 
 Viewer.prototype.shift_clip = function (away) {
-  var eye = this.camera.position.clone().sub(target).setLength(1);
+  var eye = this.camera.position.clone().sub(this.target).setLength(1);
   if (!away) {
     eye.negate();
   }
-  target.add(eye);
+  this.target.add(eye);
   this.camera.position.add(eye);
   this.update_camera();
   this.redraw_maps();
-  hud('clip shifted by [' + eye.x.toFixed(2) + ' ' + eye.y.toFixed(2) +
-      ' ' + eye.z.toFixed(2) + ']');
+  this.hud('clip shifted by [' + eye.x.toFixed(2) + ' ' + eye.y.toFixed(2) +
+           ' ' + eye.z.toFixed(2) + ']');
 };
 
 Viewer.prototype.redraw_all = function () {
-  this.scene.fog.color = Colors.bg;
-  this.renderer.setClearColor(Colors.bg, 1);
+  this.scene.fog.color = this.config.colors.bg;
+  this.renderer.setClearColor(this.config.colors.bg, 1);
   this.redraw_models();
   this.redraw_maps(true);
 };
@@ -844,20 +821,19 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
   var key = evt.keyCode;
   switch (key) {
     case 84:  // t
-      this.model_config.render_style = next(this.model_config.render_style,
-                                            RENDER_STYLES);
-      hud('rendering as ' + this.model_config.render_style);
+      this.config.render_style = next(this.config.render_style, RENDER_STYLES);
+      this.hud('rendering as ' + this.config.render_style);
       this.redraw_models();
       break;
     case 67:  // c
       if (evt.shiftKey) {
-        set_colors(next(Colors.name, Object.keys(ColorSchemes)), Colors);
-        hud('color scheme: ' + Colors.name);
+        set_colors(next(this.config.colors.name, Object.keys(ColorSchemes)),
+                   this.config.colors);
+        this.hud('color scheme: ' + this.config.colors.name);
         this.redraw_all();
       } else { // color-by
-        this.model_config.color_scheme = next(this.model_config.color_scheme,
-                                              COLOR_SCHEMES);
-        hud('coloring by ' + this.model_config.color_scheme);
+        this.config.color_aim = next(this.config.color_aim, COLOR_AIMS);
+        this.hud('coloring by ' + this.config.color_aim);
         this.redraw_models();
       }
       break;
@@ -875,13 +851,13 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
     case 70:  // f
       this.controls.change_slab_width(key === 68 ? -0.1 : +0.1);
       this.update_camera();
-      hud('clip width: ' + (this.camera.far - this.camera.near).toFixed(1));
+      this.hud('clip width: ' + (this.camera.far-this.camera.near).toFixed(1));
       break;
     case 77:  // m
     case 78:  // n
       this.camera.zoom *= (key === 77 ? 1.03 : (1 / 1.03));
       this.update_camera();
-      hud('zoom: ' + this.camera.zoom.toFixed(2));
+      this.hud('zoom: ' + this.camera.zoom.toFixed(2));
       break;
     case 51:  // 3
     case 99:  // numpad 3
@@ -892,19 +868,19 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       this.shift_clip(false);
       break;
     case 85:  // u
-      hud('toggled unit cell box');
+      this.hud('toggled unit cell box');
       this.toggle_cell_box();
       break;
     case 73:  // i
-      hud('toggled camera movement');
+      this.hud('toggled camera movement');
       this.controls.toggle_state(STATE.AUTO_ROTATE, {rock: evt.shiftKey});
       break;
     case 82:  // r
       if (evt.shiftKey) {
-        hud('redraw!');
+        this.hud('redraw!');
         this.redraw_all();
       } else {
-        hud('model recentered');
+        this.hud('model recentered');
         this.recenter();
       }
       break;
@@ -913,10 +889,10 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       break;
     case 36: // Home
     case 35: // End
-      this.bond_line += (key === 36 ? 0.2 : -0.2);
-      this.bond_line = Math.max(this.bond_line, 0.1);
+      this.config.bond_line += (key === 36 ? 0.2 : -0.2);
+      this.config.bond_line = Math.max(this.config.bond_line, 0.1);
       this.resize(); // overkill
-      hud('bond width: ' + this.model_config.line_width.toFixed(1));
+      this.hud('bond width: ' + this.config.line_width.toFixed(1));
       break;
     case 16: // shift
     case 17: // ctrl
@@ -927,7 +903,7 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       this.center_next_residue(evt.shiftKey);
       break;
     default:
-      hud('Nothing here. Press H for help.');
+      this.hud('Nothing here. Press H for help.');
       break;
   }
 };
@@ -963,12 +939,15 @@ Viewer.prototype.dblclick = function (event) {
     this.decor.selection = null;
   }
   var mouse = new THREE.Vector2(relX(event), relY(event));
-  var atom = pick_atom(mouse, this.camera);
-  if (atom !== null) {
-    hud(atom.long_label());
+  var atom;
+  if (this.pickable_model !== null) {
+    atom = this.pickable_model.pick_atom(get_raycaster(mouse, this.camera));
+  }
+  if (atom) {
+    this.hud(atom.long_label());
     this.set_selection(atom);
   } else {
-    hud();
+    this.hud();
   }
 };
 
@@ -976,11 +955,21 @@ Viewer.prototype.set_selection = function (atom) {
   var geometry = new THREE.Geometry();
   geometry.vertices.push(new THREE.Vector3(atom.xyz[0], atom.xyz[1],
                                            atom.xyz[2]));
-  var color = Colors[atom.element] || Colors.def;
+  var color = this.config.colors[atom.element] || this.config.colors.def;
   var material = new THREE.PointsMaterial({size: 3, color: color});
   this.decor.selection = new THREE.Points(geometry, material);
   this.scene.add(this.decor.selection);
 };
+
+// for two-finger touch events
+function touch_info(evt) {
+  var touches = evt.touches;
+  var dx = touches[0].pageX - touches[1].pageX;
+  var dy = touches[0].pageY - touches[1].pageY;
+  return {pageX: (touches[0].pageX + touches[1].pageX) / 2,
+          pageY: (touches[0].pageY + touches[1].pageY) / 2,
+          dist: Math.sqrt(dx * dx + dy * dy)};
+}
 
 Viewer.prototype.touchstart = function (event) {
   var touches = event.touches;
@@ -1027,9 +1016,9 @@ Viewer.prototype.resize = function (/*evt*/) {
   this.camera.bottom = -height;
   this.camera.updateProjectionMatrix();
   this.renderer.setSize(width, height);
-  var line_width = this.bond_line * height / 700;
-  if (line_width !== this.model_config.line_width) {
-    this.model_config.line_width = line_width;
+  var line_width = this.config.bond_line * height / 700;
+  if (line_width !== this.config.line_width) {
+    this.config.line_width = line_width;
     this.redraw_models();
   }
 };
@@ -1047,18 +1036,18 @@ Viewer.prototype.recenter = function (xyz, steps) {
 };
 
 Viewer.prototype.center_next_residue = function (back) {
-  if (!pickable_model) return;
-  var a = pickable_model.model.next_residue(selected_atom, back);
+  if (!this.pickable_model) return;
+  var a = this.pickable_model.model.next_residue(this.selected_atom, back);
   if (a) {
-    hud('-> ' + a.long_label());
+    this.hud('-> ' + a.long_label());
     this.controls.go_to(new THREE.Vector3(a.xyz[0], a.xyz[1], a.xyz[2]),
                         null, null, 30 / auto_speed);
-    selected_atom = a;
+    this.selected_atom = a;
   }
 };
 
 Viewer.prototype.update_camera = function () {
-  var dxyz = this.camera.position.distanceTo(target);
+  var dxyz = this.camera.position.distanceTo(this.target);
   // the far plane is more distant from the target than the near plane (3:1)
   var w = 0.25 * this.controls.slab_width() / this.camera.zoom;
   this.camera.near = dxyz * (1 - w);
@@ -1094,31 +1083,29 @@ Viewer.prototype.render = function render() {
   }
 };
 
-Viewer.prototype.add_map_bag = function (map, is_diff_map) {
-  var map_bag = {
-    map: map,
-    name: '',
-    isolevel: is_diff_map ? 3.0 : 1.5,
-    visible: true,
-    types: is_diff_map ? ['map_pos', 'map_neg'] : ['map_den'],
-    block_ctr: new THREE.Vector3(Infinity, 0, 0),
-    el_objects: []  // three.js objects
-  };
-  this.map_bags.push(map_bag);
-  //this.add_el_objects(map_bag);
-  //this.update_camera();
-};
+function MapBag(map, is_diff_map) {
+  this.map = map;
+  this.name = '';
+  this.isolevel = is_diff_map ? 3.0 : 1.5;
+  this.visible = true;
+  this.types = is_diff_map ? ['map_pos', 'map_neg'] : ['map_den'];
+  this.block_ctr = new THREE.Vector3(Infinity, 0, 0);
+  this.el_objects = []; // three.js objects
+}
 
-Viewer.prototype.add_model_bag = function (model) {
-  var model_bag = {
-    model: model,
-    name: '',
-    visible: true,
-    conf: this.model_config,
-    atomic_objects: null // list of three.js objects
-  };
-  this.model_bags.push(model_bag);
-  this.set_atomic_objects(model_bag);
+function ModelBag(model, config) {
+  this.model = model;
+  this.name = '';
+  this.visible = true;
+  this.conf = config;
+  this.atomic_objects = null; // list of three.js objects
+}
+
+ModelBag.prototype.pick_atom = function (raycaster) {
+  var intersects = raycaster.intersectObjects(this.atomic_objects);
+  if (intersects.length < 1) return null;
+  var p = intersects[0].point;
+  return this.model.get_nearest_atom(p.x, p.y, p.z);
 };
 
 Viewer.prototype.load_pdb = function (url) {
@@ -1131,7 +1118,9 @@ Viewer.prototype.load_pdb = function (url) {
       if (req.status === 200 || req.status === 0) {
         var model = new Model();
         model.from_pdb(req.responseText);
-        self.add_model_bag(model);
+        var model_bag = new ModelBag(model, self.config);
+        self.model_bags.push(model_bag);
+        self.set_atomic_objects(model_bag);
         self.recenter(null, 1);
       } else {
         console.log('Error fetching ' + url);
@@ -1158,7 +1147,10 @@ Viewer.prototype.load_map = function (url, is_diff_map, filetype) {
           throw Error('Unknown map filetype.');
         }
         //map.show_debug_info();
-        self.add_map_bag(map, is_diff_map);
+        var map_bag = new MapBag(map, is_diff_map);
+        self.map_bags.push(map_bag);
+        //self.add_el_objects(map_bag);
+        //self.update_camera();
         self.redraw_maps();
       } else {
         console.log('Error fetching ' + url);
@@ -1186,6 +1178,9 @@ Viewer.prototype.show_nav = function (inset_id) {
   this.nav = nav;
 };
 */
+
+Viewer.ColorSchemes = ColorSchemes;
+Viewer.auto_speed = auto_speed;
 
 return Viewer;
 })();
