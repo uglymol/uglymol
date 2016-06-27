@@ -10,16 +10,16 @@ var Viewer = Viewer || require('../src/viewer.js'); // eslint-disable-line
   var viewer = new Viewer();
   var model = new Model();
   model.from_pdb(pdb_string);
-  viewer.add_model_bag(model);
+  viewer.set_model(model);
 
   util.bench('make_trace', function () {
-    viewer.model_config.render_style = 'trace';
+    viewer.config.render_style = 'trace';
     viewer.set_atomic_objects(viewer.model_bags[0]);
     viewer.clear_atomic_objects(viewer.model_bags[0]);
   });
 
   util.bench('make_bonds', function () {
-    viewer.model_config.render_style = 'lines';
+    viewer.config.render_style = 'lines';
     viewer.set_atomic_objects(viewer.model_bags[0]);
     viewer.clear_atomic_objects(viewer.model_bags[0]);
   });

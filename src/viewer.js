@@ -82,6 +82,7 @@ function get_raycaster(coords, camera) {
 var STATE = {NONE: -1, ROTATE: 0, PAN: 1, ZOOM: 2, PAN_ZOOM: 3, SLAB: 4,
              ROLL: 5, AUTO_ROTATE: 6, GO: 7};
 
+
 // based on three.js/examples/js/controls/OrthographicTrackballControls.js
 var Controls = function (camera, target) {
   var _state = STATE.NONE;
@@ -543,6 +544,34 @@ function set_colors(palette, o) {
   return o;
 }
 
+
+function MapBag(map, is_diff_map) {
+  this.map = map;
+  this.name = '';
+  this.isolevel = is_diff_map ? 3.0 : 1.5;
+  this.visible = true;
+  this.types = is_diff_map ? ['map_pos', 'map_neg'] : ['map_den'];
+  this.block_ctr = new THREE.Vector3(Infinity, 0, 0);
+  this.el_objects = []; // three.js objects
+}
+
+
+function ModelBag(model, config) {
+  this.model = model;
+  this.name = '';
+  this.visible = true;
+  this.conf = config;
+  this.atomic_objects = null; // list of three.js objects
+}
+
+ModelBag.prototype.pick_atom = function (raycaster) {
+  var intersects = raycaster.intersectObjects(this.atomic_objects);
+  if (intersects.length < 1) return null;
+  var p = intersects[0].point;
+  return this.model.get_nearest_atom(p.x, p.y, p.z);
+};
+
+
 function Viewer(element_id) {
   this.config = {
     bond_line: 4.0, // for 700px height (in Coot it also depends on height)
@@ -570,6 +599,10 @@ function Viewer(element_id) {
   this.camera = new THREE.OrthographicCamera();
   this.scene.add(this.camera);
   this.scene.fog = new THREE.Fog(this.config.colors.bg, 0, 1);
+  this.light = new THREE.AmbientLight(0xffffff);
+  this.scene.add(this.light);
+  this.controls = new Controls(this.camera, this.target);
+
   if (typeof document === 'undefined') { // for testing on node
     return;
   }
@@ -583,10 +616,6 @@ function Viewer(element_id) {
     return;
   }
   container.appendChild(this.renderer.domElement);
-  this.controls = new Controls(this.camera, this.target);
-
-  this.light = new THREE.AmbientLight(0xffffff);
-  this.scene.add(this.light);
 
   window.addEventListener('resize', this.resize.bind(this));
   window.addEventListener('keydown', this.keydown.bind(this));
@@ -702,7 +731,6 @@ Viewer.prototype.set_atomic_objects = function (model_bag) {
   for (var i = 0; i < model_bag.atomic_objects.length; i++) {
     this.scene.add(model_bag.atomic_objects[i]);
   }
-  this.pickable_model = model_bag;
 };
 
 Viewer.prototype.toggle_map_visibility = function (map_bag, visible) {
@@ -1083,29 +1111,12 @@ Viewer.prototype.render = function render() {
   }
 };
 
-function MapBag(map, is_diff_map) {
-  this.map = map;
-  this.name = '';
-  this.isolevel = is_diff_map ? 3.0 : 1.5;
-  this.visible = true;
-  this.types = is_diff_map ? ['map_pos', 'map_neg'] : ['map_den'];
-  this.block_ctr = new THREE.Vector3(Infinity, 0, 0);
-  this.el_objects = []; // three.js objects
-}
-
-function ModelBag(model, config) {
-  this.model = model;
-  this.name = '';
-  this.visible = true;
-  this.conf = config;
-  this.atomic_objects = null; // list of three.js objects
-}
-
-ModelBag.prototype.pick_atom = function (raycaster) {
-  var intersects = raycaster.intersectObjects(this.atomic_objects);
-  if (intersects.length < 1) return null;
-  var p = intersects[0].point;
-  return this.model.get_nearest_atom(p.x, p.y, p.z);
+Viewer.prototype.set_model = function (model) {
+  var model_bag = new ModelBag(model, this.config);
+  this.model_bags.push(model_bag);
+  this.set_atomic_objects(model_bag);
+  this.pickable_model = model_bag;
+  this.recenter(null, 1);
 };
 
 Viewer.prototype.load_pdb = function (url) {
@@ -1118,10 +1129,7 @@ Viewer.prototype.load_pdb = function (url) {
       if (req.status === 200 || req.status === 0) {
         var model = new Model();
         model.from_pdb(req.responseText);
-        var model_bag = new ModelBag(model, self.config);
-        self.model_bags.push(model_bag);
-        self.set_atomic_objects(model_bag);
-        self.recenter(null, 1);
+        self.set_model(model);
       } else {
         console.log('Error fetching ' + url);
       }
