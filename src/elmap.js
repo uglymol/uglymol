@@ -116,14 +116,69 @@ ElMap.prototype.from_ccp4 = function (buf) {
       }
     }
   }
+  if (nsymbt > 0) {
+    var u8view = new Uint8Array(buf);
+    for (var i = 0; i+80 <= nsymbt; i += 80) {
+      var j;
+      var symop = '';
+      for (j = 0; j < 80; ++j) {
+        symop += String.fromCharCode(u8view[1024 + i + j]);
+      }
+      if (/^\s*x\s*,\s*y\s*,\s*z\s*$/i.test(symop)) continue;  // skip x,y,z
+      //console.log('sym ops', symop.trim());
+      var mat = parse_symop(symop);
+      // We apply here symops to grid points instead of coordinates.
+      // In the cases we came across it is equivalent, but in general not.
+      for (j = 0; j < 3; ++j) {
+        mat[j][3] = Math.round(mat[j][3] * n_grid[j]) | 0;
+      }
+      idx = 256 + nsymbt / 4 | 0;
+      var xyz = [0, 0, 0];
+      for (it[2] = start[2]; it[2] < end[2]; it[2]++) { // sections
+        for (it[1] = start[1]; it[1] < end[1]; it[1]++) { // rows
+          for (it[0] = start[0]; it[0] < end[0]; it[0]++) { // cols
+            for (j = 0; j < 3; ++j) {
+              xyz[j] = it[ax] * mat[j][0] + it[ay] * mat[j][1] +
+                       it[az] * mat[j][2] + mat[j][3];
+            }
+            this.grid.set_grid_value(xyz[0], xyz[1], xyz[2], fview[idx]);
+            idx++;
+          }
+        }
+      }
+    }
+  }
 };
+
+// symop -> matrix ([x,y,z] = matrix * [x,y,z,1])
+function parse_symop(symop) {
+  var ops = symop.toLowerCase().replace(/\s+/g, '').split(',');
+  if (ops.length !== 3) throw Error('Unexpected symop: ' + symop);
+  var mat = [];
+  for (var i = 0; i < 3; i++) {
+    var terms = ops[i].split(/(?=[+-])/);
+    var row = [0, 0, 0, 0];
+    for (var j = 0; j < terms.length; j++) {
+      var term = terms[j];
+      var sign = (term[0] === '-' ? -1 : 1);
+      var m = terms[j].match(/^[+-]?([xyz])$/);
+      if (m) {
+        var pos = {x: 0, y: 1, z: 2}[m[1]];
+        row[pos] = sign;
+      } else {
+        m = terms[j].match(/^[+-]?(\d)\/(\d)$/);
+        if (!m) throw Error('What is ' + terms[j] + ' in ' + symop);
+        row[3] = sign * Number(m[1]) / Number(m[2]);
+      }
+    }
+    mat.push(row);
+  }
+  return mat;
+}
 
 // DSN6 MAP FORMAT
 // http://www.uoxray.uoregon.edu/tnt/manual/node104.html
-// This format is much different from CCP4/MRC maps, and was obviously
-// designed for vastly more primitive computers.  Since density values are
-// stored as bytes rather than (4-byte) floates, it has the big advantage
-// of being significantly more compact than CCP4 maps.
+// Density values are stored as bytes.
 ElMap.prototype.from_dsn6 = function (buf) {
   //console.log('buf type: ' + Object.prototype.toString.call(buf));
   var u8data = new Uint8Array(buf);
