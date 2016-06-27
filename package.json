@@ -3,7 +3,12 @@
   "version": "0.0.0",
   "description": "Macromolecular viewer for crystallographers used to coot",
   "homepage": "https://uglymol.github.io",
-  "main": "src/viewer.js",
+  "main": "uglymol.js",
+  "files": [
+    "uglymol.js",
+    "uglymol.min.js",
+    "src"
+  ],
   "dependencies": {
     "three": "~0.78.0"
   },
@@ -12,11 +17,18 @@
     "chai": "^3.5.0",
     "eslint": "^2.13.1",
     "eslint-config-xo": "^0.15.2",
-    "mocha": "^2.5.3"
+    "mocha": "^2.5.3",
+    "uglify-js": "^2.6.4"
   },
   "scripts": {
     "test": "mocha ||:",
-    "lint": "eslint src test perf ||:"
+    "lint": "eslint src test perf ||:",
+    "build:concat": "cat src/unitcell.js src/model.js src/elmap.js src/isosurface.js src/viewer.js > uglymol.js",
+    "build:uglify": "uglifyjs uglymol.js -o uglymol.min.js",
+    "build": "npm run build:concat && npm run build:uglify",
+    "prepublish": "npm run build",
+    "prebuild": "npm test",
+    "pretest": "npm run lint"
   },
   "repository": {
     "type": "git",
