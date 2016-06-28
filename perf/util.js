@@ -1,11 +1,25 @@
 'use strict';
 // Node.js only
 
+var child_process = require('child_process');
 var fs = require('fs');
 var Benchmark = require('benchmark');
 
 function data_path(filename) {
-  return __dirname + '/../data/' + filename;
+  var path = __dirname + '/../data/' + filename;
+  try {
+    fs.statSync(path);
+  } catch (e) {
+    console.log('we need to download ' + filename + ' (only once)');
+    var url = 'http://uglymol.github.io/data/' + filename;
+    var cmd = 'curl ' + url + ' -o ' + path;
+    if (!child_process.execSync) {
+      console.log('no execSync (in Node v0.11.12+), you need to:\n' + cmd);
+      process.exit(1);
+    }
+    child_process.execSync(cmd);
+  }
+  return path;
 }
 
 exports.open_as_utf8 = function (filename) {
