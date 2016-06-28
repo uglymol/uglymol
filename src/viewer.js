@@ -309,6 +309,41 @@ var CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
 var COLOR_AIMS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
 var RENDER_STYLES = ['lines', 'trace', 'ribbon', 'lines+balls'];
 
+function make_center_cube(size, ctr, color) {
+  var geometry = new THREE.Geometry();
+  for (var i = 0; i < CUBE_EDGES.length; i++) {
+    var a = CUBE_EDGES[i];
+    var x = ctr.x + size * (a[0] - 0.5);
+    var y = ctr.y + size * (a[1] - 0.5);
+    var z = ctr.z + size * (a[2] - 0.5);
+    geometry.vertices.push(new THREE.Vector3(x, y, z));
+  }
+  var material = new THREE.LineBasicMaterial({color: color, linewidth: 2});
+  return new THREE.LineSegments(geometry, material);
+}
+
+function make_unitcell_box(uc, color) {
+  if (!uc) {
+    throw Error('Unit cell not defined!');
+  }
+  var geometry = new THREE.Geometry();
+  for (var i = 0; i < CUBE_EDGES.length; i++) {
+    var xyz = uc.orthogonalize(CUBE_EDGES[i]);
+    geometry.vertices.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]));
+  }
+  geometry.colors.push(
+    new THREE.Color(0xff0000), new THREE.Color(0xffaa00),
+    new THREE.Color(0x00ff00), new THREE.Color(0xaaff00),
+    new THREE.Color(0x0000ff), new THREE.Color(0x00aaff)
+  );
+  for (var j = 6; j < CUBE_EDGES.length; j++) {
+    geometry.colors.push(color);
+  }
+  var material = new THREE.LineBasicMaterial({vertexColors:
+                                                THREE.VertexColors});
+  return new THREE.LineSegments(geometry, material);
+}
+
 function rainbow_value(v, vmin, vmax) {
   var c = new THREE.Color(0xe0e0e0);
   if (vmin < vmax) {
@@ -376,79 +411,6 @@ function make_balls(visible_atoms, colors, ball_size) {
   return new THREE.Points(pt_geometry, pt_material);
 }
 
-function make_bonds(model, conf, ligands_only, ball_size) {
-  //console.time('bonds');
-  var visible_atoms = [];
-  var all_atoms = model.atoms;
-  var i;
-  if (!conf.hydrogens && model.has_hydrogens) {
-    for (i = 0; i < all_atoms.length; i++) {
-      if (all_atoms[i].element !== 'H') {
-        visible_atoms.push(all_atoms[i]);
-      }
-    }
-  } else {
-    visible_atoms = all_atoms;
-  }
-  var color_style = ligands_only ? 'element' : conf.color_aim;
-  var colors = color_by(color_style, visible_atoms, conf.colors);
-  var geometry = new THREE.Geometry();
-  var opt = { hydrogens: conf.hydrogens,
-              ligands_only: ligands_only,
-              balls: conf.render_style === 'lines+balls' };
-  for (i = 0; i < visible_atoms.length; i++) {
-    var atom = visible_atoms[i];
-    var color = colors[i];
-    if (ligands_only && !atom.is_ligand) continue;
-    if (atom.bonds.length === 0 && !opt.balls) { // nonbonded, draw star
-      add_isolated_atom(geometry, atom, color);
-    } else { // bonded, draw lines
-      for (var j = 0; j < atom.bonds.length; j++) {
-        // TODO: one line per bond (not trivial, because coloring)
-        var other = model.atoms[atom.bonds[j]];
-        if (!opt.hydrogens && other.element === 'H') continue;
-        if (opt.ligands_only && !other.is_ligand) continue;
-        var mid = atom.midpoint(other);
-        var vmid = new THREE.Vector3(mid[0], mid[1], mid[2]);
-        var vatom = new THREE.Vector3(atom.xyz[0], atom.xyz[1], atom.xyz[2]);
-        if (opt.balls) {
-          vatom.lerp(vmid, 0.3); // TODO: use ball_size
-        }
-        geometry.vertices.push(vatom, vmid);
-        geometry.colors.push(color, color);
-      }
-    }
-  }
-  //console.timeEnd('bonds');
-  var material = new THREE.LineBasicMaterial({
-    vertexColors: THREE.VertexColors,
-    linewidth: conf.line_width
-  });
-  //console.log('make_bonds() vertex count: ' + geometry.vertices.length);
-  var lines = new THREE.LineSegments(geometry, material);
-  return opt.balls ? [lines, make_balls(visible_atoms, colors, ball_size)]
-                   : [lines];
-}
-
-function make_trace(model, conf, smoothness) {
-  var segments = model.extract_trace();
-  var visible_atoms = [].concat.apply([], segments);
-  var colors = color_by(conf.color_aim, visible_atoms, conf.colors);
-  var k = 0;
-  var material = new THREE.LineBasicMaterial({
-    vertexColors: THREE.VertexColors,
-    linewidth: conf.line_width
-  });
-  var lines = [];
-  for (var i = 0; i < segments.length; i++) {
-    var geom = make_segment_geometry(segments[i], colors, k, smoothness);
-    k += segments[i].length;
-    var line = new THREE.Line(geom, material);
-    lines.push(line);
-  }
-  return lines;
-}
-
 function make_segment_geometry(segment, colors, c_offset, smooth) {
   var geometry = new THREE.Geometry();
   var i, xyz;
@@ -476,11 +438,6 @@ function make_segment_geometry(segment, colors, c_offset, smooth) {
   return geometry;
 }
 
-function make_ribbon(model, conf) {
-  // for now it's not really a ribbon
-  return make_trace(model, conf, 8);
-}
-
 // Add a representation of an unbonded atom as a cross to geometry
 function add_isolated_atom(geometry, atom, color) {
   var c = atom.xyz;
@@ -494,41 +451,6 @@ function add_isolated_atom(geometry, atom, color) {
   for (var i = 0; i < 6; i++) {
     geometry.colors.push(color);
   }
-}
-
-function make_center_cube(size, ctr, color) {
-  var geometry = new THREE.Geometry();
-  for (var i = 0; i < CUBE_EDGES.length; i++) {
-    var a = CUBE_EDGES[i];
-    var x = ctr.x + size * (a[0] - 0.5);
-    var y = ctr.y + size * (a[1] - 0.5);
-    var z = ctr.z + size * (a[2] - 0.5);
-    geometry.vertices.push(new THREE.Vector3(x, y, z));
-  }
-  var material = new THREE.LineBasicMaterial({color: color, linewidth: 2});
-  return new THREE.LineSegments(geometry, material);
-}
-
-function make_unitcell_box(uc, color) {
-  if (!uc) {
-    throw Error('Unit cell not defined!');
-  }
-  var geometry = new THREE.Geometry();
-  for (var i = 0; i < CUBE_EDGES.length; i++) {
-    var xyz = uc.orthogonalize(CUBE_EDGES[i]);
-    geometry.vertices.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]));
-  }
-  geometry.colors.push(
-    new THREE.Color(0xff0000), new THREE.Color(0xffaa00),
-    new THREE.Color(0x00ff00), new THREE.Color(0xaaff00),
-    new THREE.Color(0x0000ff), new THREE.Color(0x00aaff)
-  );
-  for (var j = 6; j < CUBE_EDGES.length; j++) {
-    geometry.colors.push(color);
-  }
-  var material = new THREE.LineBasicMaterial({vertexColors:
-                                                THREE.VertexColors});
-  return new THREE.LineSegments(geometry, material);
 }
 
 function set_colors(palette, o) {
@@ -569,6 +491,84 @@ ModelBag.prototype.pick_atom = function (raycaster) {
   if (intersects.length < 1) return null;
   var p = intersects[0].point;
   return this.model.get_nearest_atom(p.x, p.y, p.z);
+};
+
+ModelBag.prototype.get_visible_atoms = function () {
+  var atoms = this.model.atoms;
+  if (this.conf.hydrogens || !this.model.has_hydrogens) {
+    return atoms;
+  }
+  var non_h = [];
+  for (var i = 0; i < atoms.length; i++) {
+    if (atoms[i].element !== 'H') {
+      non_h.push(atoms[i]);
+    }
+  }
+  return non_h;
+};
+
+ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
+  var visible_atoms = this.get_visible_atoms();
+  var color_style = ligands_only ? 'element' : this.conf.color_aim;
+  var colors = color_by(color_style, visible_atoms, this.conf.colors);
+  var geometry = new THREE.Geometry();
+  var opt = { hydrogens: this.conf.hydrogens,
+              ligands_only: ligands_only,
+              balls: this.conf.render_style === 'lines+balls' };
+  for (var i = 0; i < visible_atoms.length; i++) {
+    var atom = visible_atoms[i];
+    var color = colors[i];
+    if (ligands_only && !atom.is_ligand) continue;
+    if (atom.bonds.length === 0 && !opt.balls) { // nonbonded, draw star
+      add_isolated_atom(geometry, atom, color);
+    } else { // bonded, draw lines
+      for (var j = 0; j < atom.bonds.length; j++) {
+        // TODO: one line per bond (not trivial, because coloring)
+        var other = this.model.atoms[atom.bonds[j]];
+        if (!opt.hydrogens && other.element === 'H') continue;
+        if (opt.ligands_only && !other.is_ligand) continue;
+        var mid = atom.midpoint(other);
+        var vmid = new THREE.Vector3(mid[0], mid[1], mid[2]);
+        var vatom = new THREE.Vector3(atom.xyz[0], atom.xyz[1], atom.xyz[2]);
+        if (opt.balls) {
+          vatom.lerp(vmid, 0.3); // TODO: use ball_size
+        }
+        geometry.vertices.push(vatom, vmid);
+        geometry.colors.push(color, color);
+      }
+    }
+  }
+  var material = new THREE.LineBasicMaterial({
+    vertexColors: THREE.VertexColors,
+    linewidth: this.conf.line_width
+  });
+  //console.log('make_bonds() vertex count: ' + geometry.vertices.length);
+  this.atomic_objects.push(new THREE.LineSegments(geometry, material));
+  if (opt.balls) {
+    this.atomic_objects.push(make_balls(visible_atoms, colors, ball_size));
+  }
+};
+
+ModelBag.prototype.add_trace = function (smoothness) {
+  var segments = this.model.extract_trace();
+  var visible_atoms = [].concat.apply([], segments);
+  var colors = color_by(this.conf.color_aim, visible_atoms, this.conf.colors);
+  var k = 0;
+  var material = new THREE.LineBasicMaterial({
+    vertexColors: THREE.VertexColors,
+    linewidth: this.conf.line_width
+  });
+  for (var i = 0; i < segments.length; i++) {
+    var geom = make_segment_geometry(segments[i], colors, k, smoothness);
+    k += segments[i].length;
+    var line = new THREE.Line(geom, material);
+    this.atomic_objects.push(line);
+  }
+};
+
+ModelBag.prototype.add_ribbon = function () {
+  // for now it's not really a ribbon
+  this.add_trace(8);
 };
 
 
@@ -708,24 +708,23 @@ Viewer.prototype.clear_atomic_objects = function (model) {
 };
 
 Viewer.prototype.set_atomic_objects = function (model_bag) {
-  var model = model_bag.model;
-  var conf = model_bag.conf;
-  switch (conf.render_style) {
+  model_bag.atomic_objects = [];
+  switch (model_bag.conf.render_style) {
     case 'lines':
-      model_bag.atomic_objects = make_bonds(model, conf);
+      model_bag.add_bonds();
       break;
     case 'lines+balls':
       var h_scale = this.camera.projectionMatrix.elements[5];
       var ball_size = Math.max(1, 80 * h_scale);
-      model_bag.atomic_objects = make_bonds(model, conf, false, ball_size);
+      model_bag.add_bonds(false, ball_size);
       break;
     case 'trace':  // + lines for ligands
-      model_bag.atomic_objects = [].concat(make_trace(model, conf),
-                                           make_bonds(model, conf, true));
+      model_bag.add_trace();
+      model_bag.add_bonds(true);
       break;
     case 'ribbon':
-      model_bag.atomic_objects = [].concat(make_ribbon(model, conf),
-                                           make_bonds(model, conf, true));
+      model_bag.add_ribbon();
+      model_bag.add_bonds(true);
       break;
   }
   for (var i = 0; i < model_bag.atomic_objects.length; i++) {
