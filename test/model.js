@@ -1,6 +1,6 @@
 
 var assert = require('chai').assert;
-var fs = require('fs');
+var util = require('../perf/util');
 var Model = require('../src/model');
 
 // O(n^2) loop, for testing purposes only
@@ -25,9 +25,7 @@ function get_connectivity_simple(atoms) {
 describe('Model', function () {
   'use strict';
   var model = new Model();
-  //var fn = __dirname + '/../data/1YJP.pdb';
-  var fn = __dirname + '/../data/2gkg.pdb';
-  var pdb_string = fs.readFileSync(fn, {encoding: 'utf8'});
+  var pdb_string = util.open_as_utf8('1YJP.pdb');
   model.from_pdb(pdb_string);
   it('atoms', function () {
     for (var i = 0; i < model.atoms.length; i++) {

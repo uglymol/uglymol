@@ -1,17 +1,8 @@
 
 var assert = require('chai').assert;
-var fs = require('fs');
 var ElMap = require('../src/elmap');
+var util = require('../perf/util');
 
-// http://stackoverflow.com/a/12101012/104453
-function toArrayBuffer(buffer) {
-  var ab = new ArrayBuffer(buffer.length);
-  var view = new Uint8Array(ab);
-  for (var i = 0; i < buffer.length; ++i) {
-    view[i] = buffer[i];
-  }
-  return ab;
-}
 
 /* Note: axis order in ccp4 maps is tricky. It was tested by re-sectioning,
  * i.e. changing axis order, of a map with CCP4 mapmask:
@@ -23,10 +14,8 @@ function toArrayBuffer(buffer) {
 
 describe('ElMap', function () {
   'use strict';
-  var dsn6_file = __dirname + '/../data/1mru.omap';
-  var ccp4_file = __dirname + '/../data/1mru_2mFo-DFc.ccp4';
-  var dmap_buf = toArrayBuffer(fs.readFileSync(dsn6_file));
-  var cmap_buf = toArrayBuffer(fs.readFileSync(ccp4_file));
+  var dmap_buf = util.open_as_array_buffer('1mru.omap');
+  var cmap_buf = util.open_as_array_buffer('1mru.map');
   var dmap = new ElMap();
   var cmap = new ElMap();
   it('#from_dsn6', function () {

@@ -4,7 +4,7 @@ var util = util || require('./util'); // eslint-disable-line
 var ElMap = ElMap || require('../src/elmap'); // eslint-disable-line
 
 var dmap_buf = util.open_as_array_buffer('1mru.omap');
-var cmap_buf = util.open_as_array_buffer('1mru_2mFo-DFc.ccp4');
+var cmap_buf = util.open_as_array_buffer('1mru.map');
 
 var map;
 
