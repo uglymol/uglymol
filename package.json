@@ -21,7 +21,7 @@
     "uglify-js": "^2.6.4"
   },
   "scripts": {
-    "test": "mocha ||:",
+    "test": "mocha",
     "lint": "eslint src test perf ||:",
     "build:concat": "sh concat.sh",
     "build:uglify": "uglifyjs uglymol.js -o uglymol.min.js",
