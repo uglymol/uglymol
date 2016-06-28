@@ -1,4 +1,10 @@
 
+- handle errors from reading data files
+
+- test case with hydrogens
+
+- a keybinding to hide/show hydrogens
+
 - no refreshing when nothing moves
 
 - move isosurface calculation to update()
@@ -14,9 +20,9 @@
 
 - atom labels?
 
-- auto-download test data on 'npm run test'
-
 - L = next ligand (ctrl-L in coot)
   u = move back to old centre
   p moves to nearest Calpha,
   Ctrl-G - go to residue
+
+- reading mtz files (and FFT)
