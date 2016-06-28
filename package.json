@@ -23,7 +23,7 @@
   "scripts": {
     "test": "mocha ||:",
     "lint": "eslint src test perf ||:",
-    "build:concat": "cat src/unitcell.js src/model.js src/elmap.js src/isosurface.js src/viewer.js > uglymol.js",
+    "build:concat": "sh concat.sh",
     "build:uglify": "uglifyjs uglymol.js -o uglymol.min.js",
     "build": "npm run build:concat && npm run build:uglify",
     "prepublish": "npm run build",
