@@ -58,3 +58,11 @@ exports.bench = function (name, fn, options) {
   return b;
 };
 
+if (bench_to_run === 'download-data') {
+  (function () {
+    var files = ['1mru.pdb', '1mru.map', '1mru.omap', '1mru_diff.omap'];
+    for (var i = 0; i < files.length; i++) {
+      data_path(files[i]);
+    }
+  })();
+}

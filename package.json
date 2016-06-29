@@ -23,6 +23,7 @@
   "scripts": {
     "test": "mocha",
     "lint": "eslint src test perf ||:",
+    "download-data": "node perf/util.js download-data",
     "build:concat": "sh concat.sh",
     "build:uglify": "uglifyjs uglymol.js -o uglymol.min.js",
     "build": "npm run build:concat && npm run build:uglify",
