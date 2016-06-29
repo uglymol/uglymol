@@ -1,44 +1,34 @@
 <!doctype html>
+<!-- To re-use this page change <title> and the list of scripts at the end -->
 <html lang="en">
 <head>
  <meta charset="utf-8">
  <title>benchmarks for uglymol</title>
  <style>
    body { font: 18px sans-serif; }
-   a { text-color: #22b; text-decoration: none; }
-   li { list-style-type: circle; }
-   li:hover { list-style-type: disc; }
-   li.running a { background-color: #fa0; }
+   a { color: #22b; text-decoration: none; }
+   li.running a { background-color: orange; }
    body.busy * { cursor: progress; }
  </style>
+</head>
+<body onload="onload();">
+ <p>Platform: <span id="platform">-</span></p>
+ <p>Click one and wait.</p><ul id="list"></ul>
  <script src="node_modules/lodash/lodash.js"></script>
  <script src="node_modules/platform/platform.js"></script>
  <script src="node_modules/benchmark/benchmark.js"></script>
- <script src="node_modules/three/build/three.min.js"></script>
  <script>
   function onload() {
     document.getElementById('platform').innerHTML = Benchmark.platform;
   };
- </script>
-</head>
-<body onload="onload();">
- <p>Platform: <span id="platform">-</span></p>
- <p>Click one and wait.</p><ul id="run"></ul>
-
- <script src="src/unitcell.js"></script>
- <script src="src/elmap.js"></script>
- <script src="src/model.js"></script>
- <script src="src/isosurface.js"></script>
- <script src="src/viewer.js"></script>
- <script>
   var suites = [];
 
   function output(html, style) {
-    var p = document.createElement('p');
+    var p = document.getElementById('tmp') || document.createElement('p');
+    p.removeAttribute('id');
     p.innerHTML = html;
-    if (style === 'E') {
-      p.style.color = '#d00';
-    }
+    if (style === 'E') p.style.color = '#d00';
+    else if (style === 'TMP') p.id = 'tmp';
     document.body.appendChild(p);
   }
 
@@ -47,14 +37,6 @@
     return false;
   };
 
-  function add_this_suite() {
-    for (var i = 0; i != this.length; i++) {
-      (function (bench) {
-        bench.on('complete', function (event) {
-        });
-      })(this[i]);
-    }
-  };
   var util = {
     open_as_utf8: function(filename) {
       var req = new XMLHttpRequest();
@@ -77,14 +59,10 @@
     },
     bench: function (name, fn, options) {
       var b = new Benchmark(name, fn, options);
-      b.on('start', function () {
-        console.log('started ' + b.name);
-      });
       b.on('complete', function (event) {
         output(' ' + event.target);
       });
       b.on('error', function (event) {
-        document.body.classList.remove('busy');
         output(b.error, 'E');
       });
       b.fn(); // run once, for possible side effects
@@ -94,21 +72,31 @@
         if (document.body.classList.contains('busy')) return false;
         document.body.classList.add('busy');
         li.classList.add('running');
-        setTimeout(function () {
-          b.run();
+        output(name + ' ...', 'TMP');
+        setTimeout(function () {  // let the browser update styles
+          b.run(); // here the benchmark runs - it can take several seconds
           document.body.classList.remove('busy');
           li.classList.remove('running');
-        }, 50);
+        }, 100);
         return false;
       };
-      document.getElementById('run').appendChild(li);
+      document.getElementById('list').appendChild(li);
       return b;
     }
   };
  </script>
+
+ <!-- uglymol scripts -->
+ <script src="node_modules/three/build/three.min.js"></script>
+ <script src="src/unitcell.js"></script>
+ <script src="src/elmap.js"></script>
+ <script src="src/model.js"></script>
+ <script src="src/isosurface.js"></script>
+ <script src="src/viewer.js"></script>
  <script src="perf/elmap.js"></script>
  <script src="perf/model.js"></script>
  <script src="perf/isosurface.js"></script>
  <script src="perf/viewer.js"></script>
+
 </body>
 </html>
