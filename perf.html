@@ -1,19 +1,27 @@
 <!doctype html>
-<!-- To re-use this page change <title> and the list of scripts at the end -->
+<!--
+  To re-use this page change <title>, github link
+  and the list of scripts at the end.
+ -->
 <html lang="en">
 <head>
  <meta charset="utf-8">
  <title>benchmarks for uglymol</title>
  <style>
-   body { font: 18px sans-serif; }
+   body { font: 18px sans-serif; padding: 10px 20px; }
    a { color: #22b; text-decoration: none; }
    li.running a { background-color: orange; }
    body.busy * { cursor: progress; }
+   code { display: inline-block; margin: auto; white-space:pre-wrap;
+          background-color: #eee; font-size: 80%; padding: 10px; }
  </style>
 </head>
 <body onload="onload();">
  <p>Platform: <span id="platform">-</span></p>
- <p>Click one and wait.</p><ul id="list"></ul>
+ <p>Benchmarks from
+ <a href="https://github.com/uglymol/uglymol/tree/master/perf/"
+    >uglymol/perf</a>. Click one and wait.
+ <ul id="list"></ul>
  <script src="node_modules/lodash/lodash.js"></script>
  <script src="node_modules/platform/platform.js"></script>
  <script src="node_modules/benchmark/benchmark.js"></script>
@@ -72,7 +80,7 @@
         if (document.body.classList.contains('busy')) return false;
         document.body.classList.add('busy');
         li.classList.add('running');
-        output(name + ' ...', 'TMP');
+        output(name + ' ...<br><code>' + fn + '</code>', 'TMP');
         setTimeout(function () {  // let the browser update styles
           b.run(); // here the benchmark runs - it can take several seconds
           document.body.classList.remove('busy');
