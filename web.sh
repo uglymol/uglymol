@@ -3,12 +3,13 @@
 
 outdir="$1"
 
+# use README.md without badges
 cat >$outdir/index.md <<EOF
 ---
 layout: default
 ---
 
-$(cat README.md)
+$(cat README.md | grep -v '^\[!\[')
 EOF
 
 cp src/* $outdir/src/

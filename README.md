@@ -1,3 +1,8 @@
+[![Build Status](https://travis-ci.org/uglymol/uglymol.svg?branch=master)](https://travis-ci.org/uglymol/uglymol)
+[![Coverage Status](https://coveralls.io/repos/github/uglymol/uglymol/badge.svg?branch=master)](https://coveralls.io/github/uglymol/uglymol?branch=master)
+[![chat at https://gitter.im/ccp4/dimple](https://badges.gitter.im/ccp4/dimple.svg)](https://gitter.im/ccp4/dimple)
+[![npm](https://img.shields.io/npm/v/uglymol.svg?maxAge=2592000)]()
+
 UglyMol is a web-based macromolecular viewer focused on electron density.
 
 It makes models and e.den. maps easy to recognize, navigate and interpret --
@@ -24,17 +29,16 @@ point [here](https://github.com/uglymol/uglymol/blob/master/TODO.md)):
 Technically, UglyMol is a small
 [project](https://github.com/uglymol/uglymol) (~2 KLOC)
 forked from Nat Echols' [xtal.js](https://github.com/natechols/xtal.js/).
-See the [FAQ](https://github.com/uglymol/uglymol/wiki).
-on how to add it to your project.
+See the [FAQ](https://github.com/uglymol/uglymol/wiki)
+on how to add it to your website.
 
 The [plan](https://github.com/uglymol/uglymol/blob/master/TODO.md)
 is to keep UglyMol small and ugly rather than to add many features.
 And to make it as [fast](https://uglymol.github.io/perf.html) as possible.
 Actually this project is an experiment and further development, if any,
-will depend on received feedback. So, what do you think should be added
-or changed?
-Use the [issue tracker](https://github.com/uglymol/uglymol/issues)
-or gitter [chat](https://gitter.im/ccp4/dimple)
+will depend on received feedback. So, what should be added or changed?
+Use [Issues ](https://github.com/uglymol/uglymol/issues)
+or [chat](https://gitter.im/ccp4/dimple)
 or email wojdyr@gmail.com.
 
 Finally, if you need pretty visualization,
