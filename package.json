@@ -23,7 +23,7 @@
   },
   "scripts": {
     "test": "mocha",
-    "coverage": "istanbul cover _mocha -- --timeout 100000",
+    "coverage": "istanbul cover -x '**/perf/**' _mocha -- --timeout 100000",
     "lint": "eslint src test perf ||:",
     "download-data": "node perf/util.js download-data",
     "build:concat": "sh concat.sh",
