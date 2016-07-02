@@ -6,8 +6,7 @@ var suite = new Benchmark.Suite();
 var VALUES = [21.2, 30.5, 25.9, -7.2, 0.4, -0.4];
 //var VALUES = [21, 30, 26, -7, 0, -1];
 var M = 3;
-var result1;
-var result2;
+var result1, result2, result3, result4, result5;
 
 // like Math.euclideanModulo() from three.js
 suite.add('%,+,%', function () {
@@ -34,3 +33,33 @@ suite.on('cycle', function (event) { console.log(' ' + event.target); });
 suite.run();
 console.log('  results: ' + result1 + ' and ' + result2);
 
+var NUMBERS = ['   2', ' 131', '  88', '3032', ' 912', '6312', '8194', '6518'];
+var suite = new Benchmark.Suite();
+suite.add('Number', function () {
+  result1 = 0;
+  for (var i = 0; i < NUMBERS.length; i++) result1 += Number(NUMBERS[i]);
+});
+
+suite.add('|0', function () {
+  result2 = 0;
+  for (var i = 0; i < NUMBERS.length; i++) result2 += NUMBERS[i] | 0;
+});
+
+suite.add('Number|0', function () {
+  result3 = 0;
+  for (var i = 0; i < NUMBERS.length; i++) result3 += Number(NUMBERS[i]) | 0;
+});
+
+suite.add('parseInt()', function () {
+  result4 = 0;
+  for (var i = 0; i < NUMBERS.length; i++) result4 += parseInt(NUMBERS[i]);
+});
+
+suite.add('parseInt(,10)', function () {
+  result5 = 0;
+  for (var i = 0; i < NUMBERS.length; i++) result5 += parseInt(NUMBERS[i], 10);
+});
+
+suite.on('cycle', function (event) { console.log(' ' + event.target); });
+suite.run();
+console.log('  results: ' + result1 + ', ' + result2 + ', ' + result3);
