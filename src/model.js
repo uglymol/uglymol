@@ -155,7 +155,7 @@ function Atom() {
   this.resname = '';
   this.chain = '';
   this.chain_index = null;
-  this.resseq = '';
+  this.resseq = null;
   this.icode = null;
   this.xyz = [0, 0, 0];
   this.occ = 1.0;
@@ -182,7 +182,7 @@ Atom.prototype.from_pdb_line = function (pdb_line) {
   this.altloc = pdb_line.substring(16, 17).trim();
   this.resname = pdb_line.substring(17, 20).trim();
   this.chain = pdb_line.substring(20, 22).trim();
-  this.resseq = pdb_line.substring(22, 26);
+  this.resseq = parseInt(pdb_line.substring(22, 26), 10);
   this.icode = pdb_line.substring(26, 27).trim();
   var x = parseFloat(pdb_line.substring(30, 38));
   var y = parseFloat(pdb_line.substring(38, 46));
@@ -197,10 +197,6 @@ Atom.prototype.from_pdb_line = function (pdb_line) {
     this.charge = pdb_line.substring(78, 80).trim();
   }
   this.is_ligand = (NOT_LIGANDS.indexOf(this.resname) === -1);
-};
-
-Atom.prototype.resid = function () {
-  return this.resseq + this.icode;
 };
 
 Atom.prototype.b_as_u = function () {
