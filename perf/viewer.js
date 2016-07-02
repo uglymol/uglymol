@@ -1,9 +1,9 @@
 'use strict';
 
 var util = util || require('./util'); // eslint-disable-line
-var Model = Model || require('../src/model.js'); // eslint-disable-line
+var Model = Model || require('../src/model'); // eslint-disable-line
 var ElMap = ElMap || require('../src/elmap'); // eslint-disable-line
-var Viewer = Viewer || require('../src/viewer.js'); // eslint-disable-line
+var Viewer = Viewer || require('../src/viewer'); // eslint-disable-line
 
 (function () {
   var pdb_string = util.open_as_utf8('1mru.pdb');

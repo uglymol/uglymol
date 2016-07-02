@@ -1968,6 +1968,18 @@ Viewer.prototype.change_isolevel_by = function (map_idx, delta) {
   this.add_el_objects(map_bag);
 };
 
+Viewer.prototype.change_map_radius = function (delta) {
+  var RMIN = 2;
+  var RMAX = 40;
+  var cf = this.config;
+  cf.map_radius = Math.min(Math.max(cf.map_radius + delta, RMIN), RMAX);
+  var info = 'map "radius": ' + cf.map_radius;
+  if (cf.map_radius === RMAX) info += ' (max)';
+  else if (cf.map_radius === RMIN) info += ' (min)';
+  this.hud(info);
+  this.redraw_maps(true); //TODO: move slow part into update()
+};
+
 Viewer.prototype.toggle_cell_box = function () {
   if (this.decor.cell_box) {
     this.scene.remove(this.decor.cell_box);
@@ -2003,7 +2015,7 @@ Viewer.prototype.shift_clip = function (away) {
 
 Viewer.prototype.redraw_all = function () {
   this.scene.fog.color = this.config.colors.bg;
-  this.renderer.setClearColor(this.config.colors.bg, 1);
+  if (this.renderer) this.renderer.setClearColor(this.config.colors.bg, 1);
   this.redraw_models();
   this.redraw_maps(true);
 };
@@ -2041,6 +2053,12 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
     case 173:  // minus/firefox
     case 189:  // dash
       this.change_isolevel_by(evt.shiftKey ? 1 : 0, -0.1);
+      break;
+    case 219:  // [
+      this.change_map_radius(-2);
+      break;
+    case 221:  // ]
+      this.change_map_radius(2);
       break;
     case 68:  // d
     case 70:  // f
