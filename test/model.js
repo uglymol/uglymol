@@ -43,5 +43,27 @@ describe('Model', function () {
     }
     assert.deepEqual(model_conn, simple_conn);
   });
+  it('next_residue', function () {
+    var a1 = model.next_residue();  // first residue
+    assert.equal(a1.resseq, 1);
+    assert.equal(a1.name, 'CA');
+    var atom_label = a1.long_label();
+    assert.equal(atom_label.indexOf('CA /1'), 0);
+    var next_res_atom = model.next_residue(a1);
+    assert.equal(next_res_atom.resseq, 2);
+    assert.equal(next_res_atom.name, 'CA');
+    assert.equal(model.next_residue(next_res_atom, true), a1);
+    var last_res_atom = model.next_residue(a1, true);
+    assert.equal(model.next_residue(last_res_atom), a1);
+  });
+  it('get_nearest_atom', function () {
+    var a1 = model.next_residue();  // first residue
+    var atms = [a1, model.next_residue(a1), model.next_residue(a1, true)];
+    for (var i = 0; i < atms.length; i++) {
+      var a = atms[i];
+      var nearest = model.get_nearest_atom(a.xyz[0], a.xyz[1]+0.4, a.xyz[2]);
+      assert.equal(a, nearest);
+    }
+  });
 });
 

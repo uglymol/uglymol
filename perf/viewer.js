@@ -16,14 +16,20 @@ var Viewer = Viewer || require('../src/viewer.js'); // eslint-disable-line
   var emap = new ElMap();
   emap.from_ccp4(cmap_buf);
 
-  util.bench('make_trace', function () {
+  util.bench('add trace', function () {
     viewer.config.render_style = 'trace';
     viewer.set_atomic_objects(viewer.model_bags[0]);
     viewer.clear_atomic_objects(viewer.model_bags[0]);
   });
 
-  util.bench('make_bonds', function () {
+  util.bench('add bonds', function () {
     viewer.config.render_style = 'lines';
+    viewer.set_atomic_objects(viewer.model_bags[0]);
+    viewer.clear_atomic_objects(viewer.model_bags[0]);
+  });
+
+  util.bench('add ribbon', function () {
+    viewer.config.render_style = 'ribbon';
     viewer.set_atomic_objects(viewer.model_bags[0]);
     viewer.clear_atomic_objects(viewer.model_bags[0]);
   });

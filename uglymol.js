@@ -245,7 +245,7 @@ function Atom() {
   this.resname = '';
   this.chain = '';
   this.chain_index = null;
-  this.resseq = '';
+  this.resseq = null;
   this.icode = null;
   this.xyz = [0, 0, 0];
   this.occ = 1.0;
@@ -272,7 +272,7 @@ Atom.prototype.from_pdb_line = function (pdb_line) {
   this.altloc = pdb_line.substring(16, 17).trim();
   this.resname = pdb_line.substring(17, 20).trim();
   this.chain = pdb_line.substring(20, 22).trim();
-  this.resseq = pdb_line.substring(22, 26);
+  this.resseq = parseInt(pdb_line.substring(22, 26), 10);
   this.icode = pdb_line.substring(26, 27).trim();
   var x = parseFloat(pdb_line.substring(30, 38));
   var y = parseFloat(pdb_line.substring(38, 46));
@@ -287,10 +287,6 @@ Atom.prototype.from_pdb_line = function (pdb_line) {
     this.charge = pdb_line.substring(78, 80).trim();
   }
   this.is_ligand = (NOT_LIGANDS.indexOf(this.resname) === -1);
-};
-
-Atom.prototype.resid = function () {
-  return this.resseq + this.icode;
 };
 
 Atom.prototype.b_as_u = function () {
@@ -1775,9 +1771,8 @@ function Viewer(element_id) {
   this.scene.add(this.light);
   this.controls = new Controls(this.camera, this.target);
 
-  if (typeof document === 'undefined') { // for testing on node
-    return;
-  }
+  if (typeof document === 'undefined') return;  // for testing on node
+
   this.renderer = new THREE.WebGLRenderer({antialias: true});
   this.renderer.setClearColor(this.config.colors.bg, 1);
   this.renderer.setPixelRatio(window.devicePixelRatio);
@@ -1822,7 +1817,8 @@ function Viewer(element_id) {
 }
 
 Viewer.prototype.hud = function (text) {
-  var el = document.getElementById('hud');
+  if (typeof document === 'undefined') return;  // for testing on node
+  var el = document && document.getElementById('hud');
   if (el) {
     if (this.initial_hud_text === null) {
       this.initial_hud_text = el.textContent;
@@ -2290,6 +2286,13 @@ Viewer.prototype.set_model = function (model) {
   this.recenter(null, 1);
 };
 
+Viewer.prototype.add_map = function (map, is_diff_map) {
+  //map.show_debug_info();
+  var map_bag = new MapBag(map, is_diff_map);
+  this.map_bags.push(map_bag);
+  this.add_el_objects(map_bag);
+};
+
 Viewer.prototype.load_pdb = function (url) {
   var req = new XMLHttpRequest();
   req.open('GET', url, true);
@@ -2325,12 +2328,7 @@ Viewer.prototype.load_map = function (url, is_diff_map, filetype) {
         } else {
           throw Error('Unknown map filetype.');
         }
-        //map.show_debug_info();
-        var map_bag = new MapBag(map, is_diff_map);
-        self.map_bags.push(map_bag);
-        //self.add_el_objects(map_bag);
-        //self.update_camera();
-        self.redraw_maps();
+        self.add_map(map, is_diff_map);
       } else {
         console.log('Error fetching ' + url);
       }

@@ -20,7 +20,7 @@
 
 - catch errors from reading data files
 
-- add a test case with hydrogens,
+- add a test case with hydrogens and multiple conformers,
   and a keybinding to hide/show hydrogens
 
 - move isosurface calculation to update()
