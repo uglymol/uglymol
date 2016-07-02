@@ -33,8 +33,9 @@ suite.on('cycle', function (event) { console.log(' ' + event.target); });
 suite.run();
 console.log('  results: ' + result1 + ' and ' + result2);
 
+
 var NUMBERS = ['   2', ' 131', '  88', '3032', ' 912', '6312', '8194', '6518'];
-var suite = new Benchmark.Suite();
+suite = new Benchmark.Suite();
 suite.add('Number', function () {
   result1 = 0;
   for (var i = 0; i < NUMBERS.length; i++) result1 += Number(NUMBERS[i]);
@@ -52,6 +53,7 @@ suite.add('Number|0', function () {
 
 suite.add('parseInt()', function () {
   result4 = 0;
+  // eslint-disable-next-line radix
   for (var i = 0; i < NUMBERS.length; i++) result4 += parseInt(NUMBERS[i]);
 });
 
