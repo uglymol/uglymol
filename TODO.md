@@ -36,8 +36,7 @@
 - atom labels
 
 - a few more keybindings:
-  L = next ligand (ctrl-L in coot)
-  u = move back to old centre
-  p moves to nearest Calpha,
+  L = next ligand (ctrl-L in coot),
+  u = move back to old centre,
   Ctrl-G - go to residue
 

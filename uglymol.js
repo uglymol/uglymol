@@ -449,13 +449,15 @@ Model.prototype.calculate_connectivity = function () {
   this.cubes = cubes;
 };
 
-Model.prototype.get_nearest_atom = function (x, y, z) {
+Model.prototype.get_nearest_atom = function (x, y, z, atom_name) {
   var box_id = this.cubes.find_box_id(x, y, z);
   var indices = this.cubes.get_nearby_atoms(box_id);
   var nearest = null;
   var min_d2 = Infinity;
   for (var i = 0; i < indices.length; i++) {
     var atom = this.atoms[indices[i]];
+    if (atom_name !== undefined && atom_name !== null &&
+        atom_name !== atom.name) continue;
     var dx = atom.xyz[0] - x;
     var dy = atom.xyz[1] - y;
     var dz = atom.xyz[2] - z;
@@ -2013,6 +2015,21 @@ Viewer.prototype.shift_clip = function (away) {
            ' ' + eye.z.toFixed(2) + ']');
 };
 
+Viewer.prototype.go_to_nearest_Ca = function () {
+  var t = this.target;
+  if (this.pickable_model === null) return;
+  var a = this.pickable_model.model.get_nearest_atom(t.x, t.y, t.z, 'CA');
+  if (a) {
+    this.hud(a.long_label());
+    //this.set_selection(a);
+    this.controls.go_to(new THREE.Vector3(a.xyz[0], a.xyz[1], a.xyz[2]),
+                        null, null, 30 / auto_speed);
+    this.selected_atom = a;
+  } else {
+    this.hud('no nearby CA');
+  }
+};
+
 Viewer.prototype.redraw_all = function () {
   this.scene.fog.color = this.config.colors.bg;
   if (this.renderer) this.renderer.setClearColor(this.config.colors.bg, 1);
@@ -2071,6 +2088,9 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       this.camera.zoom *= (key === 77 ? 1.03 : (1 / 1.03));
       this.update_camera();
       this.hud('zoom: ' + this.camera.zoom.toFixed(2));
+      break;
+    case 80:  // p
+      this.go_to_nearest_Ca();
       break;
     case 51:  // 3
     case 99:  // numpad 3

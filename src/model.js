@@ -359,13 +359,15 @@ Model.prototype.calculate_connectivity = function () {
   this.cubes = cubes;
 };
 
-Model.prototype.get_nearest_atom = function (x, y, z) {
+Model.prototype.get_nearest_atom = function (x, y, z, atom_name) {
   var box_id = this.cubes.find_box_id(x, y, z);
   var indices = this.cubes.get_nearby_atoms(box_id);
   var nearest = null;
   var min_d2 = Infinity;
   for (var i = 0; i < indices.length; i++) {
     var atom = this.atoms[indices[i]];
+    if (atom_name !== undefined && atom_name !== null &&
+        atom_name !== atom.name) continue;
     var dx = atom.xyz[0] - x;
     var dy = atom.xyz[1] - y;
     var dz = atom.xyz[2] - z;
