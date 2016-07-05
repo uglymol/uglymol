@@ -1,0 +1,97 @@
+#!/usr/bin/env python
+"""
+mapmode2to0 converts CCP4/MRC map in mode 2 to mode 0,
+i.e. it converts data from 4-byte floats to 1-byte signed chars.
+It scales the data linearly to map the min..max range to -128..127.
+The values can be scaled back using DMIN and DMAX from the header which
+correspond to the original min and max.
+
+Note: Coot and CCP4MG use the clipper library to read maps. This library,
+until 2016, interpreted mode 0 as unsigned chars. So old Coot won't display
+the output correctly, see: https://github.com/pemsley/coot/issues/15.
+
+Requires Python 2.6+ or 3 and nothing else.
+The conversion speed is ~10MB/s - no need to make it faster.
+
+Usage: mapmode2to0 input.map output.map
+"""
+
+import struct
+import sys
+
+def floats_in_chunks(idata):
+    offset = 0
+    while offset < len(idata):
+        n = min(512*4, len(idata) - offset)
+        float_values = struct.unpack_from('%df' % (n // 4), idata, offset)
+        offset += n
+        yield float_values
+
+def convert(input_fn, output_fn):
+    ifile = open(input_fn, 'rb')
+    header = ifile.read(1024)
+    if len(header) < 1024:
+        sys.exit('The input file is shorter then 1024 bytes.')
+    # ignoring endiannes and machine stamp for now
+    # 1 word -> 1 variable, except for the labels
+    #                words: 10  16 19 22 24 49  52 53 54 55 56 256
+    h_data = struct.unpack('10i 6f 3i 3f 2i 25i 3f 4s 4s  f  i 800s', header)
+    if h_data[52] != b'MAP ':
+        sys.exit('The input file is not a CCP4/MRC map.')
+    if h_data[3] != 2:
+        sys.exit('The input map is mode %d not in mode 2.' % h_data[3])
+    nsymbt = h_data[23]
+    extra_header = ifile.read(nsymbt) if nsymbt > 0 else b''
+    grid_size = h_data[0] * h_data[1] * h_data[2]
+    #print('extra', h_data[24:29])
+
+    idata = ifile.read()
+    if len(idata) != 4*grid_size:
+        sys.exit('Unexpected file length (%+dB).' % (len(idata) - 4*grid_size))
+
+    # arbitrary choice of scaling: linear, DMIN -> -128, DMAX -> 127
+    # We calculate min and max instead of using h_data[19] and h_data[20].
+    dmin = float('+inf')
+    dmax = float('-inf')
+    for chunk in floats_in_chunks(idata):
+        dmin = min(min(chunk), dmin)
+        dmax = max(max(chunk), dmax)
+    a1 = 255.0 / (dmax - dmin)
+    a0 = -0.5 * (a1 * (dmin + dmax) + 1)
+
+    # and we put 40 and 41 into
+    ofile = open(output_fn, 'wb')
+    # write the same header except for mode which is changed to 0
+    new_header = bytearray(header)
+    struct.pack_into('i', new_header, 3*4, 0) # mode=0
+    # correct dmin and dmax if necessary, they may be used to scale back
+    #print 'calculated min/max:', (dmin, dmax), '\nin header:', h_data[19:21]
+    if dmin != h_data[19] or dmax != h_data[20]:
+        struct.pack_into('ff', new_header, 19*4, dmin, dmax)
+    # Since the scaling is not conventional, let's mark it somehow:
+    struct.pack_into('ii', new_header, 39*4, -128, 127)
+    ofile.write(new_header)
+    ofile.write(extra_header)
+
+    def float_to_char(values):
+        _round = round
+        ret = [int(_round(a1 * x + a0)) for x in values]
+        for n, d in enumerate(ret):
+            if d < -128 or d > 127: d = min(127, max(-128, d))
+        return ret
+
+    for chunk in floats_in_chunks(idata):
+        byte_values = float_to_char(chunk)
+        out_chunk = struct.pack('%db' % len(chunk), *byte_values)
+        ofile.write(out_chunk)
+
+def main():
+    if len(sys.argv) != 3:
+        sys.exit(__doc__)
+    try:
+        convert(sys.argv[1], sys.argv[2])
+    except IOError as e:
+        sys.exit('Could not read file: %s\n%s' % (sys.argv[1], e))
+
+if __name__ == '__main__':
+    main()
