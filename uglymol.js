@@ -428,7 +428,7 @@ Cubicles.prototype.get_nearby_atoms = function (box_id) {
 Model.prototype.calculate_connectivity = function () {
   var atoms = this.atoms;
   var cubes = new Cubicles(atoms, 3.0, this.lower_bound, this.upper_bound);
-  var cnt = 0;
+  //var cnt = 0;
   for (var i = 0; i < cubes.boxes.length; i++) {
     var box = cubes.boxes[i];
     if (box.length === 0) continue;
@@ -440,7 +440,7 @@ Model.prototype.calculate_connectivity = function () {
         if (j > atom_id && atoms[atom_id].is_bonded_to(atoms[j])) {
           atoms[atom_id].bonds.push(j);
           atoms[j].bonds.push(atom_id);
-          cnt++;
+          //cnt++;
         }
       }
     }

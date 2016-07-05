@@ -1,32 +1,31 @@
----
-  env:
-    node: true
-    browser: true
-  root: true
-  # eslint-config-xo is quite similar to eslint-config-google
-  extends: 'xo'
-  rules:
-    # from eslint-config-google
-    max-len: [2, 80, {'ignoreComments': true, 'ignoreUrls': true}]
-    # indent is not enforced for now because eslint cannot make exception
-    # for top-level closure: https://github.com/eslint/eslint/issues/6259
-    indent: [0, 2, {'SwitchCase': 1, 'outerIIFEBody': 0}]
-    # relaxing rules
-    brace-style: [2, '1tbs', {'allowSingleLine': true}]
-    max-statements-per-line: [2, {'max': 2}] # sometimes 2 is ok
-    curly: [2, 'multi-line', 'consistent']
-    spaced-comment: 0  # comments are spaced, but not commented out code
-    space-infix-ops: 0  # no space is useful for visual grouping
-    no-path-concat: 0
-    default-case: 0
-    one-var: 0
-    no-negated-condition: 0
-    object-curly-spacing: 0
-    no-multiple-empty-lines: [2, {'max': 2}]
-    operator-linebreak: [2, 'after', {'overrides': {':': 'ignore'}}]
-    camelcase: 0
-    no-mixed-operators: 0
-    object-property-newline: 0
-    no-warning-comments: 0
-    max-depth: 0
-    max-lines: 0
+root: true
+env:
+  node: true
+  browser: true
+# eslint-config-xo is quite similar to eslint-config-google
+extends: 'xo'
+rules:
+  # from eslint-config-google
+  max-len: [2, 80, {'ignoreComments': true, 'ignoreUrls': true}]
+  # indent is not enforced for now because eslint outerIIFEBody option
+  # is not fully working: https://github.com/eslint/eslint/issues/6585
+  indent: [0, 2, {'SwitchCase': 1, 'outerIIFEBody': 0}]
+  # relaxing rules
+  brace-style: [2, '1tbs', {'allowSingleLine': true}]
+  max-statements-per-line: [2, {'max': 2}] # sometimes 2 is ok
+  curly: [2, 'multi-line', 'consistent']
+  spaced-comment: 0  # comments are spaced, but not commented out code
+  space-infix-ops: 0  # no space is useful for visual grouping
+  no-path-concat: 0
+  default-case: 0
+  one-var: 0
+  no-negated-condition: 0
+  object-curly-spacing: 0
+  no-multiple-empty-lines: [2, {'max': 2}]
+  operator-linebreak: [2, 'after', {'overrides': {':': 'ignore'}}]
+  camelcase: 0
+  no-mixed-operators: 0
+  object-property-newline: 0
+  no-warning-comments: 0
+  max-depth: 0
+  max-lines: 0

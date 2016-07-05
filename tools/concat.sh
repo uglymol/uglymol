@@ -1,4 +1,6 @@
-#!/bin/sh
+#!/bin/sh -eu
+
+[ -e src/elmap.js ] || { echo "Run me from top-level uglymol dir"; exit 1; }
 
 cat > uglymol.js << EOF
 /* UglyMol - macromolecular viewer for crystallographers, a fork of xtal.js.
