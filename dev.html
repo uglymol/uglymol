@@ -97,10 +97,7 @@
   <script>
     V = new Viewer("viewer");
     V.load_pdb("data/1mru.pdb");
-    V.load_map("data/1mru.omap", false, "dsn6");
-    //V.load_map("data/1mru_2mFo-DFc.ccp4", false, "ccp4");
-    //V.load_map("data/1mru_yzx.ccp4", false, "ccp4");
-    V.load_map("data/1mru_diff.omap",  true, "dsn6");
+    V.load_ccp4_maps("data/1mru.map", "data/1mru_diff.map");
     //V.show_nav("inset");
     V.render();
   </script>

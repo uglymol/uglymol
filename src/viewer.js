@@ -7,7 +7,6 @@ var isosurface = isosurface || require('./isosurface'); // eslint-disable-line
 var Viewer = (function () {
 'use strict';
 
-
 var ColorSchemes = { // accessible as Viewer.ColorSchemes
   dark: {
     bg: 0x000000,
@@ -1178,16 +1177,18 @@ Viewer.prototype.load_file = function (url, response_type, callback) {
   req.send(null);
 };
 
-Viewer.prototype.load_pdb = function (url) {
+// Load molecular model from PDB file and centers the view
+Viewer.prototype.load_pdb = function (url, callback) {
   var self = this;
   this.load_file(url, null, function (req) {
     var model = new Model();
     model.from_pdb(req.responseText);
     self.set_model(model);
+    if (callback) callback();
   });
 };
 
-Viewer.prototype.load_map = function (url, is_diff_map, filetype) {
+Viewer.prototype.load_map = function (url, is_diff_map, filetype, callback) {
   var self = this;
   this.load_file(url, 'arraybuffer', function (req) {
       var map = new ElMap();
@@ -1199,6 +1200,16 @@ Viewer.prototype.load_map = function (url, is_diff_map, filetype) {
         throw Error('Unknown map filetype.');
       }
       self.add_map(map, is_diff_map);
+      if (callback) callback();
+  });
+};
+
+// Load a normal map and a difference map.
+// To show the first map ASAP we do not download both maps in parallel.
+Viewer.prototype.load_ccp4_maps = function (url1, url2, callback) {
+  var self = this;
+  this.load_map(url1, false, 'ccp4', function () {
+    self.load_map(url2, true, 'ccp4', callback);
   });
 };
 

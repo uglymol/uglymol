@@ -12,7 +12,7 @@ function data_path(filename) {
   } catch (e) {
     console.log('we need to download ' + filename + ' (only once)');
     var url = 'http://uglymol.github.io/data/' + filename;
-    var cmd = 'curl ' + url + ' -o ' + path;
+    var cmd = 'curl -f ' + url + ' -o ' + path;
     if (!child_process.execSync) {
       console.log('no execSync (in Node v0.11.12+), you need to:\n' + cmd);
       process.exit(1);
@@ -60,7 +60,8 @@ exports.bench = function (name, fn, options) {
 
 if (bench_to_run === 'download-data') {
   (function () {
-    var files = ['1mru.pdb', '1mru.map', '1mru.omap', '1mru_diff.omap'];
+    var files = ['1mru.pdb', '1mru.map', '1mru_diff.map',
+                 '1mru.omap', '1mru_diff.omap'];
     for (var i = 0; i < files.length; i++) {
       data_path(files[i]);
     }
