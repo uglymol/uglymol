@@ -14,10 +14,6 @@
   in the browser, but currently no one is working on it. Volunteers needed.
   Requires 3D FFT.
 
-- read ccp4 maps in mode 0 (1 byte per grid point).
-  Currently only mode 2 (the most popular one, 4 bytes)
-  is supported. Then maybe drop support for DSN6.
-
 - catch errors from reading data files
 
 - add a test case with hydrogens and multiple conformers,
