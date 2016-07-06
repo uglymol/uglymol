@@ -63,13 +63,14 @@ ElMap.prototype.calculate_stddev = function (a, offset) {
   var variance = sq_sum / (alen - offset) - mean * mean;
   this.mean = mean;
   this.rms = Math.sqrt(variance);
-}
+};
 
 ElMap.prototype.abs_level = function (sigma) {
   return sigma * this.rms + this.mean;
 };
 
 // http://www.ccp4.ac.uk/html/maplib.html#description
+// eslint-disable-next-line complexity
 ElMap.prototype.from_ccp4 = function (buf) {
   if (buf.byteLength < 1024) throw Error('File shorter than 1024 bytes.');
   //console.log('buf type: ' + Object.prototype.toString.call(buf));
@@ -150,7 +151,7 @@ ElMap.prototype.from_ccp4 = function (buf) {
       if (/^\s*x\s*,\s*y\s*,\s*z\s*$/i.test(symop)) continue;  // skip x,y,z
       //console.log('sym ops', symop.trim());
       var mat = parse_symop(symop);
-      // We apply here symops to grid points instead of coordinates.
+      // Note: we apply here symops to grid points instead of coordinates.
       // In the cases we came across it is equivalent, but in general not.
       for (j = 0; j < 3; ++j) {
         mat[j][3] = Math.round(mat[j][3] * n_grid[j]) | 0;

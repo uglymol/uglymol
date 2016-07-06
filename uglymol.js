@@ -518,19 +518,6 @@ GridArray.prototype.get_grid_value = function (i, j, k) {
   return this.values[idx];
 };
 
-function calculate_stddev(a) {
-  var n = a.length;
-  var sum = 0;
-  var sq_sum = 0;
-  for (var i = 0; i < n; i++) {
-    sum += a[i];
-    sq_sum += a[i] * a[i];
-  }
-  var mean = sum / n;
-  var variance = sq_sum / n - mean * mean;
-  return {mean: mean, dev: Math.sqrt(variance)};
-}
-
 function ElMap() {
   this.unit_cell = null;
   this.grid = null;
@@ -538,24 +525,45 @@ function ElMap() {
   this.rms = 1.0;
 }
 
+ElMap.prototype.calculate_stddev = function (a, offset) {
+  var sum = 0;
+  var sq_sum = 0;
+  var alen = a.length;
+  for (var i = offset; i < alen; i++) {
+    sum += a[i];
+    sq_sum += a[i] * a[i];
+  }
+  var mean = sum / (alen - offset);
+  var variance = sq_sum / (alen - offset) - mean * mean;
+  this.mean = mean;
+  this.rms = Math.sqrt(variance);
+};
+
 ElMap.prototype.abs_level = function (sigma) {
   return sigma * this.rms + this.mean;
 };
 
 // http://www.ccp4.ac.uk/html/maplib.html#description
+// eslint-disable-next-line complexity
 ElMap.prototype.from_ccp4 = function (buf) {
+  if (buf.byteLength < 1024) throw Error('File shorter than 1024 bytes.');
   //console.log('buf type: ' + Object.prototype.toString.call(buf));
-  var iview = new Int32Array(buf);
-  var fview = new Float32Array(buf);
+  var iview = new Int32Array(buf, 0, 256);
   // map has 3 dimensions referred to as columns (fastest changing), rows
   // and sections (c-r-s)
   var n_crs = [iview[0], iview[1], iview[2]];
   this.mode = iview[3];
-  if (this.mode !== 2) {
-    throw Error('Only Mode 2 (32-bit float) of CCP4 map is supported.');
-  }
+  var nb;
+  if (this.mode === 2) nb = 4;
+  else if (this.mode === 0) nb = 1;
+  else throw Error('Only Mode 2 and Mode 0 of CCP4 map is supported.');
   var start = [iview[4], iview[5], iview[6]];
   var n_grid = [iview[7], iview[8], iview[9]];
+  var nsymbt = iview[23]; // size of extended header in bytes
+  if (1024 + nsymbt + nb*n_crs[0]*n_crs[1]*n_crs[2] !== buf.byteLength) {
+    throw Error('ccp4 file too short or too long');
+  }
+  var fview = new Float32Array(buf, 0, buf.byteLength >> 2);
   this.unit_cell = new UnitCell(fview[10], fview[11], fview[12],
                                 fview[13], fview[14], fview[15]);
   // MAPC, MAPR, MAPS - axis corresp to cols, rows, sections (1,2,3 for X,Y,Z)
@@ -566,26 +574,42 @@ ElMap.prototype.from_ccp4 = function (buf) {
 
   this.min = fview[19];
   this.max = fview[20];
-  this.mean = fview[21];  // is it reliable?
   this.sg_number = iview[22];
   this.lskflg = iview[24];
-  this.rms = fview[54]; // is it reliable?
   //console.log('map mean and rms:', this.mean.toFixed(4), this.rms.toFixed(4));
   this.grid = new GridArray(n_grid);
-  var nsymbt = iview[23]; // size of extended header in bytes
-  if (1024 + nsymbt + 4 * n_crs[0] * n_crs[1] * n_crs[2] !== buf.byteLength) {
-    throw Error('ccp4 file too short or too long');
-  }
   if (nsymbt % 4 !== 0) {
     throw Error('CCP4 map with NSYMBT not divisible by 4 is not supported.');
   }
-  var idx = 256 + nsymbt / 4 | 0;
+  var data_view;
+  if (this.mode === 2) data_view = fview;
+  else /* this.mode === 0 */ data_view = new Int8Array(buf);
+  var idx = (1024 + nsymbt) / nb | 0;
+
+  // We assume that if DMEAN and RMS from the header are not clearly wrong
+  // they are what the user wants. Because the map can cover a small part
+  // of the asu and its rmsd may be different than the total rmsd.
+  this.mean = fview[21];
+  this.rms = fview[54];
+  if (this.mean < this.min || this.mean > this.max || this.rms <= 0) {
+    this.calculate_stddev(data_view, idx);
+  }
+  var b1 = 1;
+  var b0 = 0;
+  // if the file was converted by mapmode2to0 - scale the data
+  if (this.mode === 0 && iview[39] === -128 && iview[40] === 127) {
+    // scaling f(x)=b1*x+b0 such that f(-128)=min and f(127)=max
+    b1 = (this.max - this.min) / 255.0;
+    b0 = 0.5 * (this.min + this.max + b1);
+  }
+
   var end = [start[0] + n_crs[0], start[1] + n_crs[1], start[2] + n_crs[2]];
   var it = [0, 0, 0];
   for (it[2] = start[2]; it[2] < end[2]; it[2]++) { // sections
     for (it[1] = start[1]; it[1] < end[1]; it[1]++) { // rows
       for (it[0] = start[0]; it[0] < end[0]; it[0]++) { // cols
-        this.grid.set_grid_value(it[ax], it[ay], it[az], fview[idx]);
+        this.grid.set_grid_value(it[ax], it[ay], it[az],
+                                 b1 * data_view[idx] + b0);
         idx++;
       }
     }
@@ -601,12 +625,12 @@ ElMap.prototype.from_ccp4 = function (buf) {
       if (/^\s*x\s*,\s*y\s*,\s*z\s*$/i.test(symop)) continue;  // skip x,y,z
       //console.log('sym ops', symop.trim());
       var mat = parse_symop(symop);
-      // We apply here symops to grid points instead of coordinates.
+      // Note: we apply here symops to grid points instead of coordinates.
       // In the cases we came across it is equivalent, but in general not.
       for (j = 0; j < 3; ++j) {
         mat[j][3] = Math.round(mat[j][3] * n_grid[j]) | 0;
       }
-      idx = 256 + nsymbt / 4 | 0;
+      idx = (1024 + nsymbt) / nb | 0;
       var xyz = [0, 0, 0];
       for (it[2] = start[2]; it[2] < end[2]; it[2]++) { // sections
         for (it[1] = start[1]; it[1] < end[1]; it[1]++) { // rows
@@ -615,7 +639,8 @@ ElMap.prototype.from_ccp4 = function (buf) {
               xyz[j] = it[ax] * mat[j][0] + it[ay] * mat[j][1] +
                        it[az] * mat[j][2] + mat[j][3];
             }
-            this.grid.set_grid_value(xyz[0], xyz[1], xyz[2], fview[idx]);
+            this.grid.set_grid_value(xyz[0], xyz[1], xyz[2],
+                                     b1 * data_view[idx] + b0);
             idx++;
           }
         }
@@ -714,9 +739,7 @@ ElMap.prototype.from_dsn6 = function (buf) {
       }
     }
   }
-  var d = calculate_stddev(this.grid.values);
-  this.mean = d.mean;
-  this.rms = d.dev;
+  this.calculate_stddev(this.grid.values, 0);
   //this.show_debug_info();
 };
 
@@ -2331,17 +2354,15 @@ Viewer.prototype.add_map = function (map, is_diff_map) {
   this.add_el_objects(map_bag);
 };
 
-Viewer.prototype.load_pdb = function (url) {
+Viewer.prototype.load_file = function (url, response_type, callback) {
   var req = new XMLHttpRequest();
+  if (response_type) req.responseType = response_type;
   req.open('GET', url, true);
-  var self = this;
   req.onreadystatechange = function () {
     if (req.readyState === 4) {
       // chrome --allow-file-access-from-files gives status 0
-      if (req.status === 200 || req.status === 0) {
-        var model = new Model();
-        model.from_pdb(req.responseText);
-        self.set_model(model);
+      if (req.status === 200 || (req.status === 0 && req.response !== null)) {
+        callback(req);
       } else {
         console.log('Error fetching ' + url);
       }
@@ -2350,29 +2371,28 @@ Viewer.prototype.load_pdb = function (url) {
   req.send(null);
 };
 
-Viewer.prototype.load_map = function (url, is_diff_map, filetype) {
-  var req = new XMLHttpRequest();
-  req.responseType = 'arraybuffer';
-  req.open('GET', url, true);
+Viewer.prototype.load_pdb = function (url) {
   var self = this;
-  req.onreadystatechange = function () {
-    if (req.readyState === 4) {
-      if (req.status === 200 || req.status === 0) {
-        var map = new ElMap();
-        if (filetype === 'ccp4') {
-          map.from_ccp4(req.response);
-        } else if (filetype === 'dsn6') {
-          map.from_dsn6(req.response);
-        } else {
-          throw Error('Unknown map filetype.');
-        }
-        self.add_map(map, is_diff_map);
+  this.load_file(url, null, function (req) {
+    var model = new Model();
+    model.from_pdb(req.responseText);
+    self.set_model(model);
+  });
+};
+
+Viewer.prototype.load_map = function (url, is_diff_map, filetype) {
+  var self = this;
+  this.load_file(url, 'arraybuffer', function (req) {
+      var map = new ElMap();
+      if (filetype === 'ccp4') {
+        map.from_ccp4(req.response);
+      } else if (filetype === 'dsn6') {
+        map.from_dsn6(req.response);
       } else {
-        console.log('Error fetching ' + url);
+        throw Error('Unknown map filetype.');
       }
-    }
-  };
-  req.send(null);
+      self.add_map(map, is_diff_map);
+  });
 };
 
 // TODO: navigation window like in gimp and mifit

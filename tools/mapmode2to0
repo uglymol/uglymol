@@ -43,7 +43,6 @@ def convert(input_fn, output_fn):
     nsymbt = h_data[23]
     extra_header = ifile.read(nsymbt) if nsymbt > 0 else b''
     grid_size = h_data[0] * h_data[1] * h_data[2]
-    #print('extra', h_data[24:29])
 
     idata = ifile.read()
     if len(idata) != 4*grid_size:
@@ -59,13 +58,12 @@ def convert(input_fn, output_fn):
     a1 = 255.0 / (dmax - dmin)
     a0 = -0.5 * (a1 * (dmin + dmax) + 1)
 
-    # and we put 40 and 41 into
     ofile = open(output_fn, 'wb')
-    # write the same header except for mode which is changed to 0
+    # Write the same header except for MODE, DMIN, DMAX and two words
+    # in the EXTRA area.
     new_header = bytearray(header)
     struct.pack_into('i', new_header, 3*4, 0) # mode=0
-    # correct dmin and dmax if necessary, they may be used to scale back
-    #print 'calculated min/max:', (dmin, dmax), '\nin header:', h_data[19:21]
+    # Correct dmin and dmax if necessary, they may be used to scale back.
     if dmin != h_data[19] or dmax != h_data[20]:
         struct.pack_into('ff', new_header, 19*4, dmin, dmax)
     # Since the scaling is not conventional, let's mark it somehow:
@@ -91,7 +89,7 @@ def main():
     try:
         convert(sys.argv[1], sys.argv[2])
     except IOError as e:
-        sys.exit('Could not read file: %s\n%s' % (sys.argv[1], e))
+        sys.exit('Failed to read or write a file:\n%s' % e)
 
 if __name__ == '__main__':
     main()
