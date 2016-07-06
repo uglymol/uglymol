@@ -1161,17 +1161,15 @@ Viewer.prototype.add_map = function (map, is_diff_map) {
   this.add_el_objects(map_bag);
 };
 
-Viewer.prototype.load_pdb = function (url) {
+Viewer.prototype.load_file = function (url, response_type, callback) {
   var req = new XMLHttpRequest();
+  if (response_type) req.responseType = response_type;
   req.open('GET', url, true);
-  var self = this;
   req.onreadystatechange = function () {
     if (req.readyState === 4) {
       // chrome --allow-file-access-from-files gives status 0
-      if (req.status === 200 || req.status === 0) {
-        var model = new Model();
-        model.from_pdb(req.responseText);
-        self.set_model(model);
+      if (req.status === 200 || (req.status === 0 && req.response !== null)) {
+        callback(req);
       } else {
         console.log('Error fetching ' + url);
       }
@@ -1180,29 +1178,28 @@ Viewer.prototype.load_pdb = function (url) {
   req.send(null);
 };
 
-Viewer.prototype.load_map = function (url, is_diff_map, filetype) {
-  var req = new XMLHttpRequest();
-  req.responseType = 'arraybuffer';
-  req.open('GET', url, true);
+Viewer.prototype.load_pdb = function (url) {
   var self = this;
-  req.onreadystatechange = function () {
-    if (req.readyState === 4) {
-      if (req.status === 200 || req.status === 0) {
-        var map = new ElMap();
-        if (filetype === 'ccp4') {
-          map.from_ccp4(req.response);
-        } else if (filetype === 'dsn6') {
-          map.from_dsn6(req.response);
-        } else {
-          throw Error('Unknown map filetype.');
-        }
-        self.add_map(map, is_diff_map);
+  this.load_file(url, null, function (req) {
+    var model = new Model();
+    model.from_pdb(req.responseText);
+    self.set_model(model);
+  });
+};
+
+Viewer.prototype.load_map = function (url, is_diff_map, filetype) {
+  var self = this;
+  this.load_file(url, 'arraybuffer', function (req) {
+      var map = new ElMap();
+      if (filetype === 'ccp4') {
+        map.from_ccp4(req.response);
+      } else if (filetype === 'dsn6') {
+        map.from_dsn6(req.response);
       } else {
-        console.log('Error fetching ' + url);
+        throw Error('Unknown map filetype.');
       }
-    }
-  };
-  req.send(null);
+      self.add_map(map, is_diff_map);
+  });
 };
 
 // TODO: navigation window like in gimp and mifit
