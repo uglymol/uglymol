@@ -22,9 +22,9 @@ Try it (if all lines are thin -- it's a known problem, see the first
 point [here](https://github.com/uglymol/uglymol/blob/master/TODO.md)):
 
 - [1MRU](https://uglymol.github.io/1mru.html) (60kDa, 3Å),
-- xxxx (>200kDa, xÅ),
-- a blob (thaumatin, Dimple result),
-- SAD phasing.
+- [4UN4](https://uglymol.github.io/4un4.html) (200kDa, 2.4Å),
+- [a blob](https://uglymol.github.io/dimple_thaum.html)
+  (Dimple result, thaumatin, 1.4Å).
 
 Technically, UglyMol is a small
 [project](https://github.com/uglymol/uglymol) (~2 KLOC)

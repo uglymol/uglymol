@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <title>dev.html - UglyMol test page</title>
+  <title>1mru - UglyMol</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, user-scalable=no">
   <style>
@@ -47,12 +47,19 @@
    }
    a { color: #59C; }
   </style>
-  <script src="node_modules/three/build/three.js"></script>
-  <script src="src/unitcell.js"></script>
-  <script src="src/elmap.js"></script>
-  <script src="src/model.js"></script>
-  <script src="src/isosurface.js"></script>
-  <script src="src/viewer.js"></script>
+
+  <!-- -DEV- using directly source files and node_modules -->
+  <script src="node_modules/three/build/three.js"></script><!--DEV-->
+  <script src="src/unitcell.js"></script><!--DEV-->
+  <script src="src/elmap.js"></script><!--DEV-->
+  <script src="src/model.js"></script><!--DEV-->
+  <script src="src/isosurface.js"></script><!--DEV-->
+  <script src="src/viewer.js"></script><!--DEV-->
+  <!--DEV-: normally, use uglymol[.min].js and three.min.js from CDN.
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r78/three.min.js"></script>
+  <script src="uglymol.js"></script>
+  -DEV-->
+
 </head>
 <body style="background-color: black">
   <div id="viewer" style="position: absolute; left:0px; top:0px;">

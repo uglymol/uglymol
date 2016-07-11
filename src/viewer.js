@@ -276,9 +276,12 @@ var Controls = function (camera, target) {
     }
     _go_func = function () {
       var a = alphas.shift();
-      camera.position.sub(target); //XXX
-      if (targ) target.lerp(targ, a);
-      camera.position.add(target); //XXX
+      if (targ) {
+        // unspecified cam_pos - camera stays in the same distance to target
+        if (!cam_pos) camera.position.sub(target);
+        target.lerp(targ, a);
+        if (!cam_pos) camera.position.add(target);
+      }
       if (cam_pos) camera.position.lerp(cam_pos, a);
       if (cam_up) camera.up.lerp(cam_up, a);
       if (alphas.length === 0) {
@@ -592,7 +595,7 @@ function Viewer(element_id) {
   this.last_ctr = new THREE.Vector3(Infinity, 0, 0);
   this.initial_hud_text = null;
   this.selected_atom = null;
-  this.pickable_model = null;
+  this.active_model_bag = null;
   this.scene = new THREE.Scene();
   this.target = new THREE.Vector3();
   this.camera = new THREE.OrthographicCamera();
@@ -640,7 +643,7 @@ function Viewer(element_id) {
   this.mouseup = function (event) {
     event.preventDefault();
     event.stopPropagation();
-    self.controls.stop(self.pickable_model);
+    self.controls.stop(self.active_model_bag);
     document.removeEventListener('mousemove', self.mousemove);
     document.removeEventListener('mouseup', self.mouseup);
     self.redraw_maps();
@@ -846,8 +849,8 @@ Viewer.prototype.shift_clip = function (away) {
 
 Viewer.prototype.go_to_nearest_Ca = function () {
   var t = this.target;
-  if (this.pickable_model === null) return;
-  var a = this.pickable_model.model.get_nearest_atom(t.x, t.y, t.z, 'CA');
+  if (this.active_model_bag === null) return;
+  var a = this.active_model_bag.model.get_nearest_atom(t.x, t.y, t.z, 'CA');
   if (a) {
     this.hud(a.long_label());
     //this.set_selection(a);
@@ -1002,8 +1005,8 @@ Viewer.prototype.dblclick = function (event) {
   }
   var mouse = new THREE.Vector2(relX(event), relY(event));
   var atom;
-  if (this.pickable_model !== null) {
-    atom = this.pickable_model.pick_atom(get_raycaster(mouse, this.camera));
+  if (this.active_model_bag !== null) {
+    atom = this.active_model_bag.pick_atom(get_raycaster(mouse, this.camera));
   }
   if (atom) {
     this.hud(atom.long_label());
@@ -1085,21 +1088,39 @@ Viewer.prototype.resize = function (/*evt*/) {
   }
 };
 
+// If xyz set recenter on it looking toward the model center.
+// Otherwise recenter on the model center looking along the z axis.
 Viewer.prototype.recenter = function (xyz, steps) {
-  if (!xyz) { // recenter on the last model
-    var len = this.model_bags.length;
-    if (len === 0) return;
-    xyz = this.model_bags[len - 1].model.get_center();
+  if (this.active_model_bag === null) {
+    if (xyz == null) return;
+    this.controls.go_to(new THREE.Vector3(xyz[0], xyz[1], xyz[2]),
+                        null, null, steps);
   }
-  this.controls.go_to(new THREE.Vector3(xyz[0], xyz[1], xyz[2]),
-                      new THREE.Vector3(xyz[0], xyz[1], xyz[2] + 100),
-                      new THREE.Vector3(0, 1, 0),
-                      steps);
+  var ctr = this.active_model_bag.model.get_center();
+  var new_target, new_cam_pos, new_up;
+  if (xyz != null) {
+    new_target = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
+    var diff = new THREE.Vector3(xyz[0]-ctr[0], xyz[1]-ctr[1], xyz[2]-ctr[2])
+               .setLength(100);
+    new_up = new THREE.Vector3(0, 1, 0).projectOnPlane(diff);
+    var len = new_up.length();
+    if (len < 0.1) { // if [0,1,0]
+      new_up.set(1, 0, 0).projectOnPlane(diff);
+      len = new_up.length();
+    }
+    new_up.divideScalar(len); // normalizes
+    new_cam_pos = diff.add(new_target);
+  } else { // recenter on the active model
+    new_target = new THREE.Vector3(ctr[0], ctr[1], ctr[2]);
+    new_cam_pos = new THREE.Vector3(ctr[0], ctr[1], ctr[2] + 100);
+    new_up = THREE.Object3D.DefaultUp; // Vector3(0, 1, 0)
+  }
+  this.controls.go_to(new_target, new_cam_pos, new_up, steps);
 };
 
 Viewer.prototype.center_next_residue = function (back) {
-  if (!this.pickable_model) return;
-  var a = this.pickable_model.model.next_residue(this.selected_atom, back);
+  if (!this.active_model_bag) return;
+  var a = this.active_model_bag.model.next_residue(this.selected_atom, back);
   if (a) {
     this.hud('-> ' + a.long_label());
     this.controls.go_to(new THREE.Vector3(a.xyz[0], a.xyz[1], a.xyz[2]),
@@ -1149,8 +1170,7 @@ Viewer.prototype.set_model = function (model) {
   var model_bag = new ModelBag(model, this.config);
   this.model_bags.push(model_bag);
   this.set_atomic_objects(model_bag);
-  this.pickable_model = model_bag;
-  this.recenter(null, 1);
+  this.active_model_bag = model_bag;
 };
 
 Viewer.prototype.add_map = function (map, is_diff_map) {
@@ -1178,13 +1198,15 @@ Viewer.prototype.load_file = function (url, response_type, callback) {
 };
 
 // Load molecular model from PDB file and centers the view
-Viewer.prototype.load_pdb = function (url, callback) {
+Viewer.prototype.load_pdb = function (url, options) {
+  options = options || {};
   var self = this;
   this.load_file(url, null, function (req) {
     var model = new Model();
     model.from_pdb(req.responseText);
     self.set_model(model);
-    if (callback) callback();
+    self.recenter(options.center, 1);
+    if (options.callback) options.callback();
   });
 };
 
