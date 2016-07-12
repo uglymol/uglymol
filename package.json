@@ -17,6 +17,7 @@
     "chai": "^3.5.0",
     "eslint": "^3.0.1",
     "eslint-config-xo": "^0.15.2",
+    "http-server": "^0.9.0",
     "istanbul": "^0.4.4",
     "mocha": "^2.5.3",
     "uglify-js": "^2.7.0"
@@ -24,14 +25,15 @@
   "scripts": {
     "test": "mocha",
     "coverage": "istanbul cover -x '**/perf/**' _mocha -- --timeout 100000",
-    "lint": "eslint src test perf ||:",
+    "lint": "eslint src test perf || exit 0",
     "download-data": "node perf/util.js download-data",
     "build:concat": "tools/concat.sh",
     "build:uglify": "uglifyjs uglymol.js -o uglymol.min.js",
     "build": "npm run build:concat && npm run build:uglify",
     "prepublish": "npm run build",
     "prebuild": "npm test",
-    "pretest": "npm run lint"
+    "pretest": "npm run lint",
+    "start": "http-server -a localhost -p 7890 -c-1"
   },
   "repository": {
     "type": "git",
