@@ -26,7 +26,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-var UGLYMOL_VERSION = '0.0.0'
+var UGLYMOL_VERSION = '0.1.0'
 var THREE = THREE || require('three'); // eslint-disable-line
 
 var UnitCell = (function () {
@@ -2373,10 +2373,15 @@ Viewer.prototype.add_map = function (map, is_diff_map) {
   this.add_el_objects(map_bag);
 };
 
-Viewer.prototype.load_file = function (url, response_type, callback) {
+Viewer.prototype.load_file = function (url, binary, callback) {
   var req = new XMLHttpRequest();
-  if (response_type) req.responseType = response_type;
   req.open('GET', url, true);
+  if (binary) {
+    req.responseType = 'arraybuffer';
+  } else {
+    // http://stackoverflow.com/questions/7374911/
+    req.overrideMimeType('text/plain');
+  }
   req.onreadystatechange = function () {
     if (req.readyState === 4) {
       // chrome --allow-file-access-from-files gives status 0
@@ -2394,7 +2399,7 @@ Viewer.prototype.load_file = function (url, response_type, callback) {
 Viewer.prototype.load_pdb = function (url, options) {
   options = options || {};
   var self = this;
-  this.load_file(url, null, function (req) {
+  this.load_file(url, false, function (req) {
     var model = new Model();
     model.from_pdb(req.responseText);
     self.set_model(model);
@@ -2405,7 +2410,7 @@ Viewer.prototype.load_pdb = function (url, options) {
 
 Viewer.prototype.load_map = function (url, is_diff_map, filetype, callback) {
   var self = this;
-  this.load_file(url, 'arraybuffer', function (req) {
+  this.load_file(url, true, function (req) {
       var map = new ElMap();
       if (filetype === 'ccp4') {
         map.from_ccp4(req.response);
