@@ -3,24 +3,30 @@
 var util = util || require('./util'); // eslint-disable-line
 var ElMap = ElMap || require('../src/elmap'); // eslint-disable-line
 
-var dmap_buf = util.open_as_array_buffer('1mru.omap');
-var cmap_buf = util.open_as_array_buffer('1mru.map');
+var dsn6_buf = util.open_as_array_buffer('1mru.omap');
+var map2_buf = util.open_as_array_buffer('1mru.map');
+var map0_buf = util.open_as_array_buffer('1mru_m0.map');
 
 var map;
 
 function print_map_stats() {
-  console.log('mean/rms: ' + [map.mean, map.rms]);
+  console.log('    mean/rms: ' + [map.mean, map.rms]);
 }
 
 util.bench('ElMap#from_dsn6', function () {
   map = new ElMap();
-  map.from_dsn6(dmap_buf.slice(0));
+  map.from_dsn6(dsn6_buf.slice(0));
 },
 {onComplete: print_map_stats});
 
-util.bench('ElMap#from_ccp4', function () {
+util.bench('ElMap#from_ccp4 mode0', function () {
   map = new ElMap();
-  map.from_ccp4(cmap_buf.slice(0));
+  map.from_ccp4(map0_buf.slice(0));
+});
+
+util.bench('ElMap#from_ccp4 mode2', function () {
+  map = new ElMap();
+  map.from_ccp4(map2_buf.slice(0));
 },
 {onComplete: print_map_stats});
 
