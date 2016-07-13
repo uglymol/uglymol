@@ -14,8 +14,6 @@
   in the browser, but currently no one is working on it. Volunteers needed.
   Requires 3D FFT.
 
-- catch errors from reading data files
-
 - add a test case with hydrogens and multiple conformers,
   and a keybinding to hide/show hydrogens
 

@@ -548,7 +548,10 @@ ElMap.prototype.abs_level = function (sigma) {
 ElMap.prototype.from_ccp4 = function (buf) {
   if (buf.byteLength < 1024) throw Error('File shorter than 1024 bytes.');
   //console.log('buf type: ' + Object.prototype.toString.call(buf));
+  // for now we assume both file and host are little endian
   var iview = new Int32Array(buf, 0, 256);
+  // word 53 - character string 'MAP ' to identify file type
+  if (iview[52] !== 0x2050414d) throw Error('not a CCP4 map');
   // map has 3 dimensions referred to as columns (fastest changing), rows
   // and sections (c-r-s)
   var n_crs = [iview[0], iview[1], iview[2]];
@@ -1787,6 +1790,7 @@ function Viewer(element_id) {
 
   this.last_ctr = new THREE.Vector3(Infinity, 0, 0);
   this.initial_hud_text = null;
+  this.initial_hud_bg = '';
   this.selected_atom = null;
   this.active_model_bag = null;
   this.scene = new THREE.Scene();
@@ -1843,14 +1847,18 @@ function Viewer(element_id) {
   };
 }
 
-Viewer.prototype.hud = function (text) {
+Viewer.prototype.hud = function (text, type) {
   if (typeof document === 'undefined') return;  // for testing on node
   var el = document && document.getElementById('hud');
   if (el) {
     if (this.initial_hud_text === null) {
       this.initial_hud_text = el.textContent;
+      this.initial_hud_bg = el.style['background-color'];
     }
     el.textContent = (text !== undefined ? text : this.initial_hud_text);
+    el.style['background-color'] = (type !== 'ERR' ? this.initial_hud_bg
+                                                   : '#b00');
+    if (type === 'ERR') console.log('ERR: ' + text);
   } else {
     console.log('hud: ' + text);
   }
@@ -2382,13 +2390,18 @@ Viewer.prototype.load_file = function (url, binary, callback) {
     // http://stackoverflow.com/questions/7374911/
     req.overrideMimeType('text/plain');
   }
+  var self = this;
   req.onreadystatechange = function () {
     if (req.readyState === 4) {
       // chrome --allow-file-access-from-files gives status 0
       if (req.status === 200 || (req.status === 0 && req.response !== null)) {
-        callback(req);
+        try {
+          callback(req);
+        } catch (e) {
+          self.hud('Error: ' + e.message + '\nin ' + url, 'ERR');
+        }
       } else {
-        console.log('Error fetching ' + url);
+        self.hud('Failed to fetch ' + url, 'ERR');
       }
     }
   };
@@ -2409,18 +2422,16 @@ Viewer.prototype.load_pdb = function (url, options) {
 };
 
 Viewer.prototype.load_map = function (url, is_diff_map, filetype, callback) {
+  if (filetype !== 'ccp4' && filetype !== 'dsn6') {
+    throw Error('Unknown map filetype.');
+  }
   var self = this;
   this.load_file(url, true, function (req) {
-      var map = new ElMap();
-      if (filetype === 'ccp4') {
-        map.from_ccp4(req.response);
-      } else if (filetype === 'dsn6') {
-        map.from_dsn6(req.response);
-      } else {
-        throw Error('Unknown map filetype.');
-      }
-      self.add_map(map, is_diff_map);
-      if (callback) callback();
+    var map = new ElMap();
+    if (filetype === 'ccp4') map.from_ccp4(req.response);
+    else /* === 'dsn6'*/ map.from_dsn6(req.response);
+    self.add_map(map, is_diff_map);
+    if (callback) callback();
   });
 };
 
