@@ -74,7 +74,10 @@ ElMap.prototype.abs_level = function (sigma) {
 ElMap.prototype.from_ccp4 = function (buf) {
   if (buf.byteLength < 1024) throw Error('File shorter than 1024 bytes.');
   //console.log('buf type: ' + Object.prototype.toString.call(buf));
+  // for now we assume both file and host are little endian
   var iview = new Int32Array(buf, 0, 256);
+  // word 53 - character string 'MAP ' to identify file type
+  if (iview[52] !== 0x2050414d) throw Error('not a CCP4 map');
   // map has 3 dimensions referred to as columns (fastest changing), rows
   // and sections (c-r-s)
   var n_crs = [iview[0], iview[1], iview[2]];
