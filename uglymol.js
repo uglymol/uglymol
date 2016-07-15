@@ -1102,18 +1102,10 @@ var cubeVerts = [[0,0,0], [1,0,0], [1,1,0], [0,1,0],
 var edgeIndex = [[0,1], [1,2], [2,3], [3,0], [4,5], [5,6],
                  [6,7], [7,4], [0,4], [1,5], [2,6], [3,7]];
 
-function vec3(a) {
-  return new THREE.Vector3(a[0], a[1], a[2]);
-}
-
 function isosurface(points, values, size, isolevel) {
-  // Vertices may occur along edges of cube, when the values at the edge's
-  //   endpoints straddle the isolevel value.
-  // Actual position along edge weighted according to function values.
   var vlist = new Array(12);
 
   var geometry = new THREE.Geometry();
-  var vertexIndex = 0;
   var size_x = size[0];
   var size_y = size[1];
   var size_z = size[2];
@@ -1164,32 +1156,28 @@ function isosurface(points, values, size, isolevel) {
                    (vertices[e[1]] - vertices[e[0]]);
           var p1 = vertex_points[e[0]];
           var p2 = vertex_points[e[1]];
-          vlist[i] = [p1[0] + (p2[0] - p1[0]) * mu,
-                      p1[1] + (p2[1] - p1[1]) * mu,
-                      p1[2] + (p2[2] - p1[2]) * mu];
+          vlist[i] = geometry.vertices.length;
+          geometry.vertices.push(
+                     new THREE.Vector3(p1[0] + (p2[0] - p1[0]) * mu,
+                                       p1[1] + (p2[1] - p1[1]) * mu,
+                                       p1[2] + (p2[2] - p1[2]) * mu));
         }
         // construct triangles -- get correct vertices from triTable.
         cubeindex <<= 4;  // multiply by 16...
         for (i = 0; triTable[cubeindex + i] !== -1; i += 3) {
-          var index1 = triTable[cubeindex + i];
-          var index2 = triTable[cubeindex + i + 1];
-          var index3 = triTable[cubeindex + i + 2];
-
-          geometry.vertices.push(vec3(vlist[index1]));
-          geometry.vertices.push(vec3(vlist[index2]));
-          geometry.vertices.push(vec3(vlist[index3]));
-          var face = new THREE.Face3(vertexIndex, vertexIndex+1, vertexIndex+2);
+          var face = new THREE.Face3(vlist[triTable[cubeindex + i + 0]],
+                                     vlist[triTable[cubeindex + i + 1]],
+                                     vlist[triTable[cubeindex + i + 2]]);
           geometry.faces.push(face);
-          geometry.faceVertexUvs[0].push([new THREE.Vector2(0, 0),
-                                          new THREE.Vector2(0, 1),
-                                          new THREE.Vector2(1, 1)]);
-          vertexIndex += 3;
+          //geometry.faceVertexUvs[0].push([new THREE.Vector2(0, 0),
+          //                                new THREE.Vector2(0, 1),
+          //                                new THREE.Vector2(1, 1)]);
         }
       }
     }
   }
 
-//  geometry.computeCentroids();
+  //geometry.computeCentroids();
   //geometry.computeFaceNormals();
   //geometry.computeVertexNormals();
   return geometry;
