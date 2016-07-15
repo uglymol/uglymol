@@ -618,6 +618,10 @@ function Viewer(element_id) {
     return;
   }
   container.appendChild(this.renderer.domElement);
+  if (window.Stats) {
+    this.stats = new Stats();
+    container.appendChild(this.stats.dom);
+  }
 
   window.addEventListener('resize', this.resize.bind(this));
   window.addEventListener('keydown', this.keydown.bind(this));
@@ -1168,6 +1172,9 @@ Viewer.prototype.render = function render() {
   }
   if (true) { // TODO
     window.requestAnimationFrame(render.bind(this));
+  }
+  if (this.stats) {
+    this.stats.update();
   }
 };
 
