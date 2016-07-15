@@ -619,7 +619,7 @@ function Viewer(element_id) {
   }
   container.appendChild(this.renderer.domElement);
   if (window.Stats) {
-    this.stats = new Stats();
+    this.stats = new window.Stats();
     container.appendChild(this.stats.dom);
   }
 
@@ -695,9 +695,7 @@ Viewer.prototype.redraw_maps = function (force) {
   for (var i = 0; i < this.map_bags.length; i++) {
     var map_bag = this.map_bags[i];
     if (force || this.target.distanceToSquared(map_bag.block_ctr) > 0.01) {
-      this.clear_el_objects(map_bag);
-      map_bag.map.block = null;
-      this.add_el_objects(map_bag);
+      this.redraw_map(map_bag);
     }
   }
 };
@@ -743,9 +741,12 @@ Viewer.prototype.set_atomic_objects = function (model_bag) {
   }
 };
 
-Viewer.prototype.toggle_map_visibility = function (map_bag, visible) {
-  map_bag.visible = visible;
-  if (visible) {
+Viewer.prototype.toggle_map_visibility = function (map_bag) {
+  if (typeof map_bag === 'number') {
+    map_bag = this.map_bags[map_bag];
+  }
+  map_bag.visible = !map_bag.visible;
+  if (map_bag.visible) {
     map_bag.map.block = null;
     this.add_el_objects(map_bag);
   } else {
@@ -753,13 +754,18 @@ Viewer.prototype.toggle_map_visibility = function (map_bag, visible) {
   }
 };
 
-Viewer.prototype.toggle_model_visibility = function (model_bag, visible) {
-  model_bag.visible = visible;
-  if (visible) {
-    this.set_atomic_objects(model_bag);
-  } else {
-    this.clear_atomic_objects(model_bag);
+Viewer.prototype.redraw_map = function (map_bag) {
+  this.clear_el_objects(map_bag);
+  if (map_bag.visible) {
+    map_bag.map.block = null;
+    this.add_el_objects(map_bag);
   }
+};
+
+Viewer.prototype.toggle_model_visibility = function (model_bag) {
+  model_bag = model_bag || this.active_model_bag;
+  model_bag.visible = !model_bag.visible;
+  this.redraw_model(model_bag);
 };
 
 Viewer.prototype.redraw_model = function (model_bag) {
