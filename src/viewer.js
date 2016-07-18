@@ -703,6 +703,7 @@ Viewer.prototype.redraw_maps = function (force) {
 Viewer.prototype.clear_el_objects = function (map_bag) {
   for (var i = 0; i < map_bag.el_objects.length; i++) {
     this.scene.remove(map_bag.el_objects[i]);
+    map_bag.el_objects[i].geometry.dispose();
   }
   map_bag.el_objects = [];
 };
