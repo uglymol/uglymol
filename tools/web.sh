@@ -14,6 +14,8 @@ $(cat README.md | grep -v '^\[!\[' | sed s,https://uglymol.github.io,,)
 EOF
 
 cp src/* $outdir/src/
+three=node_modules/three/build/three.min.js
+diff -q $three $outdir/$three || cp $three $outdir/$three
 cp uglymol.js uglymol.min.js LICENSE perf.html $outdir/
 cp perf/* $outdir/perf/
 
@@ -26,5 +28,5 @@ sed -e s/1mru/dimple_thaum/g \
 # V.load_pdb("data/dimple_thaum.pdb", [13.98, 18.1, 12.26]);
 
 cd $outdir
-pwd
+echo "=== $(pwd) ==="
 git status -s
