@@ -24,7 +24,7 @@ describe('isosurface', function () {
   }
   it('sphere', function () {
     var isolevel = 3;
-    var ret = isosurface(dims, points, values, isolevel);
+    var ret = isosurface(dims, values, points, isolevel);
     assert.isAbove(ret.vertices.length, 100*3); // way above
     for (var i = 0; i < ret.vertices.length; i += 3) {
       var vertex = ret.vertices.slice(i, i+3);

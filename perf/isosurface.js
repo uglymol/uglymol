@@ -1,6 +1,5 @@
 
 var ElMap = ElMap || require('../src/elmap'); // eslint-disable-line
-var isosurface = isosurface || require('../src/isosurface'); // eslint-disable-line
 var util = util || require('./util'); // eslint-disable-line
 
 (function () {  // namespace is needed for perf.html
@@ -12,7 +11,6 @@ map.from_dsn6(dmap_buf.slice(0));
 map.extract_block(15, [25, 26, 35]);
 
 util.bench('isosurface', function () {
-  var bl = map.block;
-  isosurface(bl.size, bl.points, bl.values, 1.0);
+  map.isomesh_in_block(1.5);
 });
 })();

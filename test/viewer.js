@@ -25,6 +25,8 @@ describe('Viewer', function () {
     viewer.center_next_residue();
     viewer.set_model(model);
     viewer.center_next_residue();
+    viewer.recenter();
+    viewer.recenter([11, 22, 33]);
     viewer.set_selection(model.atoms[0]);
   });
 

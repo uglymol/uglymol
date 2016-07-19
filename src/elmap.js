@@ -1,5 +1,6 @@
 
 var UnitCell = UnitCell || require('./unitcell'); // eslint-disable-line
+var isosurface = isosurface || require('./isosurface'); // eslint-disable-line
 
 var ElMap = (function () {
 'use strict';
@@ -309,6 +310,12 @@ ElMap.prototype.extract_block = function (radius, center) {
     }
   }
   this.block = {points: points, values: values, size: [nx, ny, nz]};
+};
+
+ElMap.prototype.isomesh_in_block = function (sigma) {
+  var abs_level = this.abs_level(sigma);
+  var bl = this.block;
+  return isosurface(bl.size, bl.values, bl.points, abs_level);
 };
 
 return ElMap;

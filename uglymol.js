@@ -785,6 +785,12 @@ ElMap.prototype.extract_block = function (radius, center) {
   this.block = {points: points, values: values, size: [nx, ny, nz]};
 };
 
+ElMap.prototype.isomesh_in_block = function (sigma) {
+  var abs_level = this.abs_level(sigma);
+  var bl = this.block;
+  return isosurface(bl.size, bl.values, bl.points, abs_level);
+};
+
 return ElMap;
 })();
 
@@ -1098,7 +1104,7 @@ var edgeIndex = [[0,1], [1,2], [2,3], [3,0], [4,5], [5,6],
                  [6,7], [7,4], [0,4], [1,5], [2,6], [3,7]];
 
 
-function check_input(points, values, dims) {
+function check_input(dims, values, points) {
   if (dims[0] <= 0 || dims[1] <= 0 || dims[2] <= 0) {
     throw Error('Grid dimensions are zero along at least one edge');
   }
@@ -1119,8 +1125,8 @@ function calculate_vert_offsets(dims) {
 }
 
 
-function isosurface(dims, points, values, isolevel) {
-  check_input(points, values, dims);
+function isosurface(dims, values, points, isolevel) {
+  check_input(dims, values, points);
   var vlist = new Array(12);
   var vert_offsets = calculate_vert_offsets(dims);
   var vertex_values = new Float32Array(8);
@@ -1966,22 +1972,39 @@ Viewer.prototype.add_el_objects = function (map_bag) {
   for (var i = 0; i < map_bag.types.length; i++) {
     var mtype = map_bag.types[i];
     var isolevel = (mtype === 'map_neg' ? -1 : 1) * map_bag.isolevel;
-    var abs_level = map_bag.map.abs_level(isolevel);
-    var bl = map_bag.map.block;
-    var iso = isosurface(bl.size, bl.points, bl.values, abs_level);
+    var iso = map_bag.map.isomesh_in_block(isolevel);
     var geom = new THREE.BufferGeometry();
-    geom.setIndex(new THREE.BufferAttribute(new Uint32Array(iso.faces), 1));
-    //console.log(iso.faces.length);
     geom.addAttribute('position',
                  new THREE.BufferAttribute(new Float32Array(iso.vertices), 3));
+    /* old version - mesh instead of lines
+    geom.setIndex(new THREE.BufferAttribute(new Uint32Array(iso.faces), 1));
     var material = new THREE.MeshBasicMaterial({
       color: this.config.colors[mtype],
       wireframe: true,
       wireframeLinewidth: this.config.map_line
     });
-    var mesh = new THREE.Mesh(geom, material);
-    map_bag.el_objects.push(mesh);
-    this.scene.add(mesh);
+    var obj = new THREE.Mesh(geom, material);
+    */
+
+    var faces = iso.faces;
+    var arr = new Uint32Array(faces.length * 2);
+    for (var j = 0; j < faces.length; j += 3) {
+      arr[2*j] = faces[j];
+      arr[2*j+1] = faces[j+1];
+      arr[2*j+2] = faces[j+1];
+      arr[2*j+3] = faces[j+2];
+      arr[2*j+4] = faces[j+2];
+      arr[2*j+5] = faces[j];
+    }
+    geom.setIndex(new THREE.BufferAttribute(arr, 1));
+    var material = new THREE.LineBasicMaterial({
+      color: this.config.colors[mtype],
+      linewidth: this.config.map_line
+    });
+    var obj = new THREE.LineSegments(geom, material);
+
+    map_bag.el_objects.push(obj);
+    this.scene.add(obj);
   }
 };
 

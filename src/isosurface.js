@@ -308,7 +308,7 @@ var edgeIndex = [[0,1], [1,2], [2,3], [3,0], [4,5], [5,6],
                  [6,7], [7,4], [0,4], [1,5], [2,6], [3,7]];
 
 
-function check_input(points, values, dims) {
+function check_input(dims, values, points) {
   if (dims[0] <= 0 || dims[1] <= 0 || dims[2] <= 0) {
     throw Error('Grid dimensions are zero along at least one edge');
   }
@@ -329,8 +329,8 @@ function calculate_vert_offsets(dims) {
 }
 
 
-function isosurface(dims, points, values, isolevel) {
-  check_input(points, values, dims);
+function isosurface(dims, values, points, isolevel) {
+  check_input(dims, values, points);
   var vlist = new Array(12);
   var vert_offsets = calculate_vert_offsets(dims);
   var vertex_values = new Float32Array(8);

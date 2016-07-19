@@ -8,12 +8,12 @@
  <meta charset="utf-8">
  <title>benchmarks for uglymol</title>
  <style>
-   body { font: 18px sans-serif; padding: 10px 20px; }
+   body { background-color: #ddd; font: 18px sans-serif; padding: 10px 20px; }
    a { color: #22b; text-decoration: none; }
    li.running a { background-color: orange; }
    body.busy * { cursor: progress; }
    code { display: inline-block; margin: auto; white-space:pre-wrap;
-          background-color: #eee; font-size: 80%; padding: 10px; }
+          background-color: #bbb; font-size: 80%; padding: 10px; }
  </style>
 </head>
 <body onload="onload();">
@@ -96,10 +96,10 @@
 
  <!-- uglymol scripts -->
  <script src="node_modules/three/build/three.min.js"></script>
+ <script src="src/isosurface.js"></script>
  <script src="src/unitcell.js"></script>
  <script src="src/elmap.js"></script>
  <script src="src/model.js"></script>
- <script src="src/isosurface.js"></script>
  <script src="src/viewer.js"></script>
  <script src="perf/model.js"></script>
  <script src="perf/elmap.js"></script>
