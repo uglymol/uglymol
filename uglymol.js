@@ -789,19 +789,14 @@ return ElMap;
 })();
 
 
-
-// copied from xtal.js/marchingcubes.js which is
+// based on xtal.js/marchingcubes.js which is
 // based on http://stemkoski.github.io/Three.js/Marching-Cubes.html
 
-// Dependencies: none
 var isosurface = (function () {
 'use strict';
-
-/////////////////////////////////////
-// Marching cubes lookup tables
-/////////////////////////////////////
 /* eslint comma-spacing: 0, no-multi-spaces: 0 */
 
+// Marching cubes lookup tables.
 // These tables are straight from Paul Bourke's page:
 // http://local.wasp.uwa.edu.au/~pbourke/geometry/polygonise/
 // who in turn got them from Cory Gene Bloyd.
@@ -1102,85 +1097,85 @@ var cubeVerts = [[0,0,0], [1,0,0], [1,1,0], [0,1,0],
 var edgeIndex = [[0,1], [1,2], [2,3], [3,0], [4,5], [5,6],
                  [6,7], [7,4], [0,4], [1,5], [2,6], [3,7]];
 
-function isosurface(points, values, size, isolevel) {
-  var vlist = new Array(12);
 
-  var geometry = new THREE.Geometry();
-  var size_x = size[0];
-  var size_y = size[1];
-  var size_z = size[2];
-  if (size_x <= 0 || size_y <= 0 || size_z <= 0) {
+function check_input(points, values, dims) {
+  if (dims[0] <= 0 || dims[1] <= 0 || dims[2] <= 0) {
     throw Error('Grid dimensions are zero along at least one edge');
   }
-  var size_xyz = size_x * size_y * size_z;
+  var size_xyz = dims[0] * dims[1] * dims[2];
   if (values.length !== size_xyz || points.length !== size_xyz) {
     throw Error('isosurface: array size mismatch');
   }
+}
+
+// return offsets relative to vertex [0,0,0]
+function calculate_vert_offsets(dims) {
   var vert_offsets = [];
-  var i;
-  for (i = 0; i < 8; ++i) {
+  for (var i = 0; i < 8; ++i) {
     var v = cubeVerts[i];
-    vert_offsets.push(v[0] + size_z * (v[1] + size_y * v[2]));
+    vert_offsets.push(v[0] + dims[2] * (v[1] + dims[1] * v[2]));
   }
-  var vertices = new Float32Array(8);
+  return vert_offsets;
+}
+
+
+function isosurface(dims, points, values, isolevel) {
+  check_input(points, values, dims);
+  var vlist = new Array(12);
+  var vert_offsets = calculate_vert_offsets(dims);
+  var vertex_values = new Float32Array(8);
   var vertex_points = [null, null, null, null, null, null, null, null];
+  var size_x = dims[0];
+  var size_y = dims[1];
+  var size_z = dims[2];
+  var vertices = [];
+  var faces = [];
+  var vertex_count = 0;
   for (var x = 0; x < size_x - 1; x++) {
     for (var y = 0; y < size_y - 1; y++) {
       for (var z = 0; z < size_z - 1; z++) {
-        var j0 = z + size_z * (y + size_y * x);
+        var offset0 = z + size_z * (y + size_y * x);
         var cubeindex = 0;
+        var i, j;
         for (i = 0; i < 8; ++i) {
-          var j = j0 + vert_offsets[i];
-          var s = values[j];
-          vertices[i] = s;
+          j = offset0 + vert_offsets[i];
+          cubeindex |= (values[j] < isolevel) ? 1 << i : 0;
+        }
+        if (cubeindex === 0 || cubeindex === 255) continue;
+        for (i = 0; i < 8; ++i) {
+          j = offset0 + vert_offsets[i];
+          vertex_values[i] = values[j];
           vertex_points[i] = points[j];
-          cubeindex |= (s < isolevel) ? 1 << i : 0;
         }
 
-        // bits = 12 bit number,
-        // indicates which edges are crossed by the isosurface
+        // 12 bit number, indicates which edges are crossed by the isosurface
         var edge_mask = edgeTable[cubeindex];
 
-        // if none are crossed, proceed to next iteration
-        if (edge_mask === 0) continue;
         // check which edges are crossed, and estimate the point location
-        //    using a weighted average of scalar values at edge endpoints.
-        // store the vertex in an array for use later.
-
+        // using a weighted average of scalar values at edge endpoints.
         for (i = 0; i < 12; ++i) {
-          if ((edge_mask & (1 << i)) === 0) {
-            continue;
+          if ((edge_mask & (1 << i)) !== 0) {
+            var e = edgeIndex[i];
+            var mu = (isolevel - vertex_values[e[0]]) /
+                     (vertex_values[e[1]] - vertex_values[e[0]]);
+            var p1 = vertex_points[e[0]];
+            var p2 = vertex_points[e[1]];
+            vertices.push(p1[0] + (p2[0] - p1[0]) * mu,
+                          p1[1] + (p2[1] - p1[1]) * mu,
+                          p1[2] + (p2[2] - p1[2]) * mu);
+            vlist[i] = vertex_count++;
           }
-          var e = edgeIndex[i];
-          var mu = (isolevel - vertices[e[0]]) /
-                   (vertices[e[1]] - vertices[e[0]]);
-          var p1 = vertex_points[e[0]];
-          var p2 = vertex_points[e[1]];
-          vlist[i] = geometry.vertices.length;
-          geometry.vertices.push(
-                     new THREE.Vector3(p1[0] + (p2[0] - p1[0]) * mu,
-                                       p1[1] + (p2[1] - p1[1]) * mu,
-                                       p1[2] + (p2[2] - p1[2]) * mu));
         }
         // construct triangles -- get correct vertices from triTable.
-        cubeindex <<= 4;  // multiply by 16...
-        for (i = 0; triTable[cubeindex + i] !== -1; i += 3) {
-          var face = new THREE.Face3(vlist[triTable[cubeindex + i + 0]],
-                                     vlist[triTable[cubeindex + i + 1]],
-                                     vlist[triTable[cubeindex + i + 2]]);
-          geometry.faces.push(face);
-          //geometry.faceVertexUvs[0].push([new THREE.Vector2(0, 0),
-          //                                new THREE.Vector2(0, 1),
-          //                                new THREE.Vector2(1, 1)]);
+        for (i = (cubeindex << 4); triTable[i] !== -1; i += 3) {
+          faces.push(vlist[triTable[i]],
+                     vlist[triTable[i + 1]],
+                     vlist[triTable[i + 2]]);
         }
       }
     }
   }
-
-  //geometry.computeCentroids();
-  //geometry.computeFaceNormals();
-  //geometry.computeVertexNormals();
-  return geometry;
+  return { vertices: vertices, faces: faces };
 }
 
 return isosurface;
@@ -1887,6 +1882,7 @@ Viewer.prototype.redraw_maps = function (force) {
 Viewer.prototype.clear_el_objects = function (map_bag) {
   for (var i = 0; i < map_bag.el_objects.length; i++) {
     this.scene.remove(map_bag.el_objects[i]);
+    map_bag.el_objects[i].geometry.dispose();
   }
   map_bag.el_objects = [];
 };
@@ -1930,12 +1926,7 @@ Viewer.prototype.toggle_map_visibility = function (map_bag) {
     map_bag = this.map_bags[map_bag];
   }
   map_bag.visible = !map_bag.visible;
-  if (map_bag.visible) {
-    map_bag.map.block = null;
-    this.add_el_objects(map_bag);
-  } else {
-    this.clear_el_objects(map_bag);
-  }
+  this.redraw_map(map_bag);
 };
 
 Viewer.prototype.redraw_map = function (map_bag) {
@@ -1977,13 +1968,18 @@ Viewer.prototype.add_el_objects = function (map_bag) {
     var isolevel = (mtype === 'map_neg' ? -1 : 1) * map_bag.isolevel;
     var abs_level = map_bag.map.abs_level(isolevel);
     var bl = map_bag.map.block;
-    var geometry = isosurface(bl.points, bl.values, bl.size, abs_level);
+    var iso = isosurface(bl.size, bl.points, bl.values, abs_level);
+    var geom = new THREE.BufferGeometry();
+    geom.setIndex(new THREE.BufferAttribute(new Uint32Array(iso.faces), 1));
+    //console.log(iso.faces.length);
+    geom.addAttribute('position',
+                 new THREE.BufferAttribute(new Float32Array(iso.vertices), 3));
     var material = new THREE.MeshBasicMaterial({
       color: this.config.colors[mtype],
       wireframe: true,
       wireframeLinewidth: this.config.map_line
     });
-    var mesh = new THREE.Mesh(geometry, material);
+    var mesh = new THREE.Mesh(geom, material);
     map_bag.el_objects.push(mesh);
     this.scene.add(mesh);
   }

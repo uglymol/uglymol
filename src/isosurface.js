@@ -338,8 +338,8 @@ function isosurface(dims, points, values, isolevel) {
   var size_x = dims[0];
   var size_y = dims[1];
   var size_z = dims[2];
-  var vertices = []
-  var faces = []
+  var vertices = [];
+  var faces = [];
   var vertex_count = 0;
   for (var x = 0; x < size_x - 1; x++) {
     for (var y = 0; y < size_y - 1; y++) {
