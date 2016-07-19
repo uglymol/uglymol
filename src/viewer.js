@@ -747,12 +747,7 @@ Viewer.prototype.toggle_map_visibility = function (map_bag) {
     map_bag = this.map_bags[map_bag];
   }
   map_bag.visible = !map_bag.visible;
-  if (map_bag.visible) {
-    map_bag.map.block = null;
-    this.add_el_objects(map_bag);
-  } else {
-    this.clear_el_objects(map_bag);
-  }
+  this.redraw_map(map_bag);
 };
 
 Viewer.prototype.redraw_map = function (map_bag) {
@@ -794,13 +789,18 @@ Viewer.prototype.add_el_objects = function (map_bag) {
     var isolevel = (mtype === 'map_neg' ? -1 : 1) * map_bag.isolevel;
     var abs_level = map_bag.map.abs_level(isolevel);
     var bl = map_bag.map.block;
-    var geometry = isosurface(bl.points, bl.values, bl.size, abs_level);
+    var iso = isosurface(bl.points, bl.values, bl.size, abs_level);
+    var geom = new THREE.BufferGeometry();
+    geom.setIndex(new THREE.BufferAttribute(new Uint32Array(iso.faces), 1));
+    //console.log(iso.faces.length);
+    geom.addAttribute('position',
+                 new THREE.BufferAttribute(new Float32Array(iso.vertices), 3));
     var material = new THREE.MeshBasicMaterial({
       color: this.config.colors[mtype],
       wireframe: true,
       wireframeLinewidth: this.config.map_line
     });
-    var mesh = new THREE.Mesh(geometry, material);
+    var mesh = new THREE.Mesh(geom, material);
     map_bag.el_objects.push(mesh);
     this.scene.add(mesh);
   }

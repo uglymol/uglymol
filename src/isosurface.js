@@ -1,6 +1,4 @@
 
-var THREE = THREE || require('three'); // eslint-disable-line
-
 // based on xtal.js/marchingcubes.js which is
 // based on http://stemkoski.github.io/Three.js/Marching-Cubes.html
 
@@ -348,24 +346,23 @@ function isosurface(points, values, size, isolevel) {
       for (var z = 0; z < size_z - 1; z++) {
         var offset0 = z + size_z * (y + size_y * x);
         var cubeindex = 0;
-        var i;
+        var i, j;
         for (i = 0; i < 8; ++i) {
-          var j = offset0 + vert_offsets[i];
-          var s = values[j];
-          vertex_values[i] = s;
+          j = offset0 + vert_offsets[i];
+          cubeindex |= (values[j] < isolevel) ? 1 << i : 0;
+        }
+        if (cubeindex === 0 || cubeindex === 255) continue;
+        for (i = 0; i < 8; ++i) {
+          j = offset0 + vert_offsets[i];
+          vertex_values[i] = values[j];
           vertex_points[i] = points[j];
-          cubeindex |= (s < isolevel) ? 1 << i : 0;
         }
 
-        // bits = 12 bit number,
-        // indicates which edges are crossed by the isosurface
+        // 12 bit number, indicates which edges are crossed by the isosurface
         var edge_mask = edgeTable[cubeindex];
 
-        // if none are crossed, proceed to next iteration
-        if (edge_mask === 0) continue;
         // check which edges are crossed, and estimate the point location
         // using a weighted average of scalar values at edge endpoints.
-
         for (i = 0; i < 12; ++i) {
           if ((edge_mask & (1 << i)) !== 0) {
             var e = edgeIndex[i];
@@ -380,22 +377,15 @@ function isosurface(points, values, size, isolevel) {
           }
         }
         // construct triangles -- get correct vertices from triTable.
-        cubeindex <<= 4;  // multiply by 16...
-        for (i = 0; triTable[cubeindex + i] !== -1; i += 3) {
-          faces.push(vlist[triTable[cubeindex + i + 0]],
-                     vlist[triTable[cubeindex + i + 1]],
-                     vlist[triTable[cubeindex + i + 2]]);
+        for (cubeindex <<= 4; triTable[cubeindex] !== -1; cubeindex += 3) {
+          faces.push(vlist[triTable[cubeindex]],
+                     vlist[triTable[cubeindex + 1]],
+                     vlist[triTable[cubeindex + 2]]);
         }
       }
     }
   }
-
-  var geometry = new THREE.BufferGeometry();
-  geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(faces), 1));
-  //console.log(faces.length);
-  geometry.addAttribute('position',
-                   new THREE.BufferAttribute(new Float32Array(vertices), 3));
-  return geometry;
+  return { vertices: vertices, faces: faces };
 }
 
 return isosurface;
