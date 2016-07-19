@@ -308,36 +308,36 @@ var edgeIndex = [[0,1], [1,2], [2,3], [3,0], [4,5], [5,6],
                  [6,7], [7,4], [0,4], [1,5], [2,6], [3,7]];
 
 
-function check_input(points, values, size) {
-  if (size[0] <= 0 || size[1] <= 0 || size[2] <= 0) {
+function check_input(points, values, dims) {
+  if (dims[0] <= 0 || dims[1] <= 0 || dims[2] <= 0) {
     throw Error('Grid dimensions are zero along at least one edge');
   }
-  var size_xyz = size[0] * size[1] * size[2];
+  var size_xyz = dims[0] * dims[1] * dims[2];
   if (values.length !== size_xyz || points.length !== size_xyz) {
     throw Error('isosurface: array size mismatch');
   }
 }
 
 // return offsets relative to vertex [0,0,0]
-function calculate_vert_offsets(size) {
+function calculate_vert_offsets(dims) {
   var vert_offsets = [];
   for (var i = 0; i < 8; ++i) {
     var v = cubeVerts[i];
-    vert_offsets.push(v[0] + size[2] * (v[1] + size[1] * v[2]));
+    vert_offsets.push(v[0] + dims[2] * (v[1] + dims[1] * v[2]));
   }
   return vert_offsets;
 }
 
 
-function isosurface(points, values, size, isolevel) {
-  check_input(points, values, size);
+function isosurface(dims, points, values, isolevel) {
+  check_input(points, values, dims);
   var vlist = new Array(12);
-  var vert_offsets = calculate_vert_offsets(size);
+  var vert_offsets = calculate_vert_offsets(dims);
   var vertex_values = new Float32Array(8);
   var vertex_points = [null, null, null, null, null, null, null, null];
-  var size_x = size[0];
-  var size_y = size[1];
-  var size_z = size[2];
+  var size_x = dims[0];
+  var size_y = dims[1];
+  var size_z = dims[2];
   var vertices = []
   var faces = []
   var vertex_count = 0;
@@ -377,10 +377,10 @@ function isosurface(points, values, size, isolevel) {
           }
         }
         // construct triangles -- get correct vertices from triTable.
-        for (cubeindex <<= 4; triTable[cubeindex] !== -1; cubeindex += 3) {
-          faces.push(vlist[triTable[cubeindex]],
-                     vlist[triTable[cubeindex + 1]],
-                     vlist[triTable[cubeindex + 2]]);
+        for (i = (cubeindex << 4); triTable[i] !== -1; i += 3) {
+          faces.push(vlist[triTable[i]],
+                     vlist[triTable[i + 1]],
+                     vlist[triTable[i + 2]]);
         }
       }
     }

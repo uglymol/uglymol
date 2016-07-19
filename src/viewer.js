@@ -789,7 +789,7 @@ Viewer.prototype.add_el_objects = function (map_bag) {
     var isolevel = (mtype === 'map_neg' ? -1 : 1) * map_bag.isolevel;
     var abs_level = map_bag.map.abs_level(isolevel);
     var bl = map_bag.map.block;
-    var iso = isosurface(bl.points, bl.values, bl.size, abs_level);
+    var iso = isosurface(bl.size, bl.points, bl.values, abs_level);
     var geom = new THREE.BufferGeometry();
     geom.setIndex(new THREE.BufferAttribute(new Uint32Array(iso.faces), 1));
     //console.log(iso.faces.length);

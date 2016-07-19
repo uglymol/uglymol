@@ -13,6 +13,6 @@ map.extract_block(15, [25, 26, 35]);
 
 util.bench('isosurface', function () {
   var bl = map.block;
-  isosurface(bl.points, bl.values, bl.size, 1.0);
+  isosurface(bl.size, bl.points, bl.values, 1.0);
 });
 })();
