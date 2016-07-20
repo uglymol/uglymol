@@ -309,6 +309,7 @@ var CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
 
 var COLOR_AIMS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
 var RENDER_STYLES = ['lines', 'trace', 'ribbon', 'lines+balls'];
+var MAP_STYLES = ['marching cubes', 'snapped MC'];
 
 function make_center_cube(size, ctr, color) {
   var geometry = new THREE.Geometry();
@@ -578,8 +579,9 @@ function Viewer(element_id) {
     bond_line: 4.0, // for 700px height (in Coot it also depends on height)
     map_line: 1.25,  // for any height
     map_radius: 10.0,
-    render_style: 'lines',
-    color_aim: 'element',
+    map_style: MAP_STYLES[0],
+    render_style: RENDER_STYLES[0],
+    color_aim: COLOR_AIMS[0],
     colors: set_colors('dark', {}),
     hydrogens: false,
     line_width: 0 // it will be set in resize()
@@ -786,7 +788,7 @@ Viewer.prototype.add_el_objects = function (map_bag) {
   for (var i = 0; i < map_bag.types.length; i++) {
     var mtype = map_bag.types[i];
     var isolevel = (mtype === 'map_neg' ? -1 : 1) * map_bag.isolevel;
-    var iso = map_bag.map.isomesh_in_block(isolevel);
+    var iso = map_bag.map.isomesh_in_block(isolevel, this.config.map_style);
     var geom = new THREE.BufferGeometry();
     geom.addAttribute('position',
                  new THREE.BufferAttribute(new Float32Array(iso.vertices), 3));
@@ -924,6 +926,11 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
         this.hud('coloring by ' + this.config.color_aim);
         this.redraw_models();
       }
+      break;
+    case 87:  // w
+      this.config.map_style = next(this.config.map_style, MAP_STYLES);
+      this.hud('map style: ' + this.config.map_style);
+      this.redraw_maps(true);
       break;
     case 107:  // add
     case 61:  // equals/firefox

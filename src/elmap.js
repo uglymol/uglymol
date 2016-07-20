@@ -312,10 +312,10 @@ ElMap.prototype.extract_block = function (radius, center) {
   this.block = {points: points, values: values, size: [nx, ny, nz]};
 };
 
-ElMap.prototype.isomesh_in_block = function (sigma) {
+ElMap.prototype.isomesh_in_block = function (sigma, method) {
   var abs_level = this.abs_level(sigma);
   var bl = this.block;
-  return isosurface(bl.size, bl.values, bl.points, abs_level);
+  return isosurface(bl.size, bl.values, bl.points, abs_level, method);
 };
 
 return ElMap;

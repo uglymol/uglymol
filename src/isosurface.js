@@ -329,8 +329,7 @@ function calculate_vert_offsets(dims) {
 }
 
 
-function isosurface(dims, values, points, isolevel) {
-  check_input(dims, values, points);
+function marching_cubes(dims, values, points, isolevel, snap) {
   var vlist = new Array(12);
   var vert_offsets = calculate_vert_offsets(dims);
   var vertex_values = new Float32Array(8);
@@ -368,8 +367,13 @@ function isosurface(dims, values, points, isolevel) {
             var e = edgeIndex[i];
             var mu = (isolevel - vertex_values[e[0]]) /
                      (vertex_values[e[1]] - vertex_values[e[0]]);
+            if (snap === true) {
+              if (mu > 0.85) mu = 1;
+              else if (mu < 0.15) mu = 0;
+            }
             var p1 = vertex_points[e[0]];
             var p2 = vertex_points[e[1]];
+            // TODO: avoid duplicated vertices among neighbouring cells
             vertices.push(p1[0] + (p2[0] - p1[0]) * mu,
                           p1[1] + (p2[1] - p1[1]) * mu,
                           p1[2] + (p2[2] - p1[2]) * mu);
@@ -385,6 +389,16 @@ function isosurface(dims, values, points, isolevel) {
     }
   }
   return { vertices: vertices, faces: faces };
+}
+
+function isosurface(dims, values, points, isolevel, method) {
+  check_input(dims, values, points);
+  var func = marching_cubes;
+  if (method === 'snapped MC') {
+    return marching_cubes(dims, values, points, isolevel, true);
+  } else {
+    return marching_cubes(dims, values, points, isolevel);
+  }
 }
 
 return isosurface;
