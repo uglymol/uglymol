@@ -804,8 +804,10 @@ Viewer.prototype.add_el_objects = function (map_bag) {
     var obj = new THREE.Mesh(geom, material);
     */
 
-    // TODO: use Uint16Array when possible - for portability
-    var arr = new Uint32Array(iso.segments);
+    // Although almost all browsers support OES_element_index_uint nowadays,
+    // use Uint32 indexes only when needed.
+    var arr = (iso.vertices.length < 3*65536 ? new Uint16Array(iso.segments)
+                                             : new Uint32Array(iso.segments));
     //console.log('arr len:', iso.vertices.length, iso.segments.length);
     geom.setIndex(new THREE.BufferAttribute(arr, 1));
     var material = new THREE.LineBasicMaterial({
