@@ -1213,7 +1213,7 @@ var ColorSchemes = { // accessible as Viewer.ColorSchemes
     center: 0xC997B0,
     cell_box: 0xFFFFFF,
     // atoms
-    H: 0xf0f0f0, // H is normally invisible
+    H: 0x858585, // H is normally invisible
     // C, N and O are taken approximately (by color-picker) from coot
     C: 0xb3b300,
     N: 0x7EAAFB,
@@ -1236,7 +1236,7 @@ var ColorSchemes = { // accessible as Viewer.ColorSchemes
     map_neg: 0x8B2E2E,
     center: 0xC7C769,
     cell_box: 0x000000,
-    H: 0x404040,
+    H: 0x999999,
     C: 0xA96464,
     N: 0x1C51B3,
     O: 0xC33869,
@@ -1726,6 +1726,8 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
         // TODO: one line per bond (not trivial, because coloring)
         var other = this.model.atoms[atom.bonds[j]];
         if (!opt.hydrogens && other.element === 'H') continue;
+        // Coot show X-H bonds as thinner lines in a single color.
+        // Here we keep it simple and render such bonds like all others.
         if (opt.ligands_only && !other.is_ligand) continue;
         var mid = atom.midpoint(other);
         var vmid = new THREE.Vector3(mid[0], mid[1], mid[2]);
@@ -2132,6 +2134,12 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       this.config.map_style = next(this.config.map_style, MAP_STYLES);
       this.hud('map style: ' + this.config.map_style);
       this.redraw_maps(true);
+      break;
+    case 89:  // y
+      this.config.hydrogens = !this.config.hydrogens;
+      this.hud((this.config.hydrogens ? 'show' : 'hide') +
+               ' hydrogens (if any)');
+      this.redraw_models();
       break;
     case 107:  // add
     case 61:  // equals/firefox

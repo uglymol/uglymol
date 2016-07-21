@@ -14,17 +14,14 @@
   in the browser, but currently no one is working on it. Volunteers needed.
   Requires 3D FFT.
 
+- atom labels
+
 - use UMD format for built files. Maybe use rollupjs
   if https://github.com/mrdoob/three.js/pull/9310 gets merged.
-
-- add a test case with hydrogens and multiple conformers,
-  and a keybinding to hide/show hydrogens
 
 - move isosurface calculation to update()
 
 - test it on a phone
-
-- atom labels
 
 - a few more keybindings:
   L = next ligand (ctrl-L in coot),
