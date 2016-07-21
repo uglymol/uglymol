@@ -372,7 +372,7 @@ function color_by(style, atoms, elem_colors) {
       if (v > vmax) vmax = v;
       if (v < vmin) vmin = v;
     }
-    console.log('B-factors in [' + vmin + ', ' + vmax + ']');
+    //console.log('B-factors in [' + vmin + ', ' + vmax + ']');
     color_func = function (atom) {
       return rainbow_value(atom.b, vmin, vmax);
     };
@@ -804,16 +804,9 @@ Viewer.prototype.add_el_objects = function (map_bag) {
     var obj = new THREE.Mesh(geom, material);
     */
 
-    var faces = iso.faces;
-    var arr = new Uint32Array(faces.length * 2);
-    for (var j = 0; j < faces.length; j += 3) {
-      arr[2*j] = faces[j];
-      arr[2*j+1] = faces[j+1];
-      arr[2*j+2] = faces[j+1];
-      arr[2*j+3] = faces[j+2];
-      arr[2*j+4] = faces[j+2];
-      arr[2*j+5] = faces[j];
-    }
+    // TODO: use Uint16Array when possible - for portability
+    var arr = new Uint32Array(iso.segments);
+    //console.log('arr len:', iso.vertices.length, iso.segments.length);
     geom.setIndex(new THREE.BufferAttribute(arr, 1));
     var material = new THREE.LineBasicMaterial({
       color: this.config.colors[mtype],

@@ -16,7 +16,9 @@
 # wireframe. But later on I couldn't find it. Or maybe I misremember it
 # there is no such paper.
 
-# triTable is at the end
+# Original marching cubes lookup tables, taken indirectly from
+# Paul Bourke's page who in turn got them from Cory Gene Bloyd.
+# [triTable is at the end]
 cubeVerts = [[0,0,0], [1,0,0], [1,1,0], [0,1,0],
              [0,0,1], [1,0,1], [1,1,1], [0,1,1]]
 edgeIndex = [[0,1], [1,2], [2,3], [3,0], [4,5], [5,6],
@@ -56,6 +58,8 @@ def main():
         total_seg += len(segments)
     print('// TOTAL in:  %6d' % sum(len(row) for row in triTable))
     print('// TOTAL out: %6d' % total_seg)
+    #TODO: generate also corresponding edgeTable
+
 
 # classical 256-row triTable from marching cubes (without -1 padding) 
 triTable = [
