@@ -362,7 +362,7 @@ Atom.prototype.long_label = function () {
   return a.name + ' /' + a.resseq + ' ' + a.resname + '/' + a.chain +
          ' - occ: ' + a.occ.toFixed(2) + ' bf: ' + a.b.toFixed(2) +
          ' ele: ' + a.element + ' pos: (' + a.xyz[0].toFixed(2) + ',' +
-         a.xyz[0].toFixed(2) + ',' + a.xyz[2].toFixed(2) + ')';
+         a.xyz[1].toFixed(2) + ',' + a.xyz[2].toFixed(2) + ')';
 };
 
 
@@ -785,10 +785,10 @@ ElMap.prototype.extract_block = function (radius, center) {
   this.block = {points: points, values: values, size: [nx, ny, nz]};
 };
 
-ElMap.prototype.isomesh_in_block = function (sigma) {
+ElMap.prototype.isomesh_in_block = function (sigma, method) {
   var abs_level = this.abs_level(sigma);
   var bl = this.block;
-  return isosurface(bl.size, bl.values, bl.points, abs_level);
+  return isosurface(bl.size, bl.values, bl.points, abs_level, method);
 };
 
 return ElMap;
@@ -1125,8 +1125,7 @@ function calculate_vert_offsets(dims) {
 }
 
 
-function isosurface(dims, values, points, isolevel) {
-  check_input(dims, values, points);
+function marching_cubes(dims, values, points, isolevel, snap) {
   var vlist = new Array(12);
   var vert_offsets = calculate_vert_offsets(dims);
   var vertex_values = new Float32Array(8);
@@ -1164,8 +1163,13 @@ function isosurface(dims, values, points, isolevel) {
             var e = edgeIndex[i];
             var mu = (isolevel - vertex_values[e[0]]) /
                      (vertex_values[e[1]] - vertex_values[e[0]]);
+            if (snap === true) {
+              if (mu > 0.85) mu = 1;
+              else if (mu < 0.15) mu = 0;
+            }
             var p1 = vertex_points[e[0]];
             var p2 = vertex_points[e[1]];
+            // TODO: avoid duplicated vertices among neighbouring cells
             vertices.push(p1[0] + (p2[0] - p1[0]) * mu,
                           p1[1] + (p2[1] - p1[1]) * mu,
                           p1[2] + (p2[2] - p1[2]) * mu);
@@ -1181,6 +1185,15 @@ function isosurface(dims, values, points, isolevel) {
     }
   }
   return { vertices: vertices, faces: faces };
+}
+
+function isosurface(dims, values, points, isolevel, method) {
+  check_input(dims, values, points);
+  //if (method === 'marching tetrahedra') {
+  //  return marching_tetrahedra(dims, values, points, isolevel);
+  //}
+  return marching_cubes(dims, values, points, isolevel,
+                        method === 'snapped MC');
 }
 
 return isosurface;
@@ -1494,6 +1507,7 @@ var CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
 
 var COLOR_AIMS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
 var RENDER_STYLES = ['lines', 'trace', 'ribbon', 'lines+balls'];
+var MAP_STYLES = ['marching cubes', 'snapped MC'];
 
 function make_center_cube(size, ctr, color) {
   var geometry = new THREE.Geometry();
@@ -1763,8 +1777,9 @@ function Viewer(element_id) {
     bond_line: 4.0, // for 700px height (in Coot it also depends on height)
     map_line: 1.25,  // for any height
     map_radius: 10.0,
-    render_style: 'lines',
-    color_aim: 'element',
+    map_style: MAP_STYLES[0],
+    render_style: RENDER_STYLES[0],
+    color_aim: COLOR_AIMS[0],
     colors: set_colors('dark', {}),
     hydrogens: false,
     line_width: 0 // it will be set in resize()
@@ -1971,7 +1986,7 @@ Viewer.prototype.add_el_objects = function (map_bag) {
   for (var i = 0; i < map_bag.types.length; i++) {
     var mtype = map_bag.types[i];
     var isolevel = (mtype === 'map_neg' ? -1 : 1) * map_bag.isolevel;
-    var iso = map_bag.map.isomesh_in_block(isolevel);
+    var iso = map_bag.map.isomesh_in_block(isolevel, this.config.map_style);
     var geom = new THREE.BufferGeometry();
     geom.addAttribute('position',
                  new THREE.BufferAttribute(new Float32Array(iso.vertices), 3));
@@ -2060,8 +2075,7 @@ Viewer.prototype.shift_clip = function (away) {
   this.camera.position.add(eye);
   this.update_camera();
   this.redraw_maps();
-  this.hud('clip shifted by [' + eye.x.toFixed(2) + ' ' + eye.y.toFixed(2) +
-           ' ' + eye.z.toFixed(2) + ']');
+  this.hud('clip shifted by [' + vec3_to_str(eye, 2, ' ') + ']');
 };
 
 Viewer.prototype.go_to_nearest_Ca = function () {
@@ -2090,6 +2104,10 @@ function next(elem, arr) {
   return arr[(arr.indexOf(elem) + 1) % arr.length];
 }
 
+function vec3_to_str(vec, n, sep) {
+  return vec.x.toFixed(n) + sep + vec.y.toFixed(n) + sep + vec.z.toFixed(n);
+}
+
 Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
   var key = evt.keyCode;
   switch (key) {
@@ -2109,6 +2127,11 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
         this.hud('coloring by ' + this.config.color_aim);
         this.redraw_models();
       }
+      break;
+    case 87:  // w
+      this.config.map_style = next(this.config.map_style, MAP_STYLES);
+      this.hud('map style: ' + this.config.map_style);
+      this.redraw_maps(true);
       break;
     case 107:  // add
     case 61:  // equals/firefox
@@ -2139,7 +2162,14 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       this.hud('zoom: ' + this.camera.zoom.toFixed(2));
       break;
     case 80:  // p
-      this.go_to_nearest_Ca();
+      if (evt.shiftKey) {
+        window.location.hash = '#xyz=' + vec3_to_str(this.target, 1, ',') +
+          '&eye=' + vec3_to_str(this.camera.position, 1, ',') +
+          '&zoom=' + this.camera.zoom.toFixed(0);
+        this.hud('copy URL from the location bar');
+      } else {
+        this.go_to_nearest_Ca();
+      }
       break;
     case 51:  // 3
     case 99:  // numpad 3
@@ -2305,34 +2335,60 @@ Viewer.prototype.resize = function (/*evt*/) {
   }
 };
 
+// makes sense only for full-window viewer
+function parse_fragment() {
+  var ret = {};
+  if (typeof window === 'undefined') return ret;
+  var params = window.location.hash.substr(1).split('&');
+  for (var i = 0; i < params.length; i++) {
+    var kv = params[i].split('=');
+    var val = kv[1];
+    if (kv[0] === 'xyz' || kv[0] === 'eye') {
+      val = val.split(',').map(Number);
+    } else if (kv[0] === 'zoom') {
+      val = Number(val);
+    }
+    ret[kv[0]] = val;
+  }
+  return ret;
+}
+
 // If xyz set recenter on it looking toward the model center.
 // Otherwise recenter on the model center looking along the z axis.
-Viewer.prototype.recenter = function (xyz, steps) {
-  if (this.active_model_bag === null) {
-    if (xyz == null) return;
-    this.controls.go_to(new THREE.Vector3(xyz[0], xyz[1], xyz[2]),
-                        null, null, steps);
+Viewer.prototype.recenter = function (xyz, eye, steps) {
+  var new_up = null;
+  var ctr;
+  if (xyz == null || eye == null) {
+    ctr = this.active_model_bag.model.get_center();
   }
-  var ctr = this.active_model_bag.model.get_center();
-  var new_target, new_cam_pos, new_up;
-  if (xyz != null) {
-    new_target = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
-    var diff = new THREE.Vector3(xyz[0]-ctr[0], xyz[1]-ctr[1], xyz[2]-ctr[2])
-               .setLength(100);
-    new_up = new THREE.Vector3(0, 1, 0).projectOnPlane(diff);
-    var len = new_up.length();
-    if (len < 0.1) { // if [0,1,0]
-      new_up.set(1, 0, 0).projectOnPlane(diff);
-      len = new_up.length();
+  if (eye) {
+    eye = new THREE.Vector3(eye[0], eye[1], eye[2]);
+  }
+  if (xyz == null) { // center on the molecule
+    if (this.active_model_bag === null) return;
+    xyz = new THREE.Vector3(ctr[0], ctr[1], ctr[2]);
+    if (!eye) {
+      eye = xyz.clone();
+      eye.z += 100;
+      new_up = THREE.Object3D.DefaultUp; // Vector3(0, 1, 0)
     }
-    new_up.divideScalar(len); // normalizes
-    new_cam_pos = diff.add(new_target);
-  } else { // recenter on the active model
-    new_target = new THREE.Vector3(ctr[0], ctr[1], ctr[2]);
-    new_cam_pos = new THREE.Vector3(ctr[0], ctr[1], ctr[2] + 100);
-    new_up = THREE.Object3D.DefaultUp; // Vector3(0, 1, 0)
+  } else {
+    xyz = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
+    if (eye == null && this.active_model_bag !== null) {
+      // look toward the center of the molecule
+      eye = new THREE.Vector3(ctr[0], ctr[1], ctr[2]);
+      eye.sub(xyz).negate().setLength(100); // we store now (eye - xyz)
+      new_up = new THREE.Vector3(0, 1, 0).projectOnPlane(eye);
+      var len = new_up.length();
+      if (len < 0.1) { // the center is in [0,1,0] direction
+        new_up.set(1, 0, 0).projectOnPlane(eye);
+        len = new_up.length();
+      }
+      new_up.divideScalar(len); // normalizes
+      eye.add(xyz);
+    }
   }
-  this.controls.go_to(new_target, new_cam_pos, new_up, steps);
+  this.controls.go_to(xyz, eye, new_up, steps);
 };
 
 Viewer.prototype.center_next_residue = function (back) {
@@ -2435,7 +2491,9 @@ Viewer.prototype.load_pdb = function (url, options) {
     var model = new Model();
     model.from_pdb(req.responseText);
     self.set_model(model);
-    self.recenter(options.center, 1);
+    var frag = parse_fragment();
+    if (frag.zoom) self.camera.zoom = frag.zoom;
+    self.recenter(options.center || frag.xyz, frag.eye, 1);
     if (options.callback) options.callback();
   });
 };

@@ -23,7 +23,7 @@ point [here](https://github.com/uglymol/uglymol/blob/master/TODO.md)):
 
 - [1MRU](https://uglymol.github.io/1mru.html) (60kDa, 3Å),
 - [4UN4](https://uglymol.github.io/4un4.html) (200kDa, 2.4Å),
-- [a blob](https://uglymol.github.io/dimple_thaum.html)
+- [a blob](https://uglymol.github.io/dimple_thaum.html#xyz=14,18,12&eye=80,71,-41&zoom=70)
   (Dimple result, thaumatin, 1.4Å).
 
 Technically, UglyMol is a small

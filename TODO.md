@@ -24,12 +24,6 @@
 
 - test it on a phone
 
-- permalinks to xyz positions
-
-- Compare performance of marching cubes with
-  github.com/mikolalysenko/isosurface and @alteredq's / stemkoski's demos.
-  xtal.js and uglymol implementation is based on the latter.
-
 - atom labels
 
 - a few more keybindings:

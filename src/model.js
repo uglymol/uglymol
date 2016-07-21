@@ -272,7 +272,7 @@ Atom.prototype.long_label = function () {
   return a.name + ' /' + a.resseq + ' ' + a.resname + '/' + a.chain +
          ' - occ: ' + a.occ.toFixed(2) + ' bf: ' + a.b.toFixed(2) +
          ' ele: ' + a.element + ' pos: (' + a.xyz[0].toFixed(2) + ',' +
-         a.xyz[0].toFixed(2) + ',' + a.xyz[2].toFixed(2) + ')';
+         a.xyz[1].toFixed(2) + ',' + a.xyz[2].toFixed(2) + ')';
 };
 
 

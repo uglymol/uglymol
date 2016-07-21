@@ -393,12 +393,11 @@ function marching_cubes(dims, values, points, isolevel, snap) {
 
 function isosurface(dims, values, points, isolevel, method) {
   check_input(dims, values, points);
-  var func = marching_cubes;
-  if (method === 'snapped MC') {
-    return marching_cubes(dims, values, points, isolevel, true);
-  } else {
-    return marching_cubes(dims, values, points, isolevel);
-  }
+  //if (method === 'marching tetrahedra') {
+  //  return marching_tetrahedra(dims, values, points, isolevel);
+  //}
+  return marching_cubes(dims, values, points, isolevel,
+                        method === 'snapped MC');
 }
 
 return isosurface;

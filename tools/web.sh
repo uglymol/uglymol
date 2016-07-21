@@ -23,9 +23,7 @@ grep -v -- -DEV- dev.html > $outdir/1mru.html
 sed -e s/1mru/4un4_final/g -e s/\\.map/_m0.map/g <$outdir/1mru.html \
     >$outdir/4un4.html
 sed -e s/1mru/dimple_thaum/g \
-    -e 's/pdb")/pdb", {center: [13.98, 18.1, 12.26]})/' \
     < $outdir/1mru.html > $outdir/dimple_thaum.html
-# V.load_pdb("data/dimple_thaum.pdb", [13.98, 18.1, 12.26]);
 
 cd $outdir
 echo "=== $(pwd) ==="
