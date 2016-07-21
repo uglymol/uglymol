@@ -30,6 +30,7 @@
     "build:concat": "tools/concat.sh",
     "build:uglify": "uglifyjs uglymol.js -o uglymol.min.js",
     "build": "npm run build:concat && npm run build:uglify",
+    "version": "npm run build",
     "prepublish": "npm run build",
     "prebuild": "npm test",
     "pretest": "npm run lint",
