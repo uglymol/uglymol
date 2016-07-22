@@ -14,8 +14,12 @@ $(cat README.md | grep -v '^\[!\[' | sed s,https://uglymol.github.io,,)
 EOF
 
 cp src/* $outdir/src/
-three=node_modules/three/build/three.min.js
-diff -q $three $outdir/$three || cp $three $outdir/$three
+for path in three/build/three.min.js benchmark/benchmark.js \
+            lodash/lodash.min.js platform/platform.js; do
+    npath=node_modules/$path
+    diff -q $npath $outdir/$npath || cp $npath $outdir/$npath
+done
+
 cp uglymol.js uglymol.min.js LICENSE perf.html $outdir/
 cp perf/* $outdir/perf/
 
@@ -28,3 +32,8 @@ sed -e s/1mru/dimple_thaum/g \
 cd $outdir
 echo "=== $(pwd) ==="
 git status -s
+echo
+git diff --stat
+echo
+jekyll build
+du -sh _site/
