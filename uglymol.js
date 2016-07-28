@@ -1804,7 +1804,7 @@ function Viewer(element_id) {
   this.scene = new THREE.Scene();
   this.target = new THREE.Vector3();
   this.camera = new THREE.OrthographicCamera();
-  this.scene.add(this.camera);
+  //this.scene.add(this.camera); // no need to to this in recent three?
   this.scene.fog = new THREE.Fog(this.config.colors.bg, 0, 1);
   this.light = new THREE.AmbientLight(0xffffff);
   this.scene.add(this.light);

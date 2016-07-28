@@ -17,6 +17,8 @@
 - use UMD format for built files. Maybe use rollupjs
   if https://github.com/mrdoob/three.js/pull/9310 gets merged.
 
+- "ribbon" representation like in xtal.js
+
 - move isosurface calculation to update()
 
 - test it on a phone

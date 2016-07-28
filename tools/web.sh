@@ -10,7 +10,7 @@ cat >$outdir/index.md <<EOF
 layout: default
 ---
 
-$(cat README.md | grep -v '^\[!\[' | sed s,https://uglymol.github.io,,)
+$(cat README.md | grep -v '^\[!\[' | sed s,https://uglymol.github.io/,,)
 EOF
 
 cp src/* $outdir/src/
