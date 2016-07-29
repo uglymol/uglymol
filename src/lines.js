@@ -3,6 +3,7 @@ var THREE = THREE || require('three'); // eslint-disable-line
 var LineFactory = (function () {
 'use strict';
 
+// two array must be of the same length
 function wide_line_geometry(vertex_arr, color_arr) {
   var len = vertex_arr.length;
   var i;
@@ -13,17 +14,18 @@ function wide_line_geometry(vertex_arr, color_arr) {
     pos.push(v.x, v.y, v.z);
   }
   var position = new Float32Array(pos);
-  var side = new Float32Array(2*len);
-  for (i = 0; i < len; i++) {
-    side[2*i] = 1;
-    side[2*i+1] = -1;
-  }
+  // could we use three overlapping views of the same buffer?
   var previous = new Float32Array(6*len);
   for (i = 0; i < 6; i++) previous[i] = pos[i];
   for (; i < 6 * len; i++) previous[i] = pos[i-6];
   var next = new Float32Array(6*len);
   for (i = 0; i < 6 * (len-1); i++) next[i] = pos[i+6];
   for (; i < 6 * len; i++) next[i] = pos[i];
+  var side = new Float32Array(2*len);
+  for (i = 0; i < len; i++) {
+    side[2*i] = 1;
+    side[2*i+1] = -1;
+  }
   var color = new Float32Array(6*len);
   for (i = 0; i < len; i++) {
     var col = color_arr[i];
@@ -34,7 +36,6 @@ function wide_line_geometry(vertex_arr, color_arr) {
     color[6*i+4] = col.g;
     color[6*i+5] = col.b;
   }
-
   var geometry = new THREE.BufferGeometry();
   geometry.addAttribute('position', new THREE.BufferAttribute(position, 3));
   geometry.addAttribute('previous', new THREE.BufferAttribute(previous, 3));
@@ -83,7 +84,7 @@ var wide_line_frag = [
   '}'].join('\n');
 
 
-function expand_vertices(segment, smooth) {
+function interpolate_vertices(segment, smooth) {
   var vertices = [];
   for (var i = 0; i < segment.length; i++) {
     var xyz = segment[i].xyz;
@@ -94,11 +95,12 @@ function expand_vertices(segment, smooth) {
   return curve.getPoints((segment.length - 1) * smooth);
 }
 
-function expand_colors(colors, smooth) {
+function interpolate_colors(colors, smooth) {
   if (!smooth || smooth < 2) return colors;
   var ret = [];
   for (var i = 0; i < colors.length - 1; i++) {
     for (var j = 0; j < smooth; ++j) {
+      // currently we don't interpolate them, just adjust length
       ret.push(colors[i]);
     }
   }
@@ -106,23 +108,25 @@ function expand_colors(colors, smooth) {
   return ret;
 }
 
-function LineFactory(param) {
-  this.use_gl_lines = param.use_gl_lines;
-  if (this.use_gl_lines) {
-    this.material = new THREE.LineBasicMaterial({
-      vertexColors: THREE.VertexColors,
-      linewidth: param.linewidth
-    });
+function LineFactory(use_gl_lines, param) {
+  this.use_gl_lines = use_gl_lines;
+  if (use_gl_lines) {
+    if (param.color === undefined) {
+      param.vertexColors = THREE.VertexColors;
+    }
+    delete param.size; // only needed for RawShaderMaterial
+    this.material = new THREE.LineBasicMaterial(param);
   } else {
+    var uniforms = {
+      fogNear: { value: null },  // will be updated in setProgram()
+      fogFar: { value: null },
+      fogColor: { value: null }
+    };
+    for (var p in param) {
+      uniforms[p] = { value: param[p] };
+    }
     this.material = new THREE.RawShaderMaterial({
-      uniforms: {
-        linewidth: { value: param.linewidth },
-        color: { value: param.color },
-        size: { value: param.size },
-        fogNear: { value: null },  // will be updated in setProgram()
-        fogFar: { value: null },
-        fogColor: { value: null }
-      },
+      uniforms: uniforms,
       vertexShader: wide_line_vert,
       fragmentShader: wide_line_frag
     });
@@ -130,20 +134,68 @@ function LineFactory(param) {
   }
 }
 
+function rgb_to_buf(colors) {
+  var arr = new Float32Array(colors.length * 3);
+  for (var i = 0; i < colors.length; i++) {
+    var c = colors[i];
+    arr[3*i] = c.r;
+    arr[3*i+1] = c.g;
+    arr[3*i+2] = c.b;
+  }
+  return arr;
+}
+
+function xyz_to_buf(vectors) {
+  var arr = new Float32Array(vectors.length * 3);
+  for (var i = 0; i < vectors.length; i++) {
+    var v = vectors[i];
+    arr[3*i] = v.x;
+    arr[3*i+1] = v.y;
+    arr[3*i+2] = v.z;
+  }
+  return arr;
+}
+
 LineFactory.prototype.produce = function (vertices, colors, smoothness) {
-  var vertex_arr = expand_vertices(vertices, smoothness);
-  var color_arr = expand_colors(colors, smoothness);
+  var vertex_arr = interpolate_vertices(vertices, smoothness);
+  var color_arr = interpolate_colors(colors, smoothness);
   if (this.use_gl_lines) {
-    var geom = new THREE.Geometry();
-    geom.vertices = vertex_arr;
-    geom.colors = color_arr;
-    return new THREE.Line(geom, this.material);
+    var geometry = new THREE.BufferGeometry();
+    var pos = xyz_to_buf(vertex_arr);
+    geometry.addAttribute('position', new THREE.BufferAttribute(pos, 3));
+    var col = rgb_to_buf(color_arr);
+    geometry.addAttribute('color', new THREE.BufferAttribute(col, 3));
+    return new THREE.Line(geometry, this.material);
   }
   var mesh = new THREE.Mesh(wide_line_geometry(vertex_arr, color_arr),
                             this.material);
   mesh.drawMode = THREE.TriangleStripDrawMode;
   return mesh;
 };
+
+LineFactory.make_chickenwire = function(data, parameters) {
+  var geom = new THREE.BufferGeometry();
+  var position = new Float32Array(data.vertices);
+  geom.addAttribute('position', new THREE.BufferAttribute(position , 3));
+  /* old version - mesh instead of lines
+  geom.setIndex(new THREE.BufferAttribute(new Uint32Array(data.faces), 1));
+  var material = new THREE.MeshBasicMaterial({
+    color: this.config.colors[mtype],
+    wireframe: true,
+    wireframeLinewidth: this.config.map_line
+  });
+  var obj = new THREE.Mesh(geom, material);
+  */
+
+  // Although almost all browsers support OES_element_index_uint nowadays,
+  // use Uint32 indexes only when needed.
+  var arr = (data.vertices.length < 3*65536 ? new Uint16Array(data.segments)
+                                            : new Uint32Array(data.segments));
+  //console.log('arr len:', data.vertices.length, data.segments.length);
+  geom.setIndex(new THREE.BufferAttribute(arr, 1));
+  var material = new THREE.LineBasicMaterial(parameters);
+  return new THREE.LineSegments(geom, material);
+}
 
 return LineFactory;
 })();

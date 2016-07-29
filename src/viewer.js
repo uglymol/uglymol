@@ -7,7 +7,7 @@ var Model = Model || require('./model'); // eslint-disable-line
 var Viewer = (function () {
 'use strict';
 
-var use_wide_lines = false;
+var use_gl_lines = false;
 
 var ColorSchemes = { // accessible as Viewer.ColorSchemes
   dark: {
@@ -529,7 +529,7 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
   }
   var material = new THREE.LineBasicMaterial({
     vertexColors: THREE.VertexColors,
-    linewidth: this.conf.line_width
+    linewidth: get_line_width(this.conf)
   });
   //console.log('make_bonds() vertex count: ' + geometry.vertices.length);
   this.atomic_objects.push(new THREE.LineSegments(geometry, material));
@@ -542,11 +542,9 @@ ModelBag.prototype.add_trace = function (smoothness) {
   var segments = this.model.extract_trace();
   var visible_atoms = [].concat.apply([], segments);
   var colors = color_by(this.conf.color_aim, visible_atoms, this.conf.colors);
-  var line_factory = new LineFactory({
-    use_gl_lines: use_wide_lines,
-    linewidth: this.conf.line_width,
-    size: (typeof window === 'undefined' ? [100, 100]
-                                   : [window.innerWidth, window.innerHeight])
+  var line_factory = new LineFactory(use_gl_lines, {
+    linewidth: get_line_width(this.conf),
+    size: this.conf.window_size
   });
   var k = 0;
   for (var i = 0; i < segments.length; i++) {
@@ -574,7 +572,7 @@ function Viewer(element_id) {
     color_aim: COLOR_AIMS[0],
     colors: set_colors('dark', {}),
     hydrogens: false,
-    line_width: 0 // it will be set in resize()
+    window_size: [1, 1] // it will be set in resize()
   };
 
   // rendered objects
@@ -645,6 +643,10 @@ function Viewer(element_id) {
 
   this.scheduled = false;
   this.request_render();
+}
+
+function get_line_width(config) {
+  return config.bond_line * config.window_size[1] / 700;
 }
 
 Viewer.prototype.hud = function (text, type) {
@@ -780,31 +782,11 @@ Viewer.prototype.add_el_objects = function (map_bag) {
     var mtype = map_bag.types[i];
     var isolevel = (mtype === 'map_neg' ? -1 : 1) * map_bag.isolevel;
     var iso = map_bag.map.isomesh_in_block(isolevel, this.config.map_style);
-    var geom = new THREE.BufferGeometry();
-    geom.addAttribute('position',
-                 new THREE.BufferAttribute(new Float32Array(iso.vertices), 3));
-    /* old version - mesh instead of lines
-    geom.setIndex(new THREE.BufferAttribute(new Uint32Array(iso.faces), 1));
-    var material = new THREE.MeshBasicMaterial({
-      color: this.config.colors[mtype],
-      wireframe: true,
-      wireframeLinewidth: this.config.map_line
-    });
-    var obj = new THREE.Mesh(geom, material);
-    */
 
-    // Although almost all browsers support OES_element_index_uint nowadays,
-    // use Uint32 indexes only when needed.
-    var arr = (iso.vertices.length < 3*65536 ? new Uint16Array(iso.segments)
-                                             : new Uint32Array(iso.segments));
-    //console.log('arr len:', iso.vertices.length, iso.segments.length);
-    geom.setIndex(new THREE.BufferAttribute(arr, 1));
-    var material = new THREE.LineBasicMaterial({
+    var obj = LineFactory.make_chickenwire(iso, {
       color: this.config.colors[mtype],
       linewidth: this.config.map_line
     });
-    var obj = new THREE.LineSegments(geom, material);
-
     map_bag.el_objects.push(obj);
     this.scene.add(obj);
   }
@@ -926,7 +908,7 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       this.hud((this.config.hydrogens ? 'show' : 'hide') +
                ' hydrogens (if any)');
       //XXX
-      use_wide_lines = !use_wide_lines;
+      use_gl_lines = !use_gl_lines;
       this.redraw_models();
       break;
     case 107:  // add
@@ -999,8 +981,8 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
     case 35: // End
       this.config.bond_line += (key === 36 ? 0.2 : -0.2);
       this.config.bond_line = Math.max(this.config.bond_line, 0.1);
-      this.resize(); // overkill
-      this.hud('bond width: ' + this.config.line_width.toFixed(1));
+      this.redraw_models();
+      this.hud('bond width: ' + get_line_width(this.config).toFixed(1));
       break;
     case 16: // shift
     case 17: // ctrl
@@ -1129,9 +1111,10 @@ Viewer.prototype.resize = function (/*evt*/) {
   this.camera.bottom = -height;
   this.camera.updateProjectionMatrix();
   this.renderer.setSize(width, height);
-  var line_width = this.config.bond_line * height / 700;
-  if (line_width !== this.config.line_width) {
-    this.config.line_width = line_width;
+  if (width !== this.config.window_size[0] ||
+      height !== this.config.window_size[1]) {
+    this.config.window_size[0] = width;
+    this.config.window_size[1] = height;
     this.redraw_models();
   }
   this.request_render();
