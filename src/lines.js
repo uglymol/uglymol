@@ -63,11 +63,21 @@ var wide_line_vert = [
   'void main() {',
   '  vcolor = color;',
   '  mat4 mat = projectionMatrix * modelViewMatrix;',
-  '  vec4 diff = mat * vec4(next - previous, 0.0);',
-  '  vec2 normal = normalize(vec2(-diff.y, diff.x));',
-  '  vec4 pos = mat * vec4(position, 1.0);',
-  '  pos.xy += side * linewidth * normal / size;',
-  '  gl_Position = pos;',
+  '  vec2 dir1 = (mat * vec4(next - position, 0.0)).xy;',
+  '  float len = length(dir1);',
+  '  if (len > 0.0) dir1 /= len;',
+  '  vec2 dir2 = (mat * vec4(position - previous, 0.0)).xy;',
+  '  len = length(dir2);',
+  '  dir2 = len > 0.0 ? dir2 / len : dir1;',
+  '  vec2 tang = normalize(dir1 + dir2);',
+  '  vec2 normal = vec2(-tang.y, tang.x);',
+  // Now we have more or less a miter join. Bavel join could be more
+  // appropriate, but it'd require one more triangle and more complex shader.
+  // max() is a trade-off between too-long miters and too-thin lines.
+  // The outer vertex should not go too far, the inner is not a problem.
+  '  float angle_factor = max(dot(tang, dir2), side > 0.0 ? 0.5 : 0.1);',
+  '  gl_Position = mat * vec4(position, 1.0);',
+  '  gl_Position.xy += side * linewidth / angle_factor * normal / size;',
   '}'].join('\n');
 
 var wide_line_frag = [
@@ -173,10 +183,10 @@ LineFactory.prototype.produce = function (vertices, colors, smoothness) {
   return mesh;
 };
 
-LineFactory.make_chickenwire = function(data, parameters) {
+LineFactory.make_chickenwire = function (data, parameters) {
   var geom = new THREE.BufferGeometry();
   var position = new Float32Array(data.vertices);
-  geom.addAttribute('position', new THREE.BufferAttribute(position , 3));
+  geom.addAttribute('position', new THREE.BufferAttribute(position, 3));
   /* old version - mesh instead of lines
   geom.setIndex(new THREE.BufferAttribute(new Uint32Array(data.faces), 1));
   var material = new THREE.MeshBasicMaterial({
@@ -195,7 +205,7 @@ LineFactory.make_chickenwire = function(data, parameters) {
   geom.setIndex(new THREE.BufferAttribute(arr, 1));
   var material = new THREE.LineBasicMaterial(parameters);
   return new THREE.LineSegments(geom, material);
-}
+};
 
 return LineFactory;
 })();
