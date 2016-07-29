@@ -17,6 +17,7 @@ cat src/unitcell.js \
     src/model.js \
     src/elmap.js \
     src/isosurface.js \
+    src/lines.js \
     src/viewer.js \
   | grep -v '|| require(' \
   | grep -v 'if (typeof module !== ' \

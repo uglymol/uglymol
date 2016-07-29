@@ -52,6 +52,7 @@
   <!-- -DEV- using directly source files and node_modules -->
   <script src="node_modules/three/build/three.js"></script><!--DEV-->
   <script src="node_modules/three/examples/js/libs/stats.min.js"></script><!--DEV-->
+  <script src="src/lines.js"></script><!--DEV-->
   <script src="src/isosurface.js"></script><!--DEV-->
   <script src="src/unitcell.js"></script><!--DEV-->
   <script src="src/elmap.js"></script><!--DEV-->
@@ -109,7 +110,7 @@
   <script>
     V = new Viewer("viewer");
     V.load_pdb("data/1mru.pdb");
-    V.load_ccp4_maps("data/1mru.map", "data/1mru_diff.map");
+    //V.load_ccp4_maps("data/1mru.map", "data/1mru_diff.map");
     //V.show_nav("inset");
     V.render();
   </script>

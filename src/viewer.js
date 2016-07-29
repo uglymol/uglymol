@@ -1,10 +1,13 @@
 
 var THREE = THREE || require('three'); // eslint-disable-line
+var LineFactory = LineFactory || require('./lines'); // eslint-disable-line
 var ElMap = ElMap || require('./elmap'); // eslint-disable-line
 var Model = Model || require('./model'); // eslint-disable-line
 
 var Viewer = (function () {
 'use strict';
+
+var use_wide_lines = false;
 
 var ColorSchemes = { // accessible as Viewer.ColorSchemes
   dark: {
@@ -422,33 +425,6 @@ function make_balls(visible_atoms, colors, ball_size) {
   return new THREE.Points(pt_geometry, pt_material);
 }
 
-function make_segment_geometry(segment, colors, c_offset, smooth) {
-  var geometry = new THREE.Geometry();
-  var i, xyz;
-  if (!smooth || smooth < 2) {
-    for (i = 0; i < segment.length; i++) {
-      xyz = segment[i].xyz;
-      geometry.vertices.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]));
-      geometry.colors.push(colors[c_offset+i]);
-    }
-  } else {
-    var points = [];
-    for (i = 0; i < segment.length; i++) {
-      xyz = segment[i].xyz;
-      points.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]));
-    }
-    for (i = 0; i < segment.length - 1; i++) {
-      for (var j = 0; j < smooth; ++j) {
-        geometry.colors.push(colors[c_offset+i]);
-      }
-    }
-    geometry.colors.push(colors[c_offset+i]);
-    var curve = new THREE.CatmullRomCurve3(points);
-    geometry.vertices = curve.getPoints(geometry.colors.length - 1);
-  }
-  return geometry;
-}
-
 // Add a representation of an unbonded atom as a cross to geometry
 function add_isolated_atom(geometry, atom, color) {
   var c = atom.xyz;
@@ -566,15 +542,18 @@ ModelBag.prototype.add_trace = function (smoothness) {
   var segments = this.model.extract_trace();
   var visible_atoms = [].concat.apply([], segments);
   var colors = color_by(this.conf.color_aim, visible_atoms, this.conf.colors);
-  var k = 0;
-  var material = new THREE.LineBasicMaterial({
-    vertexColors: THREE.VertexColors,
-    linewidth: this.conf.line_width
+  var line_factory = new LineFactory({
+    use_gl_lines: use_wide_lines,
+    linewidth: this.conf.line_width,
+    size: (typeof window === 'undefined' ? [100, 100]
+                                   : [window.innerWidth, window.innerHeight])
   });
+  var k = 0;
   for (var i = 0; i < segments.length; i++) {
-    var geom = make_segment_geometry(segments[i], colors, k, smoothness);
-    k += segments[i].length;
-    var line = new THREE.Line(geom, material);
+    var seg = segments[i];
+    var color_slice = colors.slice(k, k + seg.length);
+    k += seg.length;
+    var line = line_factory.produce(seg, color_slice, smoothness);
     this.atomic_objects.push(line);
   }
 };
@@ -946,6 +925,8 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       this.config.hydrogens = !this.config.hydrogens;
       this.hud((this.config.hydrogens ? 'show' : 'hide') +
                ' hydrogens (if any)');
+      //XXX
+      use_wide_lines = !use_wide_lines;
       this.redraw_models();
       break;
     case 107:  // add
