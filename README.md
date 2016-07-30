@@ -18,8 +18,7 @@ For instance, when screening
 Of course, for this to work, it needs to be integrated into a website
 that provides the data access.
 
-Try it (if all lines are thin -- it's a known problem, see the first
-point [here](https://github.com/uglymol/uglymol/blob/master/TODO.md)):
+Try it:
 
 - [1MRU](https://uglymol.github.io/1mru.html) (60kDa, 3Å),
 - [4UN4](https://uglymol.github.io/4un4.html) (200kDa, 2.4Å),

@@ -512,7 +512,7 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
       add_isolated_atom(geometry, atom, color);
     } else { // bonded, draw lines
       for (var j = 0; j < atom.bonds.length; j++) {
-        // TODO: one line per bond (not trivial, because coloring)
+        // TODO: one line per bond (with two colors per vertex)?
         var other = this.model.atoms[atom.bonds[j]];
         if (!opt.hydrogens && other.element === 'H') continue;
         // Coot show X-H bonds as thinner lines in a single color.
@@ -529,12 +529,12 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
       }
     }
   }
-  var material = new THREE.LineBasicMaterial({
-    vertexColors: THREE.VertexColors,
-    linewidth: get_line_width(this.conf)
-  });
+  var line_factory = new LineFactory(use_gl_lines, {
+    linewidth: get_line_width(this.conf),
+    size: this.conf.window_size
+  }, true);
   //console.log('make_bonds() vertex count: ' + geometry.vertices.length);
-  this.atomic_objects.push(new THREE.LineSegments(geometry, material));
+  this.atomic_objects.push(line_factory.make_line_segments(geometry));
   if (opt.balls) {
     this.atomic_objects.push(make_balls(visible_atoms, colors, ball_size));
   }
@@ -553,7 +553,7 @@ ModelBag.prototype.add_trace = function (smoothness) {
     var seg = segments[i];
     var color_slice = colors.slice(k, k + seg.length);
     k += seg.length;
-    var line = line_factory.produce(seg, color_slice, smoothness);
+    var line = line_factory.make_line(seg, color_slice, smoothness);
     this.atomic_objects.push(line);
   }
 };
