@@ -409,6 +409,8 @@ function color_by(style, atoms, elem_colors) {
 }
 
 function make_balls(visible_atoms, colors, ball_size) {
+  // using png is temporary and doesn't work well atm,
+  // because loading it is async
   var ball_texture = new THREE.TextureLoader().load('src/ball.png');
   var pt_geometry = new THREE.Geometry();
   for (var i = 0; i < visible_atoms.length; i++) {

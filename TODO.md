@@ -2,8 +2,8 @@
 - **Important**:
   For now, like in Coot, bonds are drawn using wide GL_LINES,
   but some browser, in particular on Windows, show only thin lines (width 1).
-  It needs to be fixed in UglyMol - i.e. we cannot rely on wide GL_LINES
-  and should write shaders to more reliably render bonds.
+  * use own shaders for trace (done)
+  * use own shaders for bonds
 
   Temporary workaround: [switch browser settings](https://github.com/mrdoob/three.js/wiki/How-to-use-OpenGL-or-ANGLE-rendering-on-Windows)
   from the ANGLE backend to OpenGL.

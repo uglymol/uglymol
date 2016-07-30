@@ -180,6 +180,7 @@ LineFactory.prototype.produce = function (vertices, colors, smoothness) {
   var mesh = new THREE.Mesh(wide_line_geometry(vertex_arr, color_arr),
                             this.material);
   mesh.drawMode = THREE.TriangleStripDrawMode;
+  mesh.raycast = line_raycast;
   return mesh;
 };
 
@@ -206,6 +207,37 @@ LineFactory.make_chickenwire = function (data, parameters) {
   var material = new THREE.LineBasicMaterial(parameters);
   return new THREE.LineSegments(geom, material);
 };
+
+// based on THREE.Line.prototype.raycast(), but skipping duplicated points
+var inverseMatrix = new THREE.Matrix4();
+var ray = new THREE.Ray();
+function line_raycast(raycaster, intersects) {
+  var precisionSq = raycaster.linePrecision * raycaster.linePrecision;
+  inverseMatrix.getInverse(this.matrixWorld);
+  ray.copy(raycaster.ray).applyMatrix4(inverseMatrix);
+  var vStart = new THREE.Vector3();
+  var vEnd = new THREE.Vector3();
+  var interSegment = new THREE.Vector3();
+  var interRay = new THREE.Vector3();
+  var step = this.as_segments ? 2 : 1;
+  var positions = this.geometry.attributes.position.array;
+  for (var i = 0, l = positions.length / 6 - 1; i < l; i += step) {
+    vStart.fromArray(positions, 6 * i);
+    vEnd.fromArray(positions, 6 * i + 6);
+    var distSq = ray.distanceSqToSegment(vStart, vEnd,
+                                         interRay, interSegment);
+    if (distSq > precisionSq) continue;
+    interRay.applyMatrix4(this.matrixWorld);
+    var distance = raycaster.ray.origin.distanceTo(interRay);
+    if (distance < raycaster.near || distance > raycaster.far) continue;
+    intersects.push({
+      distance: distance,
+      point: interSegment.clone().applyMatrix4(this.matrixWorld),
+      index: i,
+      object: this
+    });
+  }
+}
 
 return LineFactory;
 })();
