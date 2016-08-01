@@ -238,6 +238,17 @@ function xyz_to_buf(vectors) {
   return arr;
 }
 
+function atoms_to_buf(atoms) {
+  var arr = new Float32Array(atoms.length * 3);
+  for (var i = 0; i < atoms.length; i++) {
+    var xyz = atoms[i].xyz;
+    arr[3*i] = xyz[0];
+    arr[3*i+1] = xyz[1];
+    arr[3*i+2] = xyz[2];
+  }
+  return arr;
+}
+
 LineFactory.prototype.make_line = function (vertices, colors, smoothness) {
   var vertex_arr = interpolate_vertices(vertices, smoothness);
   var color_arr = interpolate_colors(colors, smoothness);
@@ -290,6 +301,41 @@ LineFactory.make_chickenwire = function (data, parameters) {
   geom.setIndex(new THREE.BufferAttribute(arr, 1));
   var material = new THREE.LineBasicMaterial(parameters);
   return new THREE.LineSegments(geom, material);
+};
+
+var cap_vert = [
+  'uniform float linewidth;',
+  'varying vec3 vcolor;',
+  'void main() {',
+  '  vcolor = color;',
+  '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
+  '  gl_PointSize = linewidth;',
+  '}'].join('\n');
+
+var cap_frag = [
+  '#include <fog_pars_fragment>',
+  'varying vec3 vcolor;',
+  'void main() {',
+  '  vec2 diff = gl_PointCoord - vec2(0.5, 0.5);',
+  '  if (dot(diff, diff) >= 0.25) discard;',
+  '  gl_FragColor = vec4(vcolor, 1.0);',
+  '#include <fog_fragment>',
+  '}'].join('\n');
+
+LineFactory.prototype.make_caps = function (atom_arr, color_arr) {
+  var positions = atoms_to_buf(atom_arr);
+  var colors = rgb_to_buf(color_arr);
+  var geometry = new THREE.BufferGeometry();
+  geometry.addAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.addAttribute('color', new THREE.BufferAttribute(colors, 3));
+  var material = new THREE.ShaderMaterial({
+    uniforms: this.material.uniforms,
+    vertexShader: cap_vert,
+    fragmentShader: cap_frag,
+    fog: true,
+    vertexColors: THREE.VertexColors
+  });
+  return new THREE.Points(geometry, material);
 };
 
 // based on THREE.Line.prototype.raycast(), but skipping duplicated points

@@ -537,6 +537,8 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
   this.atomic_objects.push(line_factory.make_line_segments(geometry));
   if (opt.balls) {
     this.atomic_objects.push(make_balls(visible_atoms, colors, ball_size));
+  } else if (!use_gl_lines && !ligands_only) {
+    this.atomic_objects.push(line_factory.make_caps(visible_atoms, colors));
   }
 };
 

@@ -1314,11 +1314,12 @@ var wide_line_vert = [
   '  dir2 = len > 0.0 ? dir2 / len : dir1;',
   '  vec2 tang = normalize(dir1 + dir2);',
   '  vec2 normal = vec2(-tang.y, tang.x);',
-  // Now we have more or less a miter join. (Maybe a bavel join could be more
-  // appropriate?)
+  // Now we have more or less a miter join. Bavel join could be more
+  // appropriate, but it'd require one more triangle and more complex shader.
   // max() is a trade-off between too-long miters and too-thin lines.
   // The outer vertex should not go too far, the inner is not a problem.
-  '  float angle_factor = max(dot(tang, dir2), side > 0.0 ? 0.5 : 0.1);',
+  '  float outer = side * dot(dir2, normal);',
+  '  float angle_factor = max(dot(tang, dir2), outer > 0.0 ? 0.5 : 0.1);',
   '  gl_Position = mat * vec4(position, 1.0);',
   '  gl_Position.xy += side * linewidth / angle_factor * normal / size;',
   '}'].join('\n');
@@ -1431,6 +1432,17 @@ function xyz_to_buf(vectors) {
   return arr;
 }
 
+function atoms_to_buf(atoms) {
+  var arr = new Float32Array(atoms.length * 3);
+  for (var i = 0; i < atoms.length; i++) {
+    var xyz = atoms[i].xyz;
+    arr[3*i] = xyz[0];
+    arr[3*i+1] = xyz[1];
+    arr[3*i+2] = xyz[2];
+  }
+  return arr;
+}
+
 LineFactory.prototype.make_line = function (vertices, colors, smoothness) {
   var vertex_arr = interpolate_vertices(vertices, smoothness);
   var color_arr = interpolate_colors(colors, smoothness);
@@ -1483,6 +1495,41 @@ LineFactory.make_chickenwire = function (data, parameters) {
   geom.setIndex(new THREE.BufferAttribute(arr, 1));
   var material = new THREE.LineBasicMaterial(parameters);
   return new THREE.LineSegments(geom, material);
+};
+
+var cap_vert = [
+  'uniform float linewidth;',
+  'varying vec3 vcolor;',
+  'void main() {',
+  '  vcolor = color;',
+  '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
+  '  gl_PointSize = linewidth;',
+  '}'].join('\n');
+
+var cap_frag = [
+  '#include <fog_pars_fragment>',
+  'varying vec3 vcolor;',
+  'void main() {',
+  '  vec2 diff = gl_PointCoord - vec2(0.5, 0.5);',
+  '  if (dot(diff, diff) >= 0.25) discard;',
+  '  gl_FragColor = vec4(vcolor, 1.0);',
+  '#include <fog_fragment>',
+  '}'].join('\n');
+
+LineFactory.prototype.make_caps = function (atom_arr, color_arr) {
+  var positions = atoms_to_buf(atom_arr);
+  var colors = rgb_to_buf(color_arr);
+  var geometry = new THREE.BufferGeometry();
+  geometry.addAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.addAttribute('color', new THREE.BufferAttribute(colors, 3));
+  var material = new THREE.ShaderMaterial({
+    uniforms: this.material.uniforms,
+    vertexShader: cap_vert,
+    fragmentShader: cap_frag,
+    fog: true,
+    vertexColors: THREE.VertexColors
+  });
+  return new THREE.Points(geometry, material);
 };
 
 // based on THREE.Line.prototype.raycast(), but skipping duplicated points
@@ -2029,7 +2076,7 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
       add_isolated_atom(geometry, atom, color);
     } else { // bonded, draw lines
       for (var j = 0; j < atom.bonds.length; j++) {
-        // TODO: one line per bond (with two colors per vertex)
+        // TODO: one line per bond (with two colors per vertex)?
         var other = this.model.atoms[atom.bonds[j]];
         if (!opt.hydrogens && other.element === 'H') continue;
         // Coot show X-H bonds as thinner lines in a single color.
@@ -2054,6 +2101,8 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
   this.atomic_objects.push(line_factory.make_line_segments(geometry));
   if (opt.balls) {
     this.atomic_objects.push(make_balls(visible_atoms, colors, ball_size));
+  } else if (!use_gl_lines && !ligands_only) {
+    this.atomic_objects.push(line_factory.make_caps(visible_atoms, colors));
   }
 };
 
