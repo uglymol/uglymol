@@ -124,7 +124,8 @@ var wide_line_vert = [
   // appropriate, but it'd require one more triangle and more complex shader.
   // max() is a trade-off between too-long miters and too-thin lines.
   // The outer vertex should not go too far, the inner is not a problem.
-  '  float angle_factor = max(dot(tang, dir2), side > 0.0 ? 0.5 : 0.1);',
+  '  float outer = side * dot(dir2, normal);',
+  '  float angle_factor = max(dot(tang, dir2), outer > 0.0 ? 0.5 : 0.1);',
   '  gl_Position = mat * vec4(position, 1.0);',
   '  gl_Position.xy += side * linewidth / angle_factor * normal / size;',
   '}'].join('\n');
