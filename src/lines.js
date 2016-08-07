@@ -338,6 +338,15 @@ LineFactory.prototype.make_caps = function (atom_arr, color_arr) {
   return new THREE.Points(geometry, material);
 };
 
+LineFactory.prototype.make_balls = function (atom_arr, color_arr, ball_size) {
+  // TODO: proper ball & stick impostors
+  var obj = this.make_caps(atom_arr, color_arr);
+  obj.material.vertexShader = obj.material.vertexShader.replace('= linewidth',
+                                  '=' + ball_size.toFixed(4));
+  return obj;
+};
+
+
 // based on THREE.Line.prototype.raycast(), but skipping duplicated points
 var inverseMatrix = new THREE.Matrix4();
 var ray = new THREE.Ray();
