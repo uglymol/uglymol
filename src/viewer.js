@@ -655,13 +655,6 @@ Viewer.prototype.hud = function (text, type) {
   }
 };
 
-Viewer.prototype.toggle_help = function () {
-  var el = document.getElementById('help');
-  if (el) {
-    el.style.display = el.style.display === 'block' ? 'none' : 'block';
-  }
-};
-
 Viewer.prototype.redraw_center = function () {
   if (this.target.distanceToSquared(this.last_ctr) > 0.0001) {
     this.last_ctr.copy(this.target);
@@ -857,6 +850,46 @@ Viewer.prototype.redraw_all = function () {
   if (this.renderer) this.renderer.setClearColor(this.config.colors.bg, 1);
   this.redraw_models();
   this.redraw_maps(true);
+};
+
+Viewer.prototype.toggle_help = function () {
+  var el = document.getElementById('help');
+  if (!el) return;
+  el.style.display = el.style.display === 'block' ? 'none' : 'block';
+  if (el.innerHTML === '') {
+    el.innerHTML = [
+      '<b>mouse:</b>',
+      'Left = rotate',
+      'Middle or Ctrl+Left = pan',
+      'Right = zoom',
+      'Ctrl+Right = clipping',
+      'Ctrl+Shift+Right = roll',
+      'Wheel = σ level',
+      'Shift+Wheel = diff map σ',
+
+      '\n<b>keyboard:</b>',
+      'H = toggle help',
+      'T = representation',
+      'C = coloring',
+      'Shift+C = bg color',
+      '+/- = sigma level',
+      ']/[ = map radius',
+      'D/F = clip width',
+      'numpad 3/. = move clip',
+      'M/N = zoom',
+      'U = unitcell box',
+      'Y = hydrogens',
+      'R = center view',
+      'W = wireframe style',
+      'I = spin',
+      'Shift+I = rock',
+      'Home/End = bond width',
+      'P = nearest Cα',
+      'Shift+P = permalink',
+      '(Shift+)space = next res.',
+
+      '\n<a href="https://uglymol.github.io">about uglymol</a>'].join('\n');
+  }
 };
 
 function next(elem, arr) {
