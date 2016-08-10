@@ -899,7 +899,7 @@ Viewer.prototype.toggle_help = function () {
       'H = toggle help',
       'T = representation',
       'C = coloring',
-      'Shift+C = bg color',
+      'B = bg color',
       '+/- = sigma level',
       ']/[ = map radius',
       'D/F = clip width',
@@ -920,15 +920,15 @@ Viewer.prototype.toggle_help = function () {
   }
 };
 
-function next(elem, arr) {
-  return arr[(arr.indexOf(elem) + 1) % arr.length];
-}
-
 function vec3_to_str(vec, n, sep) {
   return vec.x.toFixed(n) + sep + vec.y.toFixed(n) + sep + vec.z.toFixed(n);
 }
 
 Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
+  function next(elem, arr) {
+    var delta = evt.shiftKey ? arr.length - 1 : 1;
+    return arr[(arr.indexOf(elem) + delta) % arr.length];
+  }
   var key = evt.keyCode;
   switch (key) {
     case 84:  // t
@@ -936,17 +936,16 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       this.hud('rendering as ' + this.config.render_style);
       this.redraw_models();
       break;
+    case 66:  // b
+      set_colors(next(this.config.colors.name, Object.keys(ColorSchemes)),
+                 this.config.colors);
+      this.hud('color scheme: ' + this.config.colors.name);
+      this.redraw_all();
+      break;
     case 67:  // c
-      if (evt.shiftKey) {
-        set_colors(next(this.config.colors.name, Object.keys(ColorSchemes)),
-                   this.config.colors);
-        this.hud('color scheme: ' + this.config.colors.name);
-        this.redraw_all();
-      } else { // color-by
-        this.config.color_aim = next(this.config.color_aim, COLOR_AIMS);
-        this.hud('coloring by ' + this.config.color_aim);
-        this.redraw_models();
-      }
+      this.config.color_aim = next(this.config.color_aim, COLOR_AIMS);
+      this.hud('coloring by ' + this.config.color_aim);
+      this.redraw_models();
       break;
     case 87:  // w
       this.config.map_style = next(this.config.map_style, MAP_STYLES);
@@ -1377,7 +1376,7 @@ Viewer.prototype.load_ccp4_maps = function (url1, url2, callback) {
     self.load_map(url2, true, 'ccp4', function () {
       self.hud(); // clear progress message
       if (callback) callback();
-    }, true)
+    }, true);
   }, true);
 };
 
