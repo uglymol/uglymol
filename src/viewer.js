@@ -595,7 +595,7 @@ function Viewer(element_id) {
   this.nav = null;
 
   this.last_ctr = new THREE.Vector3(Infinity, 0, 0);
-  this.initial_hud_text = null;
+  this.initial_hud_html = null;
   this.initial_hud_bg = '';
   this.selected_atom = null;
   this.active_model_bag = null;
@@ -666,11 +666,15 @@ Viewer.prototype.hud = function (text, type) {
   if (typeof document === 'undefined') return;  // for testing on node
   var el = document && document.getElementById('hud');
   if (el) {
-    if (this.initial_hud_text === null) {
-      this.initial_hud_text = el.textContent;
+    if (this.initial_hud_html === null) {
+      this.initial_hud_html = el.innerHTML;
       this.initial_hud_bg = el.style['background-color'];
     }
-    el.textContent = (text !== undefined ? text : this.initial_hud_text);
+    if (text !== undefined) {
+      el.textContent = text;
+    } else {
+      el.innerHTML = this.initial_hud_html;
+    }
     el.style['background-color'] = (type !== 'ERR' ? this.initial_hud_bg
                                                    : '#b00');
     if (type === 'ERR') console.log('ERR: ' + text);
@@ -1240,9 +1244,10 @@ Viewer.prototype.update_camera = function () {
   this.camera.near = dxyz * (1 - w);
   this.camera.far = dxyz * (1 + 3 * w);
   //this.light.position.copy(this.camera.position);
-  var h_scale = this.camera.projectionMatrix.elements[5];
+  //var h_scale = this.camera.projectionMatrix.elements[5];
   this.camera.updateProjectionMatrix();
   // temporary hack - scaling balls
+  /*
   if (h_scale !== this.camera.projectionMatrix.elements[5]) {
     var ball_size = Math.max(1, 80 * this.camera.projectionMatrix.elements[5]);
     for (var i = 0; i < this.model_bags.length; i++) {
@@ -1252,6 +1257,7 @@ Viewer.prototype.update_camera = function () {
       }
     }
   }
+  */
 };
 
 Viewer.prototype.render = function () {
@@ -1297,7 +1303,7 @@ Viewer.prototype.add_map = function (map, is_diff_map) {
   this.request_render();
 };
 
-Viewer.prototype.load_file = function (url, binary, callback) {
+Viewer.prototype.load_file = function (url, binary, callback, show_progress) {
   var req = new XMLHttpRequest();
   req.open('GET', url, true);
   if (binary) {
@@ -1321,6 +1327,15 @@ Viewer.prototype.load_file = function (url, binary, callback) {
       }
     }
   };
+  if (show_progress) {
+    req.addEventListener('progress', function (evt) {
+      if (evt.lengthComputable) {
+        var fn = url.split('/').pop();
+        self.hud('loading ' + fn + ' ... ' + (evt.loaded >> 10) + ' / ' +
+                 (evt.total >> 10) + ' kB');
+      }
+    });
+  }
   req.send(null);
 };
 
@@ -1339,7 +1354,8 @@ Viewer.prototype.load_pdb = function (url, options) {
   });
 };
 
-Viewer.prototype.load_map = function (url, is_diff_map, filetype, callback) {
+Viewer.prototype.load_map = function (url, is_diff_map, filetype, callback,
+                                      show_progress) {
   if (filetype !== 'ccp4' && filetype !== 'dsn6') {
     throw Error('Unknown map filetype.');
   }
@@ -1350,7 +1366,7 @@ Viewer.prototype.load_map = function (url, is_diff_map, filetype, callback) {
     else /* === 'dsn6'*/ map.from_dsn6(req.response);
     self.add_map(map, is_diff_map);
     if (callback) callback();
-  });
+  }, show_progress);
 };
 
 // Load a normal map and a difference map.
@@ -1358,8 +1374,11 @@ Viewer.prototype.load_map = function (url, is_diff_map, filetype, callback) {
 Viewer.prototype.load_ccp4_maps = function (url1, url2, callback) {
   var self = this;
   this.load_map(url1, false, 'ccp4', function () {
-    self.load_map(url2, true, 'ccp4', callback);
-  });
+    self.load_map(url2, true, 'ccp4', function () {
+      self.hud(); // clear progress message
+      if (callback) callback();
+    }, true)
+  }, true);
 };
 
 // TODO: navigation window like in gimp and mifit
