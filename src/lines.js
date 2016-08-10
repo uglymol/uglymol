@@ -181,13 +181,43 @@ function interpolate_colors(colors, smooth) {
   if (!smooth || smooth < 2) return colors;
   var ret = [];
   for (var i = 0; i < colors.length - 1; i++) {
-    for (var j = 0; j < smooth; ++j) {
-      // currently we don't interpolate them, just adjust length
+    for (var j = 0; j < smooth; j++) {
+      // currently we don't really interpolate colors
       ret.push(colors[i]);
     }
   }
   ret.push(colors[colors.length - 1]);
   return ret;
+}
+
+// a simplistic linear interpolation, no need to SLERP
+function interpolate_directions(dirs, smooth) {
+  smooth = smooth || 1;
+  var ret = [];
+  var i;
+  for (i = 0; i < dirs.length - 1; i++) {
+    var p = dirs[i];
+    var n = dirs[i+1];
+    for (var j = 0; j < smooth; j++) {
+      var an = j / smooth;
+      var ap = 1 - an;
+      ret.push(ap*p[0] + an*n[0], ap*p[1] + an*n[1], ap*p[2] + an*n[2]);
+    }
+  }
+  ret.push(dirs[i][0], dirs[i][1], dirs[i][2]);
+  return ret;
+}
+
+function make_uniforms(params) {
+  var uniforms = {
+    fogNear: { value: null },  // will be updated in setProgram()
+    fogFar: { value: null },
+    fogColor: { value: null }
+  };
+  for (var p in params) {
+    uniforms[p] = { value: params[p] };
+  }
+  return uniforms;
 }
 
 function LineFactory(use_gl_lines, material_param, as_segments) {
@@ -199,20 +229,12 @@ function LineFactory(use_gl_lines, material_param, as_segments) {
     delete material_param.size; // only needed for RawShaderMaterial
     this.material = new THREE.LineBasicMaterial(material_param);
   } else {
-    var uniforms = {
-      fogNear: { value: null },  // will be updated in setProgram()
-      fogFar: { value: null },
-      fogColor: { value: null }
-    };
-    for (var p in material_param) {
-      uniforms[p] = { value: material_param[p] };
-    }
     this.material = new THREE.RawShaderMaterial({
-      uniforms: uniforms,
+      uniforms: make_uniforms(material_param),
       vertexShader: as_segments ? wide_segments_vert : wide_line_vert,
-      fragmentShader: wide_line_frag
+      fragmentShader: wide_line_frag,
+      fog: true
     });
-    this.material.fog = true;
   }
 }
 
@@ -265,6 +287,53 @@ LineFactory.prototype.make_line = function (vertices, colors, smoothness) {
   mesh.drawMode = THREE.TriangleStripDrawMode;
   mesh.raycast = line_raycast;
   return mesh;
+};
+
+var ribbon_vert = [
+  //'attribute vec3 normal;' is added by default for ShaderMaterial
+  'uniform float shift;',
+  'varying vec3 vcolor;',
+  'void main() {',
+  '  vcolor = color;',
+  '  vec3 pos = position + shift * normalize(normal);',
+  '  gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);',
+  '}'].join('\n');
+
+var ribbon_frag = [
+  '#include <fog_pars_fragment>',
+  'varying vec3 vcolor;',
+  'void main() {',
+  '  gl_FragColor = vec4(vcolor, 1.0);',
+  '#include <fog_fragment>',
+  '}'].join('\n');
+
+// 9-line ribbon
+LineFactory.make_ribbon = function (vertices, colors, tangents, smoothness) {
+  var vertex_arr = interpolate_vertices(vertices, smoothness);
+  var color_arr = interpolate_colors(colors, smoothness);
+  var tang_arr = interpolate_directions(tangents, smoothness);
+  var obj = new THREE.Object3D();
+  var geometry = new THREE.BufferGeometry();
+  var pos = xyz_to_buf(vertex_arr);
+  geometry.addAttribute('position', new THREE.BufferAttribute(pos, 3));
+  var col = rgb_to_buf(color_arr);
+  geometry.addAttribute('color', new THREE.BufferAttribute(col, 3));
+  var tan = new Float32Array(tang_arr);
+  // it's not 'normal', but it doesn't matter
+  geometry.addAttribute('normal', new THREE.BufferAttribute(tan, 3));
+  var material0 = new THREE.ShaderMaterial({
+    uniforms: make_uniforms({shift: 0}),
+    vertexShader: ribbon_vert,
+    fragmentShader: ribbon_frag,
+    fog: true,
+    vertexColors: THREE.VertexColors
+  });
+  for (var n = -4; n < 5; n++) {
+    var material = n === 0 ? material0 : material0.clone();
+    material.uniforms.shift.value = 0.1 * n;
+    obj.add(new THREE.Line(geometry, material));
+  }
+  return obj;
 };
 
 LineFactory.prototype.make_line_segments = function (geometry) {

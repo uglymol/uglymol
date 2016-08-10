@@ -545,9 +545,33 @@ ModelBag.prototype.add_trace = function (smoothness) {
   }
 };
 
-ModelBag.prototype.add_ribbon = function () {
-  // for now it's not really a ribbon
-  this.add_trace(8);
+ModelBag.prototype.add_ribbon = function (smoothness) {
+  var segments = this.model.extract_trace();
+  var res_map = this.model.get_residues();
+  var visible_atoms = [].concat.apply([], segments);
+  var colors = color_by(this.conf.color_aim, visible_atoms, this.conf.colors);
+  var k = 0;
+  for (var i = 0; i < segments.length; i++) {
+    var seg = segments[i];
+    var tangents = [];
+    var last = [0, 0, 0];
+    for (var j = 0; j < seg.length; j++) {
+      var residue = res_map[seg[j].resid()];
+      var tang = this.model.calculate_tangent_vector(residue);
+      // untwisting (usually applies to beta-strands)
+      if (tang[0]*last[0] + tang[1]*last[1] + tang[2]*last[2] < 0) {
+        tang[0] = -tang[0];
+        tang[1] = -tang[1];
+        tang[2] = -tang[2];
+      }
+      tangents.push(tang);
+      last = tang;
+    }
+    var color_slice = colors.slice(k, k + seg.length);
+    k += seg.length;
+    var obj = LineFactory.make_ribbon(seg, color_slice, tangents, smoothness);
+    this.atomic_objects.push(obj);
+  }
 };
 
 
@@ -709,7 +733,7 @@ Viewer.prototype.set_atomic_objects = function (model_bag) {
       model_bag.add_bonds(true);
       break;
     case 'ribbon':
-      model_bag.add_ribbon();
+      model_bag.add_ribbon(8);
       model_bag.add_bonds(true);
       break;
   }

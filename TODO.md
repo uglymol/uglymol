@@ -8,14 +8,8 @@
 - use UMD format for built files. Maybe use rollupjs
   if https://github.com/mrdoob/three.js/pull/9310 gets merged.
 
-- "ribbon" representation like in xtal.js
-
-- move isosurface calculation to update()
-
-- test it on a phone
-
 - a few more keybindings:
   L = next ligand (ctrl-L in coot),
   u = move back to old centre,
-  Ctrl-G - go to residue
+  Ctrl-G - go to specified residue
 

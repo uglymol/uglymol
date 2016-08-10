@@ -26,7 +26,7 @@ Try it:
   (Dimple result, thaumatin, 1.4Å).
 
 Technically, UglyMol is a small
-[project](https://github.com/uglymol/uglymol) (~2.5 KLOC)
+[project](https://github.com/uglymol/uglymol) (below 3 KLOC)
 forked from Nat Echols' [xtal.js](https://github.com/natechols/xtal.js/).
 See the [FAQ](https://github.com/uglymol/uglymol/wiki)
 on how to add it to your website.

@@ -194,8 +194,7 @@ Model.prototype.extract_trace = function () {
   var segments = [];
   var current_segment = [];
   var last_atom = null;
-  var i;
-  for (i = 0; i < this.atoms.length; i++) {
+  for (var i = 0; i < this.atoms.length; i++) {
     var atom = this.atoms[i];
     if (atom.altloc !== '' && atom.altloc !== 'A') continue;
     if ((atom.name === 'CA' && atom.element === 'C') || atom.name === 'P') {
@@ -222,6 +221,46 @@ Model.prototype.extract_trace = function () {
   }
   //console.log(segments.length + " segments extracted");
   return segments;
+};
+
+Model.prototype.get_residues = function () {
+  if (this.residue_map != null) return this.residue_map;
+  var residues = {};
+  for (var i = 0; i < this.atoms.length; i++) {
+    var atom = this.atoms[i];
+    var resid = atom.resid();
+    var reslist = residues[resid];
+    if (reslist === undefined) {
+      residues[resid] = [atom];
+    } else {
+      reslist.push(atom);
+    }
+  }
+  this.residue_map = residues;
+  return residues;
+};
+
+// tangent vector to the ribbon representation
+Model.prototype.calculate_tangent_vector = function (residue) {
+  var a1 = null;
+  var a2 = null;
+  // it may be too simplistic
+  var peptide = (residue[0].resname.length === 3);
+  var name1 = peptide ? 'C' : 'C2\'';
+  var name2 = peptide ? 'O' : 'O4\'';
+  for (var i = 0; i < residue.length; i++) {
+    var atom = residue[i];
+    if (!atom.is_main_conformer()) continue;
+    if (atom.name === name1) {
+      a1 = atom.xyz;
+    } else if (atom.name === name2) {
+      a2 = atom.xyz;
+    }
+  }
+  if (a1 === null || a2 === null) return [0, 0, 1]; // arbitrary value
+  var d = [a1[0]-a2[0], a1[1]-a2[1], a1[2]-a2[2]];
+  var len = Math.sqrt(d[0]*d[0] + d[1]*d[1] + d[2]*d[2]);
+  return [d[0]/len, d[1]/len, d[2]/len];
 };
 
 Model.prototype.get_center = function () {
@@ -355,6 +394,10 @@ Atom.prototype.is_bonded_to = function (other) {
     return dxyz2 <= MAX_DIST_H_SQ;
   }
   return dxyz2 <= MAX_DIST_SQ || this.is_s_or_p() || other.is_s_or_p();
+};
+
+Atom.prototype.resid = function () {
+  return this.resseq + '/' + this.chain;
 };
 
 Atom.prototype.long_label = function () {
@@ -1306,10 +1349,10 @@ var wide_line_vert = [
   'void main() {',
   '  vcolor = color;',
   '  mat4 mat = projectionMatrix * modelViewMatrix;',
-  '  vec2 dir1 = (mat * vec4(next - position, 0.0)).xy;',
+  '  vec2 dir1 = (mat * vec4(next - position, 0.0)).xy * size;',
   '  float len = length(dir1);',
   '  if (len > 0.0) dir1 /= len;',
-  '  vec2 dir2 = (mat * vec4(position - previous, 0.0)).xy;',
+  '  vec2 dir2 = (mat * vec4(position - previous, 0.0)).xy * size;',
   '  len = length(dir2);',
   '  dir2 = len > 0.0 ? dir2 / len : dir1;',
   '  vec2 tang = normalize(dir1 + dir2);',
@@ -1375,13 +1418,43 @@ function interpolate_colors(colors, smooth) {
   if (!smooth || smooth < 2) return colors;
   var ret = [];
   for (var i = 0; i < colors.length - 1; i++) {
-    for (var j = 0; j < smooth; ++j) {
-      // currently we don't interpolate them, just adjust length
+    for (var j = 0; j < smooth; j++) {
+      // currently we don't really interpolate colors
       ret.push(colors[i]);
     }
   }
   ret.push(colors[colors.length - 1]);
   return ret;
+}
+
+// a simplistic linear interpolation, no need to SLERP
+function interpolate_directions(dirs, smooth) {
+  smooth = smooth || 1;
+  var ret = [];
+  var i;
+  for (i = 0; i < dirs.length - 1; i++) {
+    var p = dirs[i];
+    var n = dirs[i+1];
+    for (var j = 0; j < smooth; j++) {
+      var an = j / smooth;
+      var ap = 1 - an;
+      ret.push(ap*p[0] + an*n[0], ap*p[1] + an*n[1], ap*p[2] + an*n[2]);
+    }
+  }
+  ret.push(dirs[i][0], dirs[i][1], dirs[i][2]);
+  return ret;
+}
+
+function make_uniforms(params) {
+  var uniforms = {
+    fogNear: { value: null },  // will be updated in setProgram()
+    fogFar: { value: null },
+    fogColor: { value: null }
+  };
+  for (var p in params) {
+    uniforms[p] = { value: params[p] };
+  }
+  return uniforms;
 }
 
 function LineFactory(use_gl_lines, material_param, as_segments) {
@@ -1393,20 +1466,12 @@ function LineFactory(use_gl_lines, material_param, as_segments) {
     delete material_param.size; // only needed for RawShaderMaterial
     this.material = new THREE.LineBasicMaterial(material_param);
   } else {
-    var uniforms = {
-      fogNear: { value: null },  // will be updated in setProgram()
-      fogFar: { value: null },
-      fogColor: { value: null }
-    };
-    for (var p in material_param) {
-      uniforms[p] = { value: material_param[p] };
-    }
     this.material = new THREE.RawShaderMaterial({
-      uniforms: uniforms,
+      uniforms: make_uniforms(material_param),
       vertexShader: as_segments ? wide_segments_vert : wide_line_vert,
-      fragmentShader: wide_line_frag
+      fragmentShader: wide_line_frag,
+      fog: true
     });
-    this.material.fog = true;
   }
 }
 
@@ -1459,6 +1524,53 @@ LineFactory.prototype.make_line = function (vertices, colors, smoothness) {
   mesh.drawMode = THREE.TriangleStripDrawMode;
   mesh.raycast = line_raycast;
   return mesh;
+};
+
+var ribbon_vert = [
+  //'attribute vec3 normal;' is added by default for ShaderMaterial
+  'uniform float shift;',
+  'varying vec3 vcolor;',
+  'void main() {',
+  '  vcolor = color;',
+  '  vec3 pos = position + shift * normalize(normal);',
+  '  gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);',
+  '}'].join('\n');
+
+var ribbon_frag = [
+  '#include <fog_pars_fragment>',
+  'varying vec3 vcolor;',
+  'void main() {',
+  '  gl_FragColor = vec4(vcolor, 1.0);',
+  '#include <fog_fragment>',
+  '}'].join('\n');
+
+// 9-line ribbon
+LineFactory.make_ribbon = function (vertices, colors, tangents, smoothness) {
+  var vertex_arr = interpolate_vertices(vertices, smoothness);
+  var color_arr = interpolate_colors(colors, smoothness);
+  var tang_arr = interpolate_directions(tangents, smoothness);
+  var obj = new THREE.Object3D();
+  var geometry = new THREE.BufferGeometry();
+  var pos = xyz_to_buf(vertex_arr);
+  geometry.addAttribute('position', new THREE.BufferAttribute(pos, 3));
+  var col = rgb_to_buf(color_arr);
+  geometry.addAttribute('color', new THREE.BufferAttribute(col, 3));
+  var tan = new Float32Array(tang_arr);
+  // it's not 'normal', but it doesn't matter
+  geometry.addAttribute('normal', new THREE.BufferAttribute(tan, 3));
+  var material0 = new THREE.ShaderMaterial({
+    uniforms: make_uniforms({shift: 0}),
+    vertexShader: ribbon_vert,
+    fragmentShader: ribbon_frag,
+    fog: true,
+    vertexColors: THREE.VertexColors
+  });
+  for (var n = -4; n < 5; n++) {
+    var material = n === 0 ? material0 : material0.clone();
+    material.uniforms.shift.value = 0.1 * n;
+    obj.add(new THREE.Line(geometry, material));
+  }
+  return obj;
 };
 
 LineFactory.prototype.make_line_segments = function (geometry) {
@@ -2118,9 +2230,33 @@ ModelBag.prototype.add_trace = function (smoothness) {
   }
 };
 
-ModelBag.prototype.add_ribbon = function () {
-  // for now it's not really a ribbon
-  this.add_trace(8);
+ModelBag.prototype.add_ribbon = function (smoothness) {
+  var segments = this.model.extract_trace();
+  var res_map = this.model.get_residues();
+  var visible_atoms = [].concat.apply([], segments);
+  var colors = color_by(this.conf.color_aim, visible_atoms, this.conf.colors);
+  var k = 0;
+  for (var i = 0; i < segments.length; i++) {
+    var seg = segments[i];
+    var tangents = [];
+    var last = [0, 0, 0];
+    for (var j = 0; j < seg.length; j++) {
+      var residue = res_map[seg[j].resid()];
+      var tang = this.model.calculate_tangent_vector(residue);
+      // untwisting (usually applies to beta-strands)
+      if (tang[0]*last[0] + tang[1]*last[1] + tang[2]*last[2] < 0) {
+        tang[0] = -tang[0];
+        tang[1] = -tang[1];
+        tang[2] = -tang[2];
+      }
+      tangents.push(tang);
+      last = tang;
+    }
+    var color_slice = colors.slice(k, k + seg.length);
+    k += seg.length;
+    var obj = LineFactory.make_ribbon(seg, color_slice, tangents, smoothness);
+    this.atomic_objects.push(obj);
+  }
 };
 
 
@@ -2282,7 +2418,7 @@ Viewer.prototype.set_atomic_objects = function (model_bag) {
       model_bag.add_bonds(true);
       break;
     case 'ribbon':
-      model_bag.add_ribbon();
+      model_bag.add_ribbon(8);
       model_bag.add_bonds(true);
       break;
   }

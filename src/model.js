@@ -104,8 +104,7 @@ Model.prototype.extract_trace = function () {
   var segments = [];
   var current_segment = [];
   var last_atom = null;
-  var i;
-  for (i = 0; i < this.atoms.length; i++) {
+  for (var i = 0; i < this.atoms.length; i++) {
     var atom = this.atoms[i];
     if (atom.altloc !== '' && atom.altloc !== 'A') continue;
     if ((atom.name === 'CA' && atom.element === 'C') || atom.name === 'P') {
@@ -132,6 +131,46 @@ Model.prototype.extract_trace = function () {
   }
   //console.log(segments.length + " segments extracted");
   return segments;
+};
+
+Model.prototype.get_residues = function () {
+  if (this.residue_map != null) return this.residue_map;
+  var residues = {};
+  for (var i = 0; i < this.atoms.length; i++) {
+    var atom = this.atoms[i];
+    var resid = atom.resid();
+    var reslist = residues[resid];
+    if (reslist === undefined) {
+      residues[resid] = [atom];
+    } else {
+      reslist.push(atom);
+    }
+  }
+  this.residue_map = residues;
+  return residues;
+};
+
+// tangent vector to the ribbon representation
+Model.prototype.calculate_tangent_vector = function (residue) {
+  var a1 = null;
+  var a2 = null;
+  // it may be too simplistic
+  var peptide = (residue[0].resname.length === 3);
+  var name1 = peptide ? 'C' : 'C2\'';
+  var name2 = peptide ? 'O' : 'O4\'';
+  for (var i = 0; i < residue.length; i++) {
+    var atom = residue[i];
+    if (!atom.is_main_conformer()) continue;
+    if (atom.name === name1) {
+      a1 = atom.xyz;
+    } else if (atom.name === name2) {
+      a2 = atom.xyz;
+    }
+  }
+  if (a1 === null || a2 === null) return [0, 0, 1]; // arbitrary value
+  var d = [a1[0]-a2[0], a1[1]-a2[1], a1[2]-a2[2]];
+  var len = Math.sqrt(d[0]*d[0] + d[1]*d[1] + d[2]*d[2]);
+  return [d[0]/len, d[1]/len, d[2]/len];
 };
 
 Model.prototype.get_center = function () {
@@ -265,6 +304,10 @@ Atom.prototype.is_bonded_to = function (other) {
     return dxyz2 <= MAX_DIST_H_SQ;
   }
   return dxyz2 <= MAX_DIST_SQ || this.is_s_or_p() || other.is_s_or_p();
+};
+
+Atom.prototype.resid = function () {
+  return this.resseq + '/' + this.chain;
 };
 
 Atom.prototype.long_label = function () {
