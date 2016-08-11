@@ -13,3 +13,4 @@
   u = move back to old centre,
   Ctrl-G - go to specified residue
 
+- impostor-based ball and stick mode
