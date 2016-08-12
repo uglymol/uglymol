@@ -65,22 +65,19 @@
 
 </head>
 <body style="background-color: black">
-  <div id="viewer" style="position: absolute; left:0px; top:0px;">
-      <header id="hud" onmousedown="event.stopPropagation();"
-                       onmousemove="event.stopPropagation();"
-                       ondblclick="event.stopPropagation();"
+  <div id="viewer" style="position:absolute; left:0px; top:0px;"></div>
+  <header id="hud" onmousedown="event.stopPropagation();"
+                   onmousemove="event.stopPropagation();"
+                   ondblclick="event.stopPropagation();"
              >This is uglymol not coot. <a href="#"
                          onclick="V.toggle_help(); return false;"
                          >H shows help.</a></header>
-    <footer id="help"></footer>
-  </div>
+  <footer id="help"></footer>
   <div id="inset"></div>
   <script>
     V = new Viewer("viewer");
     V.load_pdb("data/1mru.pdb");
     V.load_ccp4_maps("data/1mru.map", "data/1mru_diff.map");
-    //V.show_nav("inset");
-    V.render();
   </script>
 </body>
 </html>
