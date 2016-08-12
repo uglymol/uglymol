@@ -26,7 +26,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-var UGLYMOL_VERSION = '0.3.0'
+var UGLYMOL_VERSION = '0.3.1'
 var THREE = THREE || require('three'); // eslint-disable-line
 
 var UnitCell = (function () {
@@ -2295,7 +2295,13 @@ function Viewer(element_id) {
 
   if (typeof document === 'undefined') return;  // for testing on node
 
-  this.renderer = new THREE.WebGLRenderer({antialias: true});
+  try {
+    this.renderer = new THREE.WebGLRenderer({antialias: true});
+  } catch (e) {
+    this.hud('no WebGL in your browser?', 'ERR');
+    this.renderer = null;
+    return;
+  }
   this.renderer.setClearColor(this.config.colors.bg, 1);
   this.renderer.setPixelRatio(window.devicePixelRatio);
   this.resize();
@@ -2349,7 +2355,7 @@ function get_line_width(config) {
 
 Viewer.prototype.hud = function (text, type) {
   if (typeof document === 'undefined') return;  // for testing on node
-  var el = document && document.getElementById('hud');
+  var el = document.getElementById('hud');
   if (el) {
     if (this.initial_hud_html === null) {
       this.initial_hud_html = el.innerHTML;
@@ -2945,6 +2951,7 @@ Viewer.prototype.update_camera = function () {
 };
 
 Viewer.prototype.render = function () {
+  if (this.renderer === null) return;
   if (this.controls.update()) {
     this.update_camera();
   }
@@ -2988,6 +2995,7 @@ Viewer.prototype.add_map = function (map, is_diff_map) {
 };
 
 Viewer.prototype.load_file = function (url, binary, callback, show_progress) {
+  if (this.renderer === null) return;  // no WebGL detected
   var req = new XMLHttpRequest();
   req.open('GET', url, true);
   if (binary) {
@@ -3020,7 +3028,11 @@ Viewer.prototype.load_file = function (url, binary, callback, show_progress) {
       }
     });
   }
-  req.send(null);
+  try {
+    req.send(null);
+  } catch (e) {
+    self.hud('loading ' + url + ' failed:\n' + e, 'ERR');
+  }
 };
 
 // Load molecular model from PDB file and centers the view
