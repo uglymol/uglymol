@@ -52,10 +52,6 @@ var ColorSchemes = { // accessible as Viewer.ColorSchemes
 
 var auto_speed = 1.0;  // accessible as Viewer.auto_speed
 
-// relative position on canvas in normalized device coordinates [-1, +1]
-function relX(evt) { return 2 * evt.pageX / window.innerWidth - 1; }
-function relY(evt) { return 1 - 2 * evt.pageY / window.innerHeight; }
-
 // map 2d position to sphere with radius 1.
 function project_on_ball(x, y) {
   var z = 0;
@@ -617,18 +613,16 @@ function Viewer(element_id) {
     this.renderer = null;
     return;
   }
+  this.container = document.getElementById(element_id);
+  if (this.container === null) return; // can be null in headless tests
   this.renderer.setClearColor(this.config.colors.bg, 1);
   this.renderer.setPixelRatio(window.devicePixelRatio);
   this.resize();
   this.camera.zoom = this.camera.right / 35.0;
-  var container = document.getElementById(element_id);
-  if (container === null) { // for testing
-    return;
-  }
-  container.appendChild(this.renderer.domElement);
+  this.container.appendChild(this.renderer.domElement);
   if (window.Stats) {
     this.stats = new window.Stats();
-    container.appendChild(this.stats.dom);
+    this.container.appendChild(this.stats.dom);
   }
 
   window.addEventListener('resize', this.resize.bind(this));
@@ -648,7 +642,7 @@ function Viewer(element_id) {
   this.mousemove = function (event) {
     event.preventDefault();
     //event.stopPropagation();
-    self.controls.move(relX(event), relY(event));
+    self.controls.move(self.relX(event), self.relY(event));
   };
 
   this.mouseup = function (event) {
@@ -663,6 +657,15 @@ function Viewer(element_id) {
   this.scheduled = false;
   this.request_render();
 }
+
+// relative position on canvas in normalized device coordinates [-1, +1]
+Viewer.prototype.relX = function (evt) {
+  return 2 * evt.pageX / this.config.window_size[0] - 1;
+};
+
+Viewer.prototype.relY = function (evt) {
+  return 1 - 2 * evt.pageY / this.config.window_size[1];
+};
 
 function get_line_width(config) {
   return config.bond_line * config.window_size[1] / 700;
@@ -1073,7 +1076,7 @@ Viewer.prototype.mousedown = function (event) {
       state = STATE.ZOOM;
     }
   }
-  this.controls.start(state, relX(event), relY(event));
+  this.controls.start(state, this.relX(event), this.relY(event));
   document.addEventListener('mousemove', this.mousemove);
   document.addEventListener('mouseup', this.mouseup);
   this.request_render();
@@ -1085,7 +1088,7 @@ Viewer.prototype.dblclick = function (event) {
     this.scene.remove(this.decor.selection);
     this.decor.selection = null;
   }
-  var mouse = new THREE.Vector2(relX(event), relY(event));
+  var mouse = new THREE.Vector2(this.relX(event), this.relY(event));
   var atom;
   if (this.active_model_bag !== null) {
     atom = this.active_model_bag.pick_atom(get_raycaster(mouse, this.camera));
@@ -1122,10 +1125,12 @@ function touch_info(evt) {
 Viewer.prototype.touchstart = function (event) {
   var touches = event.touches;
   if (touches.length === 1) {
-    this.controls.start(STATE.ROTATE, relX(touches[0]), relY(touches[0]));
+    this.controls.start(STATE.ROTATE,
+                        this.relX(touches[0]), this.relY(touches[0]));
   } else { // for now using only two touches
     var info = touch_info(event);
-    this.controls.start(STATE.PAN_ZOOM, relX(info), relY(info), info.dist);
+    this.controls.start(STATE.PAN_ZOOM,
+                        this.relX(info), this.relY(info), info.dist);
   }
   this.request_render();
 };
@@ -1135,10 +1140,10 @@ Viewer.prototype.touchmove = function (event) {
   event.stopPropagation();
   var touches = event.touches;
   if (touches.length === 1) {
-    this.controls.move(relX(touches[0]), relY(touches[0]));
+    this.controls.move(this.relX(touches[0]), this.relY(touches[0]));
   } else { // for now using only two touches
     var info = touch_info(event);
-    this.controls.move(relX(info), relY(info), info.dist);
+    this.controls.move(this.relX(info), this.relY(info), info.dist);
   }
 };
 
@@ -1158,8 +1163,8 @@ Viewer.prototype.mousewheel = function (evt) {
 };
 
 Viewer.prototype.resize = function (/*evt*/) {
-  var width = window.innerWidth;
-  var height = window.innerHeight;
+  var width = this.container.clientWidth;
+  var height = this.container.clientHeight;
   this.camera.left = -width;
   this.camera.right = width;
   this.camera.top = height;

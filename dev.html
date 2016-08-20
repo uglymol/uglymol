@@ -7,6 +7,13 @@
   <meta name="theme-color" content="#333333">
   <style>
    canvas { display: block; }
+   #viewer {
+     position: absolute;
+     left: 0;
+     top: 0;
+     width: 100%;
+     height: 100%;
+   }
    #hud {
      font: 14px sans-serif;
      color: #ddd;
@@ -65,7 +72,7 @@
 
 </head>
 <body style="background-color: black">
-  <div id="viewer" style="position:absolute; left:0px; top:0px;"></div>
+  <div id="viewer"></div>
   <header id="hud" onmousedown="event.stopPropagation();"
                    onmousemove="event.stopPropagation();"
                    ondblclick="event.stopPropagation();"
