@@ -620,22 +620,24 @@ function Viewer(element_id) {
   this.resize();
   this.camera.zoom = this.camera.right / 35.0;
   this.container.appendChild(this.renderer.domElement);
-  if (window.Stats) {
+  if (window.Stats) { // set by including three/examples/js/libs/stats.min.js
     this.stats = new window.Stats();
     this.container.appendChild(this.stats.dom);
   }
 
+  var parent = this.container;
   window.addEventListener('resize', this.resize.bind(this));
+  // keydown could be set on a canvas or div that has tabindex > 1
   window.addEventListener('keydown', this.keydown.bind(this));
-  window.addEventListener('contextmenu', function (e) { e.preventDefault(); });
-  window.addEventListener('mousewheel', this.mousewheel.bind(this));
-  window.addEventListener('MozMousePixelScroll', this.mousewheel.bind(this));
-  window.addEventListener('mousedown', this.mousedown.bind(this));
-  window.addEventListener('touchstart', this.touchstart.bind(this));
-  window.addEventListener('touchmove', this.touchmove.bind(this));
-  window.addEventListener('touchend', this.touchend.bind(this));
-  window.addEventListener('touchcancel', this.touchend.bind(this));
-  window.addEventListener('dblclick', this.dblclick.bind(this));
+  parent.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  parent.addEventListener('mousewheel', this.mousewheel.bind(this));
+  parent.addEventListener('MozMousePixelScroll', this.mousewheel.bind(this));
+  parent.addEventListener('mousedown', this.mousedown.bind(this));
+  parent.addEventListener('touchstart', this.touchstart.bind(this));
+  parent.addEventListener('touchmove', this.touchmove.bind(this));
+  parent.addEventListener('touchend', this.touchend.bind(this));
+  parent.addEventListener('touchcancel', this.touchend.bind(this));
+  parent.addEventListener('dblclick', this.dblclick.bind(this));
 
   var self = this;
 
