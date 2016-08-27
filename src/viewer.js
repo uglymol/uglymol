@@ -419,17 +419,13 @@ function add_isolated_atom(geometry, atom, color) {
   }
 }
 
-function set_colors(palette, o) {
+function make_colors(palette) {
+  var colors = {name: palette};
   var scheme = ColorSchemes[palette];
   for (var key in scheme) {
-    if (o[key]) {
-      o[key].set(scheme[key]);
-    } else {
-      o[key] = new THREE.Color(scheme[key]);
-    }
+    colors[key] = new THREE.Color(scheme[key]);
   }
-  o.name = palette;
-  return o;
+  return colors;
 }
 
 
@@ -579,7 +575,7 @@ function Viewer(element_id) {
     map_style: MAP_STYLES[0],
     render_style: RENDER_STYLES[0],
     color_aim: COLOR_AIMS[0],
-    colors: set_colors('dark', {}),
+    colors: make_colors('dark'),
     hydrogens: false,
     window_size: [1, 1] // it will be set in resize()
   };
@@ -948,8 +944,8 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       this.redraw_models();
       break;
     case 66:  // b
-      set_colors(next(this.config.colors.name, Object.keys(ColorSchemes)),
-                 this.config.colors);
+      this.config.colors = make_colors(next(this.config.colors.name,
+                                            Object.keys(ColorSchemes)));
       this.hud('color scheme: ' + this.config.colors.name);
       this.redraw_all();
       break;
