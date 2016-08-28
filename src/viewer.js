@@ -9,8 +9,9 @@ var Viewer = (function () {
 
 var use_gl_lines = false;
 
-var ColorSchemes = { // accessible as Viewer.ColorSchemes
-  dark: {
+var ColorSchemes = [ // accessible as Viewer.ColorSchemes
+  { // generally mimicks Coot
+    name: 'coot dark',
     bg: 0x000000,
     map_den: 0x3362B2,
     map_pos: 0x298029,
@@ -34,7 +35,43 @@ var ColorSchemes = { // accessible as Viewer.ColorSchemes
     NI: 0x00ff80,
     def: 0xa0a0a0 // default atom color
   },
-  light: { // like in Coot after Edit > Background Color > White
+  // scheme made of "solarized" colors (http://ethanschoonover.com/solarized):
+  // base03  base02  base01  base00  base0   base1   base2   base3
+  // #002b36 #073642 #586e75 #657b83 #839496 #93a1a1 #eee8d5 #fdf6e3
+  // yellow  orange  red     magenta violet  blue    cyan    green
+  // #b58900 #cb4b16 #dc322f #d33682 #6c71c4 #268bd2 #2aa198 #859900
+  {
+    name: 'solarized dark',
+    bg: 0x002b36,
+    map_den: 0x268bd2,
+    map_pos: 0x859900,
+    map_neg: 0xd33682,
+    center: 0xfdf6e3,
+    cell_box: 0xfdf6e3,
+    H: 0x586e75,
+    C: 0x93a1a1,
+    N: 0x6c71c4,
+    O: 0xcb4b16,
+    S: 0xb58900,
+    def: 0xeee8d5
+  },
+  {
+    name: 'solarized light',
+    bg: 0xfdf6e3,
+    map_den: 0x268bd2,
+    map_pos: 0x859900,
+    map_neg: 0xd33682,
+    center: 0x002b36,
+    cell_box: 0x002b36,
+    H: 0x93a1a1,
+    C: 0x586e75,
+    N: 0x6c71c4,
+    O: 0xcb4b16,
+    S: 0xb58900,
+    def: 0x073642
+  },
+  { // like in Coot after Edit > Background Color > White
+    name: 'coot light',
     bg: 0xFFFFFF,
     map_den: 0x3362B2,
     map_pos: 0x298029,
@@ -48,7 +85,7 @@ var ColorSchemes = { // accessible as Viewer.ColorSchemes
     S: 0x9E7B3D,
     def: 0x808080
   }
-};
+];
 
 var auto_speed = 1.0;  // accessible as Viewer.auto_speed
 
@@ -419,13 +456,13 @@ function add_isolated_atom(geometry, atom, color) {
   }
 }
 
-function make_colors(palette) {
-  var colors = {name: palette};
-  var scheme = ColorSchemes[palette];
+function make_colors(scheme) {
+  if (scheme.bg.set) return;
   for (var key in scheme) {
-    colors[key] = new THREE.Color(scheme[key]);
+    if (key !== 'name') {
+      scheme[key] = new THREE.Color(scheme[key]);
+    }
   }
-  return colors;
 }
 
 
@@ -575,7 +612,7 @@ function Viewer(element_id) {
     map_style: MAP_STYLES[0],
     render_style: RENDER_STYLES[0],
     color_aim: COLOR_AIMS[0],
-    colors: make_colors('dark'),
+    colors: ColorSchemes[0],
     hydrogens: false,
     window_size: [1, 1] // it will be set in resize()
   };
@@ -599,6 +636,8 @@ function Viewer(element_id) {
   this.light = new THREE.AmbientLight(0xffffff);
   this.scene.add(this.light);
   this.controls = new Controls(this.camera, this.target);
+
+  make_colors(this.config.colors);
 
   if (typeof document === 'undefined') return;  // for testing on node
 
@@ -944,8 +983,8 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       this.redraw_models();
       break;
     case 66:  // b
-      this.config.colors = make_colors(next(this.config.colors.name,
-                                            Object.keys(ColorSchemes)));
+      this.config.colors = next(this.config.colors, ColorSchemes);
+      make_colors(this.config.colors);
       this.hud('color scheme: ' + this.config.colors.name);
       this.redraw_all();
       break;
