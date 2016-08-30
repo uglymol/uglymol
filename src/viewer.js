@@ -1074,10 +1074,17 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       break;
     case 36: // Home
     case 35: // End
-      this.config.bond_line += (key === 36 ? 0.2 : -0.2);
-      this.config.bond_line = Math.max(this.config.bond_line, 0.1);
-      this.redraw_models();
-      this.hud('bond width: ' + get_line_width(this.config).toFixed(1));
+      if (evt.ctrlKey) {
+        this.config.map_line += (key === 36 ? 0.1 : -0.1);
+        this.config.map_line = Math.max(this.config.map_line, 0.1);
+        this.redraw_maps(true);
+        this.hud('wireframe width: ' + this.config.map_line.toFixed(1));
+      } else {
+        this.config.bond_line += (key === 36 ? 0.2 : -0.2);
+        this.config.bond_line = Math.max(this.config.bond_line, 0.1);
+        this.redraw_models();
+        this.hud('bond width: ' + get_line_width(this.config).toFixed(1));
+      }
       break;
     case 16: // shift
     case 17: // ctrl
