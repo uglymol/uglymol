@@ -958,6 +958,7 @@ Viewer.prototype.toggle_help = function () {
       'I = spin',
       'Shift+I = rock',
       'Home/End = bond width',
+      '\\ bond caps',
       'P = nearest Cα',
       'Shift+P = permalink',
       '(Shift+)space = next res.',
@@ -1002,7 +1003,9 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       this.config.hydrogens = !this.config.hydrogens;
       this.hud((this.config.hydrogens ? 'show' : 'hide') +
                ' hydrogens (if any)');
-      //XXX
+      this.redraw_models();
+      break;
+    case 220:  // \ (backslash)
       use_gl_lines = !use_gl_lines;
       this.redraw_models();
       break;
