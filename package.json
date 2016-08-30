@@ -15,12 +15,12 @@
   "devDependencies": {
     "benchmark": "^2.1.0",
     "chai": "^3.5.0",
-    "eslint": "^3.2.2",
-    "eslint-config-xo": "^0.15.3",
+    "eslint": "^3.4.0",
+    "eslint-config-xo": "^0.15.4",
     "http-server": "^0.9.0",
-    "istanbul": "^0.4.4",
+    "istanbul": "^0.4.5",
     "mocha": "^3.0.2",
-    "uglify-js": "^2.7.0"
+    "uglify-js": "^2.7.3"
   },
   "scripts": {
     "test": "mocha",
