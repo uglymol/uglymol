@@ -53,16 +53,23 @@ def main():
         for i in range(0, len(row), 3):
             a, b, c = row[i:i+3]
             for p,q in [(a,b), (b,c), (c,a)]:
-                # avoid duplicates inside the same cube
-                if (p,q) not in segments and (q,p) not in segments:
-                    # avoid duplicates between neighbouring cubes,
-                    # by ignoring segments on 3 of 6 faces 
-                    if 0 not in common_face(p, q):
-                        segments.append((p,q))
+                # Avoid duplicates inside the same cube.
+                if (p,q) in segments or (q,p) in segments:
+                    continue
+                # Avoid duplicates between neighbouring cubes,
+                # by ignoring segments on 3 of 6 faces.
+                if 0 in common_face(p, q):
+                    continue
+                # Avoid lines that are not in x, y or z plane,
+                # which should generate isolines instead of triangles,
+                # which should be the same that PyMOL does.
+                if common_face(p, q).count(None) == 3:
+                    continue
+                segments.append((p,q))
         #print '%d\t%d\t%d' % (len(segments) * 2, len(row) * 2, len(row))
         #print('--> %s' % row)
         flat_segments = sum(segments, ())
-        #print('[' + ', '.join('%d' % j for j in flat_segments) + '],')
+        print('[' + ', '.join('%d' % j for j in flat_segments) + '],')
         total_seg += len(segments)
         assert edgeTable[n] == make_edge_mask(row)
         new_edge_table.append(make_edge_mask(flat_segments))
