@@ -354,7 +354,7 @@ var CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
 
 var COLOR_AIMS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
 var RENDER_STYLES = ['lines', 'trace', 'ribbon'/*, 'ball&stick'*/];
-var MAP_STYLES = ['marching cubes', 'snapped MC'];
+var MAP_STYLES = ['marching cubes', 'squarish'/*, 'snapped MC'*/];
 
 function make_center_cube(size, ctr, color) {
   var geometry = new THREE.Geometry();
