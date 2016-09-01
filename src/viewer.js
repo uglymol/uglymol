@@ -872,6 +872,27 @@ Viewer.prototype.change_map_radius = function (delta) {
   this.redraw_maps(true); //TODO: move slow part into update()
 };
 
+Viewer.prototype.change_slab_width_by = function (delta) {
+  this.controls.change_slab_width(delta);
+  this.update_camera();
+  this.hud('clip width: ' + (this.camera.far-this.camera.near).toFixed(1));
+};
+
+Viewer.prototype.toggle_full_screen = function () {
+  var d = document;
+  if (d.fullscreenElement || d.mozFullScreenElement ||
+      d.webkitFullscreenElement || d.msFullscreenElement) {
+    var ex = d.exitFullscreen || d.webkitExitFullscreen ||
+             d.mozCancelFullScreen || d.msExitFullscreen;
+    if (ex) ex.call(d);
+  } else {
+    var el = this.container;
+    var req = el.requestFullscreen || el.webkitRequestFullscreen ||
+              el.mozRequestFullScreen || el.msRequestFullscreen;
+    if (req) req.call(el);
+  }
+};
+
 Viewer.prototype.toggle_cell_box = function () {
   if (this.decor.cell_box) {
     this.scene.remove(this.decor.cell_box);
@@ -962,6 +983,7 @@ Viewer.prototype.toggle_help = function () {
       'P = nearest Cα',
       'Shift+P = permalink',
       '(Shift+)space = next res.',
+      'Shift+F = full screen',
 
       '\n<a href="https://uglymol.github.io">about uglymol</a>'].join('\n');
   }
@@ -1027,10 +1049,14 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       this.change_map_radius(2);
       break;
     case 68:  // d
+      this.change_slab_width_by(-0.1);
+      break;
     case 70:  // f
-      this.controls.change_slab_width(key === 68 ? -0.1 : +0.1);
-      this.update_camera();
-      this.hud('clip width: ' + (this.camera.far-this.camera.near).toFixed(1));
+      if (evt.shiftKey) {
+        this.toggle_full_screen();
+      } else {
+        this.change_slab_width_by(0.1);
+      }
       break;
     case 77:  // m
     case 78:  // n
