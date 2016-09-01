@@ -1007,6 +1007,7 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       break;
     case 220:  // \ (backslash)
       use_gl_lines = !use_gl_lines;
+      this.hud((use_gl_lines ? 'simple' : 'round-capped') + ' bonds');
       this.redraw_models();
       break;
     case 107:  // add
