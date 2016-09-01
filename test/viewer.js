@@ -50,9 +50,9 @@ describe('Viewer', function () {
         viewer.keydown({keyCode: code, shiftKey: shift});
       }
     }
-    press(['c', 'C', 'c', 'C', 'c', 'c', 'c']); // try all color schemes
+    press(['c', 'b', 'C', 'b', 'b', 'b', 'c', 'c', 'c', 'c']); // colors
     press(['d', 'f', 'm', 'n', 219/*[*/, 221/*]*/]);
-    press(['y', 'w', 'u', 'y', 'w', 'u', 'r']);
+    press(['y', 'w', 'u', 220/*backslash*/, 'y', 'w', 'u', 220, 'r']);
     press([99/*numpad 3*/, 110/*decimal point (Mac)*/]);
     press([107/*add*/, 109/*subtract*/]);
     press([32/*space*/, 999/*dummy*/]);
