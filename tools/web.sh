@@ -22,6 +22,7 @@ done
 
 cp uglymol.js uglymol.min.js LICENSE perf.html $outdir/
 cp perf/* $outdir/perf/
+cp test/*.html $outdir/test/
 
 grep -v -- -DEV- dev.html > $outdir/1mru.html
 sed -e s/1mru/4un4_final/g -e s/\\.map/_m0.map/g <$outdir/1mru.html \

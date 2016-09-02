@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>Multi - UglyMol</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, user-scalable=no">
+  <meta name="theme-color" content="#333333">
+  <style>
+   canvas { display: block; }
+   body { background-color: #230; font: 14px sans-serif; color: #ddd; }
+   #viewer1 { width: 500px; height: 800px; }
+   #viewer2 { position: absolute; left: 800px; top: 0;
+              width: 500px; height: 400px; }
+   #viewer3 { position: absolute; left: 550px; top: 420px;
+              width: 800px; height: 500px; }
+  </style>
+
+  <script src="../node_modules/three/build/three.js"></script>
+  <script src="../uglymol.js"></script>
+
+</head>
+<body>
+  <p>message from #1: <span id="hud1">n/a</span></p>
+  <p>message from #2: <span id="hud2">n/a</span></p>
+  <p>message from #3: <span id="hud3">n/a</span></p>
+  <div id="viewer1"></div>
+  <div id="viewer2"></div>
+  <div id="viewer3"></div>
+  <script>
+    V1 = new Viewer({viewer: "viewer1", hud: "hud1"});
+    V1.load_pdb("../data/1mru.pdb");
+    V1.load_ccp4_maps("../data/1mru.map", "../data/1mru_diff.map");
+    V2 = new Viewer({viewer: "viewer2", hud: "hud2"});
+    V2.config.render_style = "ribbon";
+    V2.config.color_aim = "index";
+    V2.load_pdb("../data/1mru.pdb");
+    V3 = new Viewer({viewer: "viewer3", hud: "hud3"});
+    V3.set_colors(1);
+    V3.load_pdb("../data/1mru.pdb");
+  </script>
+</body>
+</html>
