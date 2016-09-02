@@ -1595,15 +1595,9 @@ function wide_segments_geometry(vertex_arr, color_arr) {
 
 
 var wide_line_vert = [
-  'precision highp float;',
-
-  'attribute vec3 position;',
   'attribute vec3 previous;',
   'attribute vec3 next;',
   'attribute float side;',
-  'attribute vec3 color;',
-  'uniform mat4 projectionMatrix;',
-  'uniform mat4 modelViewMatrix;',
   'uniform vec2 size;',
   'uniform float linewidth;',
   'varying vec3 vcolor;',
@@ -1630,14 +1624,8 @@ var wide_line_vert = [
   '}'].join('\n');
 
 var wide_segments_vert = [
-  'precision highp float;',
-
-  'attribute vec3 position;',
   'attribute vec3 other;',
   'attribute float side;',
-  'attribute vec3 color;',
-  'uniform mat4 projectionMatrix;',
-  'uniform mat4 modelViewMatrix;',
   'uniform vec2 size;',
   'uniform float linewidth;',
   'varying vec3 vcolor;',
@@ -1652,16 +1640,11 @@ var wide_segments_vert = [
   '}'].join('\n');
 
 var wide_line_frag = [
-  'precision mediump float;',
-  'uniform vec3 fogColor;',
-  'uniform float fogNear;',
-  'uniform float fogFar;',
+  '#include <fog_pars_fragment>',
   'varying vec3 vcolor;',
   'void main() {',
   '  gl_FragColor = vec4(vcolor, 1.0);',
-  '  float depth = gl_FragCoord.z / gl_FragCoord.w;',
-  '  float fogFactor = smoothstep(fogNear, fogFar, depth);',
-  '  gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, fogFactor);',
+  '#include <fog_fragment>',
   '}'].join('\n');
 
 
@@ -1725,14 +1708,15 @@ function LineFactory(use_gl_lines, material_param, as_segments) {
     if (material_param.color === undefined) {
       material_param.vertexColors = THREE.VertexColors;
     }
-    delete material_param.size; // only needed for RawShaderMaterial
+    delete material_param.size; // only needed for ShaderMaterial
     this.material = new THREE.LineBasicMaterial(material_param);
   } else {
-    this.material = new THREE.RawShaderMaterial({
+    this.material = new THREE.ShaderMaterial({
       uniforms: make_uniforms(material_param),
       vertexShader: as_segments ? wide_segments_vert : wide_line_vert,
       fragmentShader: wide_line_frag,
-      fog: true
+      fog: true,
+      vertexColors: THREE.VertexColors
     });
   }
 }
