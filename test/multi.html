@@ -8,11 +8,13 @@
   <style>
    canvas { display: block; }
    body { background-color: #230; font: 14px sans-serif; color: #ddd; }
-   #viewer1 { width: 500px; height: 800px; }
+   #viewer1 { position: relative; width: 500px; height: 800px; }
    #viewer2 { position: absolute; left: 800px; top: 0;
               width: 500px; height: 400px; }
    #viewer3 { position: absolute; left: 550px; top: 420px;
               width: 800px; height: 500px; }
+   #info { white-space: pre-line; position: absolute; top: 20px; right: 20px; }
+   div b { position: absolute; top: 10px; left: 10px; }
   </style>
 
   <script src="../node_modules/three/build/three.js"></script>
@@ -23,20 +25,26 @@
   <p>message from #1: <span id="hud1">n/a</span></p>
   <p>message from #2: <span id="hud2">n/a</span></p>
   <p>message from #3: <span id="hud3">n/a</span></p>
-  <div id="viewer1"></div>
-  <div id="viewer2"></div>
-  <div id="viewer3"></div>
+  <!-- Note: for now the canvas that will be created must have the same
+    size as the parent div. I.e. <b> below must not take any space
+    (with position:absolute it's ok) -->
+  <div id="viewer1"><b>#1</b></div>
+  <div id="viewer2"><b>#2</b></div>
+  <div id="viewer3"><b>#3</b></div>
+  <footer id="info"></footer>
   <script>
-    V1 = new Viewer({viewer: "viewer1", hud: "hud1"});
+    V1 = new Viewer({viewer:"viewer1", hud:"hud1", focusable:true});
     V1.load_pdb("../data/1mru.pdb");
     V1.load_ccp4_maps("../data/1mru.map", "../data/1mru_diff.map");
-    V2 = new Viewer({viewer: "viewer2", hud: "hud2"});
+    V2 = new Viewer({viewer:"viewer2", hud:"hud2", focusable:true});
     V2.config.render_style = "ribbon";
     V2.config.color_aim = "index";
     V2.load_pdb("../data/1mru.pdb");
-    V3 = new Viewer({viewer: "viewer3", hud: "hud3"});
+    V3 = new Viewer({viewer:"viewer3", hud:"hud3", focusable:true});
     V3.set_colors(1);
     V3.load_pdb("../data/1mru.pdb");
+    document.getElementById("viewer1").focus();
+    Viewer.toggle_help(document.getElementById("info"));
   </script>
 </body>
 </html>

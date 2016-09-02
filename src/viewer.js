@@ -651,24 +651,27 @@ function Viewer(options) {
   this.resize();
   this.camera.zoom = this.camera.right / 35.0;
   this.container.appendChild(this.renderer.domElement);
+  if (options.focusable) {
+    this.renderer.domElement.tabIndex = 0;
+  }
   if (window.Stats) { // set by including three/examples/js/libs/stats.min.js
     this.stats = new window.Stats();
     this.container.appendChild(this.stats.dom);
   }
 
-  var parent = this.container;
   window.addEventListener('resize', this.resize.bind(this));
-  // keydown could be set on a canvas or div that has tabindex > 1
-  window.addEventListener('keydown', this.keydown.bind(this));
-  parent.addEventListener('contextmenu', function (e) { e.preventDefault(); });
-  parent.addEventListener('mousewheel', this.mousewheel.bind(this));
-  parent.addEventListener('MozMousePixelScroll', this.mousewheel.bind(this));
-  parent.addEventListener('mousedown', this.mousedown.bind(this));
-  parent.addEventListener('touchstart', this.touchstart.bind(this));
-  parent.addEventListener('touchmove', this.touchmove.bind(this));
-  parent.addEventListener('touchend', this.touchend.bind(this));
-  parent.addEventListener('touchcancel', this.touchend.bind(this));
-  parent.addEventListener('dblclick', this.dblclick.bind(this));
+  var el = this.renderer.domElement;
+  var keydown_el = (options.focusable ? el : window);
+  keydown_el.addEventListener('keydown', this.keydown.bind(this));
+  el.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  el.addEventListener('mousewheel', this.mousewheel.bind(this));
+  el.addEventListener('MozMousePixelScroll', this.mousewheel.bind(this));
+  el.addEventListener('mousedown', this.mousedown.bind(this));
+  el.addEventListener('touchstart', this.touchstart.bind(this));
+  el.addEventListener('touchmove', this.touchmove.bind(this));
+  el.addEventListener('touchend', this.touchend.bind(this));
+  el.addEventListener('touchcancel', this.touchend.bind(this));
+  el.addEventListener('dblclick', this.dblclick.bind(this));
 
   var self = this;
 
@@ -965,8 +968,7 @@ Viewer.prototype.redraw_all = function () {
   this.redraw_maps(true);
 };
 
-Viewer.prototype.toggle_help = function () {
-  var el = this.help_el;
+Viewer.toggle_help = function (el) {
   if (!el) return;
   el.style.display = el.style.display === 'block' ? 'none' : 'block';
   if (el.innerHTML === '') {
@@ -997,7 +999,7 @@ Viewer.prototype.toggle_help = function () {
       'I = spin',
       'Shift+I = rock',
       'Home/End = bond width',
-      '\\ bond caps',
+      '\\ = bond caps',
       'P = nearest Cα',
       'Shift+P = permalink',
       '(Shift+)space = next res.',
@@ -1116,7 +1118,7 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       }
       break;
     case 72:  // h
-      this.toggle_help();
+      Viewer.toggle_help(this.help_el);
       break;
     case 36: // Home
     case 35: // End
@@ -1149,7 +1151,7 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
 };
 
 Viewer.prototype.mousedown = function (event) {
-  event.preventDefault();
+  //event.preventDefault(); // default involves setting focus, which we need
   event.stopPropagation();
   var state = STATE.NONE;
   if (event.button === 1 || (event.button === 0 && event.ctrlKey)) {
@@ -1254,10 +1256,11 @@ Viewer.prototype.mousewheel = function (evt) {
 };
 
 Viewer.prototype.resize = function (/*evt*/) {
-  var width = this.container.clientWidth;
-  var height = this.container.clientHeight;
-  this.window_offset[0] = this.container.offsetLeft;
-  this.window_offset[1] = this.container.offsetTop;
+  var el = this.container;
+  var width = el.clientWidth;
+  var height = el.clientHeight;
+  this.window_offset[0] = el.offsetLeft;
+  this.window_offset[1] = el.offsetTop;
   this.camera.left = -width;
   this.camera.right = width;
   this.camera.top = height;

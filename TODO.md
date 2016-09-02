@@ -5,8 +5,10 @@
 
 - atom labels
 
-- use UMD format for built files. Maybe use rollupjs
-  if https://github.com/mrdoob/three.js/pull/9310 gets merged.
+- Use UMD format for built files. Switch to ES6 modules and use rollup.js.
+
+- Revisit resizing when https://github.com/mrdoob/three.js/issues/4903
+  is closed.
 
 - a few more keybindings:
   L = next ligand (ctrl-L in coot),
