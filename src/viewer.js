@@ -603,8 +603,7 @@ ModelBag.prototype.add_ribbon = function (smoothness) {
   }
 };
 
-
-function Viewer(element_id) {
+function Viewer(options) {
   this.config = {
     bond_line: 4.0, // for 700px height (in Coot it also depends on height)
     map_line: 1.25,  // for any height
@@ -648,7 +647,9 @@ function Viewer(element_id) {
     this.renderer = null;
     return;
   }
-  this.container = document.getElementById(element_id);
+  this.container = document.getElementById(options.viewer || 'viewer');
+  this.hud_el = document.getElementById(options.hud || 'hud');
+  this.help_el = document.getElementById(options.help || 'help');
   if (this.container === null) return; // can be null in headless tests
   this.renderer.setClearColor(this.config.colors.bg, 1);
   this.renderer.setPixelRatio(window.devicePixelRatio);
@@ -710,7 +711,7 @@ function get_line_width(config) {
 
 Viewer.prototype.hud = function (text, type) {
   if (typeof document === 'undefined') return;  // for testing on node
-  var el = document.getElementById('hud');
+  var el = this.hud_el;
   if (el) {
     if (this.initial_hud_html === null) {
       this.initial_hud_html = el.innerHTML;
@@ -941,6 +942,7 @@ Viewer.prototype.go_to_nearest_Ca = function () {
 };
 
 Viewer.prototype.redraw_all = function () {
+  if (!this.renderer) return;
   this.scene.fog.color = this.config.colors.bg;
   if (this.renderer) this.renderer.setClearColor(this.config.colors.bg, 1);
   this.redraw_models();
@@ -948,7 +950,7 @@ Viewer.prototype.redraw_all = function () {
 };
 
 Viewer.prototype.toggle_help = function () {
-  var el = document.getElementById('help');
+  var el = this.help_el;
   if (!el) return;
   el.style.display = el.style.display === 'block' ? 'none' : 'block';
   if (el.innerHTML === '') {
@@ -1125,7 +1127,7 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       this.center_next_residue(evt.shiftKey);
       break;
     default:
-      this.hud('Nothing here. Press H for help.');
+      if (this.help_el) this.hud('Nothing here. Press H for help.');
       break;
   }
   this.request_render();
@@ -1239,6 +1241,8 @@ Viewer.prototype.mousewheel = function (evt) {
 Viewer.prototype.resize = function (/*evt*/) {
   var width = this.container.clientWidth;
   var height = this.container.clientHeight;
+  //this.window_offset[0] = this.container.offsetLeft;
+  //this.window_offset[1] = this.container.offsetTop;
   this.camera.left = -width;
   this.camera.right = width;
   this.camera.top = height;
@@ -1249,6 +1253,8 @@ Viewer.prototype.resize = function (/*evt*/) {
       height !== this.config.window_size[1]) {
     this.config.window_size[0] = width;
     this.config.window_size[1] = height;
+    //this.config.bond_line_abs = this.config.bond_line *
+    //                                    this.config.window_size[1] / 700;
     this.redraw_models();
   }
   this.request_render();
