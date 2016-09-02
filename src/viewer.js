@@ -103,6 +103,10 @@ function project_on_ball(x, y) {
   return [x, y, z];  // guaranteed to be normalized
 }
 
+function scale_by_height(value, size) { // for scaling bond_line
+  return value * size[1] / 700;
+}
+
 var _raycaster;
 function get_raycaster(coords, camera) {
   if (_raycaster === undefined) _raycaster = new THREE.Raycaster();
@@ -456,15 +460,6 @@ function add_isolated_atom(geometry, atom, color) {
   }
 }
 
-function make_colors(scheme) {
-  if (scheme.bg.set) return;
-  for (var key in scheme) {
-    if (key !== 'name') {
-      scheme[key] = new THREE.Color(scheme[key]);
-    }
-  }
-}
-
 
 function MapBag(map, is_diff_map) {
   this.map = map;
@@ -477,11 +472,12 @@ function MapBag(map, is_diff_map) {
 }
 
 
-function ModelBag(model, config) {
+function ModelBag(model, config, win_size) {
   this.model = model;
   this.name = '';
   this.visible = true;
   this.conf = config;
+  this.win_size = win_size;
   this.atomic_objects = null; // list of three.js objects
 }
 
@@ -514,7 +510,6 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
   var opt = { hydrogens: this.conf.hydrogens,
               ligands_only: ligands_only,
               balls: this.conf.render_style === 'ball&stick' };
-  var linewidth = get_line_width(this.conf);
   for (var i = 0; i < visible_atoms.length; i++) {
     var atom = visible_atoms[i];
     var color = colors[i];
@@ -543,8 +538,8 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
     }
   }
   var line_factory = new LineFactory(use_gl_lines, {
-    linewidth: linewidth,
-    size: this.conf.window_size
+    linewidth: scale_by_height(this.conf.bond_line, this.win_size),
+    size: this.win_size
   }, true);
   //console.log('make_bonds() vertex count: ' + geometry.vertices.length);
   this.atomic_objects.push(line_factory.make_line_segments(geometry));
@@ -561,8 +556,8 @@ ModelBag.prototype.add_trace = function (smoothness) {
   var visible_atoms = [].concat.apply([], segments);
   var colors = color_by(this.conf.color_aim, visible_atoms, this.conf.colors);
   var line_factory = new LineFactory(use_gl_lines, {
-    linewidth: get_line_width(this.conf),
-    size: this.conf.window_size
+    linewidth: scale_by_height(this.conf.bond_line, this.win_size),
+    size: this.win_size
   });
   var k = 0;
   for (var i = 0; i < segments.length; i++) {
@@ -605,16 +600,18 @@ ModelBag.prototype.add_ribbon = function (smoothness) {
 
 function Viewer(options) {
   this.config = {
-    bond_line: 4.0, // for 700px height (in Coot it also depends on height)
+    bond_line: 4.0, // ~ to height, like in Coot (see scale_by_height())
     map_line: 1.25,  // for any height
     map_radius: 10.0,
     map_style: MAP_STYLES[0],
     render_style: RENDER_STYLES[0],
     color_aim: COLOR_AIMS[0],
     colors: ColorSchemes[0],
-    hydrogens: false,
-    window_size: [1, 1] // it will be set in resize()
+    hydrogens: false
   };
+  this.set_colors();
+  this.window_size = [1, 1]; // it will be set in resize()
+  this.window_offset = [0, 0];
 
   // rendered objects
   this.model_bags = [];
@@ -635,8 +632,6 @@ function Viewer(options) {
   this.light = new THREE.AmbientLight(0xffffff);
   this.scene.add(this.light);
   this.controls = new Controls(this.camera, this.target);
-
-  make_colors(this.config.colors);
 
   if (typeof document === 'undefined') return;  // for testing on node
 
@@ -696,18 +691,39 @@ function Viewer(options) {
   this.request_render();
 }
 
+Viewer.prototype.set_colors = function (scheme) {
+  if (scheme == null) {
+    scheme = ColorSchemes[0];
+  } else if (typeof scheme === 'number') {
+    scheme = ColorSchemes[scheme % ColorSchemes.length];
+  } else if (typeof scheme === 'string') {
+    for (var i = 0; i !== ColorSchemes.length; i++) {
+      if (ColorSchemes[i].name === scheme) {
+        scheme = ColorSchemes[i];
+        break;
+      }
+    }
+  }
+  if (scheme.bg === undefined) return;
+  if (typeof scheme.bg === 'number') {
+    for (var key in scheme) {
+      if (key !== 'name') {
+        scheme[key] = new THREE.Color(scheme[key]);
+      }
+    }
+  }
+  this.config.colors = scheme;
+  this.redraw_all();
+};
+
 // relative position on canvas in normalized device coordinates [-1, +1]
 Viewer.prototype.relX = function (evt) {
-  return 2 * evt.pageX / this.config.window_size[0] - 1;
+  return 2 * (evt.pageX - this.window_offset[0]) / this.window_size[0] - 1;
 };
 
 Viewer.prototype.relY = function (evt) {
-  return 1 - 2 * evt.pageY / this.config.window_size[1];
+  return 1 - 2 * (evt.pageY - this.window_offset[1]) / this.window_size[1];
 };
-
-function get_line_width(config) {
-  return config.bond_line * config.window_size[1] / 700;
-}
 
 Viewer.prototype.hud = function (text, type) {
   if (typeof document === 'undefined') return;  // for testing on node
@@ -1008,10 +1024,8 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       this.redraw_models();
       break;
     case 66:  // b
-      this.config.colors = next(this.config.colors, ColorSchemes);
-      make_colors(this.config.colors);
+      this.set_colors(next(this.config.colors, ColorSchemes));
       this.hud('color scheme: ' + this.config.colors.name);
-      this.redraw_all();
       break;
     case 67:  // c
       this.config.color_aim = next(this.config.color_aim, COLOR_AIMS);
@@ -1115,7 +1129,8 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
         this.config.bond_line += (key === 36 ? 0.2 : -0.2);
         this.config.bond_line = Math.max(this.config.bond_line, 0.1);
         this.redraw_models();
-        this.hud('bond width: ' + get_line_width(this.config).toFixed(1));
+        this.hud('bond width: ' + scale_by_height(this.config.bond_line,
+                                                  this.window_size).toFixed(1));
       }
       break;
     case 16: // shift
@@ -1241,21 +1256,18 @@ Viewer.prototype.mousewheel = function (evt) {
 Viewer.prototype.resize = function (/*evt*/) {
   var width = this.container.clientWidth;
   var height = this.container.clientHeight;
-  //this.window_offset[0] = this.container.offsetLeft;
-  //this.window_offset[1] = this.container.offsetTop;
+  this.window_offset[0] = this.container.offsetLeft;
+  this.window_offset[1] = this.container.offsetTop;
   this.camera.left = -width;
   this.camera.right = width;
   this.camera.top = height;
   this.camera.bottom = -height;
   this.camera.updateProjectionMatrix();
   this.renderer.setSize(width, height);
-  if (width !== this.config.window_size[0] ||
-      height !== this.config.window_size[1]) {
-    this.config.window_size[0] = width;
-    this.config.window_size[1] = height;
-    //this.config.bond_line_abs = this.config.bond_line *
-    //                                    this.config.window_size[1] / 700;
-    this.redraw_models();
+  if (width !== this.window_size[0] || height !== this.window_size[1]) {
+    this.window_size[0] = width;
+    this.window_size[1] = height;
+    this.redraw_models(); // b/c bond_line is scaled by height
   }
   this.request_render();
 };
@@ -1379,7 +1391,7 @@ Viewer.prototype.request_render = function () {
 };
 
 Viewer.prototype.set_model = function (model) {
-  var model_bag = new ModelBag(model, this.config);
+  var model_bag = new ModelBag(model, this.config, this.window_size);
   this.model_bags.push(model_bag);
   this.set_atomic_objects(model_bag);
   this.active_model_bag = model_bag;
