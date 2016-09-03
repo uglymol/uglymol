@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>Dual 1mru - UglyMol</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, user-scalable=no">
+  <meta name="theme-color" content="#333333">
+  <style>
+   canvas { display: block; }
+   body { background-color: #333; }
+   #viewer1, #viewer2 { position:absolute; top:0; width:49.6%; height:100%; }
+   #viewer1 { left: 0; }
+   #viewer2 { right: 0; }
+   #hud {
+     font: 14px sans-serif;
+     color: #ddd;
+     background-color: rgba(0,0,0,0.6);
+     text-align: center;
+     position: absolute;
+     top: 10px;
+     left: 50%;
+     transform: translateX(-50%);
+     padding: 2px 8px;
+     border-radius: 5px;
+     z-index: 9;
+     white-space: pre-line;
+   }
+   #help {
+     display: none;
+     font: 16px sans-serif;
+     color: #eee;
+     background-color: rgba(0,0,0,0.7);
+     position: absolute;
+     left: 20px;
+     top: 50%;
+     transform: translateY(-50%);
+     cursor: default;
+     padding: 5px;
+     border-radius: 5px;
+     z-index: 9;
+     white-space: pre-line;
+   }
+   #inset {
+     width: 200px;
+     height: 200px;
+     background-color: #888;
+     position: absolute;
+     right: 0;
+     bottom: 0;
+     z-index: 2;
+     display: none;
+   }
+   a { color: #59C; }
+  </style>
+
+  <!-- -DEV- using directly source files and node_modules -->
+  <script src="node_modules/three/build/three.js"></script><!--DEV-->
+  <script src="src/lines.js"></script><!--DEV-->
+  <script src="src/isosurface.js"></script><!--DEV-->
+  <script src="src/unitcell.js"></script><!--DEV-->
+  <script src="src/elmap.js"></script><!--DEV-->
+  <script src="src/model.js"></script><!--DEV-->
+  <script src="src/viewer.js"></script><!--DEV-->
+  <!--DEV-: normally, use uglymol[.min].js and three.min.js from CDN.
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r79/three.min.js"></script>
+  <script src="uglymol.js"></script>
+  -DEV-->
+
+</head>
+<body>
+  <div id="viewer1"></div>
+  <div id="viewer2"></div>
+  <header id="hud">Welcome to UglyMol. Press H for help.</header>
+  <footer id="help"></footer>
+  <div id="inset"></div>
+  <script>
+    V1 = new Viewer({viewer: "viewer1", focusable: true});
+    V1.load_pdb("data/1mru.pdb");
+    V1.load_ccp4_maps("data/1mru.map", "data/1mru_diff.map");
+    V2 = new Viewer({viewer: "viewer2", focusable: true, share_view: V1});
+    V2.load_pdb("data/1mru.pdb");
+  </script>
+</body>
+</html>

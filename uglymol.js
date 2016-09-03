@@ -2551,18 +2551,23 @@ function Viewer(options) {
   this.nav = null;
 
   this.last_ctr = new THREE.Vector3(Infinity, 0, 0);
-  this.initial_hud_html = null;
-  this.initial_hud_bg = '';
   this.selected_atom = null;
   this.active_model_bag = null;
   this.scene = new THREE.Scene();
-  this.target = new THREE.Vector3();
-  this.camera = new THREE.OrthographicCamera();
-  //this.scene.add(this.camera); // no need to to this in recent three?
   this.scene.fog = new THREE.Fog(this.config.colors.bg, 0, 1);
   this.light = new THREE.AmbientLight(0xffffff);
   this.scene.add(this.light);
-  this.controls = new Controls(this.camera, this.target);
+  if (options.share_view) {
+    this.target = options.share_view.target;
+    this.camera = options.share_view.camera;
+    this.controls = options.share_view.controls;
+    this.share_view = options.share_view;
+    this.share_view.share_view = this;
+  } else {
+    this.target = new THREE.Vector3();
+    this.camera = new THREE.OrthographicCamera();
+    this.controls = new Controls(this.camera, this.target);
+  }
 
   if (typeof document === 'undefined') return;  // for testing on node
 
@@ -2573,9 +2578,19 @@ function Viewer(options) {
     this.renderer = null;
     return;
   }
-  this.container = document.getElementById(options.viewer || 'viewer');
-  this.hud_el = document.getElementById(options.hud || 'hud');
-  this.help_el = document.getElementById(options.help || 'help');
+
+  function get_elem(name) {
+    if (options[name] === null) return null;
+    return document.getElementById(options[name] || name);
+  }
+  this.container = get_elem('viewer');
+  this.hud_el = get_elem('hud');
+  this.help_el = get_elem('help');
+  if (this.hud_el) {
+    this.initial_hud_html = this.hud_el.innerHTML;
+    this.initial_hud_bg = this.hud_el.style['background-color'];
+  }
+
   if (this.container === null) return; // can be null in headless tests
   this.renderer.setClearColor(this.config.colors.bg, 1);
   this.renderer.setPixelRatio(window.devicePixelRatio);
@@ -2663,18 +2678,14 @@ Viewer.prototype.hud = function (text, type) {
   if (typeof document === 'undefined') return;  // for testing on node
   var el = this.hud_el;
   if (el) {
-    if (this.initial_hud_html === null) {
-      this.initial_hud_html = el.innerHTML;
-      this.initial_hud_bg = el.style['background-color'];
-    }
     if (text !== undefined) {
       el.textContent = text;
     } else {
       el.innerHTML = this.initial_hud_html;
     }
-    el.style['background-color'] = (type !== 'ERR' ? this.initial_hud_bg
-                                                   : '#b00');
-    if (type === 'ERR') console.log('ERR: ' + text);
+    var err = (type === 'ERR');
+    el.style['background-color'] = (err ? '#b00' : this.initial_hud_bg);
+    if (err) console.log('ERR: ' + text);
   } else {
     console.log('hud: ' + text);
   }
@@ -3297,6 +3308,7 @@ Viewer.prototype.update_camera = function () {
 };
 
 Viewer.prototype.render = function () {
+  this.scheduled = true;
   if (this.renderer === null) return;
   if (this.controls.update()) {
     this.update_camera();
@@ -3307,6 +3319,9 @@ Viewer.prototype.render = function () {
   this.renderer.render(this.scene, this.camera);
   if (this.nav) {
     this.nav.renderer.render(this.nav.scene, this.camera);
+  }
+  if (this.share_view && !this.share_view.scheduled) {
+    this.share_view.render();
   }
   this.scheduled = false;
   if (this.controls.is_moving()) {

@@ -10,7 +10,7 @@ var Viewer = Viewer || require('../src/viewer'); // eslint-disable-line
 var pdb_string = util.open_as_utf8('1mru.pdb');
 var cmap_buf = util.open_as_array_buffer('1mru.map');
 
-var viewer = new Viewer();
+var viewer = new Viewer({});
 var model = new Model();
 model.from_pdb(pdb_string);
 viewer.set_model(model);
