@@ -62,7 +62,7 @@
   <script src="src/model.js"></script><!--DEV-->
   <script src="src/viewer.js"></script><!--DEV-->
   <!--DEV-: normally, use uglymol[.min].js and three.min.js from CDN.
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r79/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r80/three.min.js"></script>
   <script src="uglymol.js"></script>
   -DEV-->
 
@@ -72,7 +72,6 @@
   <div id="viewer2"></div>
   <header id="hud">Welcome to UglyMol. Press H for help.</header>
   <footer id="help"></footer>
-  <div id="inset"></div>
   <script>
     V1 = new Viewer({viewer: "viewer1", focusable: true});
     V1.load_pdb("data/1mru.pdb");
@@ -82,6 +81,7 @@
                               "data/pdb_redo/1mru_diff.map", function () {
       V1.load_ccp4_maps("data/1mru.map", "data/1mru_diff.map");
     });
+    V1.renderer.domElement.focus();
   </script>
 </body>
 </html>
