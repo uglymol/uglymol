@@ -6,6 +6,7 @@ var fs = require('fs');
 var Benchmark = require('benchmark');
 
 function data_path(filename) {
+  if (filename.charAt(0) === '/') return filename;
   var path = __dirname + '/../data/' + filename;
   try {
     fs.statSync(path);
