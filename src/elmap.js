@@ -72,7 +72,8 @@ ElMap.prototype.abs_level = function (sigma) {
 
 // http://www.ccp4.ac.uk/html/maplib.html#description
 // eslint-disable-next-line complexity
-ElMap.prototype.from_ccp4 = function (buf) {
+ElMap.prototype.from_ccp4 = function (buf, expand_symmetry) {
+  if (expand_symmetry === undefined) expand_symmetry = true;
   if (buf.byteLength < 1024) throw Error('File shorter than 1024 bytes.');
   //console.log('buf type: ' + Object.prototype.toString.call(buf));
   // for now we assume both file and host are little endian
@@ -144,7 +145,7 @@ ElMap.prototype.from_ccp4 = function (buf) {
       }
     }
   }
-  if (nsymbt > 0) {
+  if (expand_symmetry && nsymbt > 0) {
     var u8view = new Uint8Array(buf);
     for (var i = 0; i+80 <= nsymbt; i += 80) {
       var j;
