@@ -588,7 +588,8 @@ ElMap.prototype.abs_level = function (sigma) {
 
 // http://www.ccp4.ac.uk/html/maplib.html#description
 // eslint-disable-next-line complexity
-ElMap.prototype.from_ccp4 = function (buf) {
+ElMap.prototype.from_ccp4 = function (buf, expand_symmetry) {
+  if (expand_symmetry === undefined) expand_symmetry = true;
   if (buf.byteLength < 1024) throw Error('File shorter than 1024 bytes.');
   //console.log('buf type: ' + Object.prototype.toString.call(buf));
   // for now we assume both file and host are little endian
@@ -660,7 +661,7 @@ ElMap.prototype.from_ccp4 = function (buf) {
       }
     }
   }
-  if (nsymbt > 0) {
+  if (expand_symmetry && nsymbt > 0) {
     var u8view = new Uint8Array(buf);
     for (var i = 0; i+80 <= nsymbt; i += 80) {
       var j;
@@ -3436,6 +3437,15 @@ Viewer.prototype.load_ccp4_maps = function (url1, url2, callback) {
       if (callback) callback();
     }, true);
   }, true);
+};
+
+// Load a model (PDB), normal map and a difference map. One after anotk
+// To show the first map ASAP we do not download both maps in parallel.
+Viewer.prototype.load_pdb_and_ccp4_maps = function (pdb, map1, map2, callback) {
+  var self = this;
+  this.load_pdb(pdb, {callback: function () {
+    self.load_ccp4_maps(map1, map2, callback);
+  }});
 };
 
 // TODO: navigation window like in gimp and mifit

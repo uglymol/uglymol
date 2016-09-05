@@ -7,7 +7,7 @@
   <meta name="theme-color" content="#333333">
   <style>
    canvas { display: block; }
-   body { background-color: #333; }
+   body { background-color: #888; }
    #viewer1, #viewer2 { position:absolute; top:0; width:49.6%; height:100%; }
    #viewer1 { left: 0; }
    #viewer2 { right: 0; }
@@ -76,9 +76,12 @@
   <script>
     V1 = new Viewer({viewer: "viewer1", focusable: true});
     V1.load_pdb("data/1mru.pdb");
-    V1.load_ccp4_maps("data/1mru.map", "data/1mru_diff.map");
     V2 = new Viewer({viewer: "viewer2", focusable: true, share_view: V1});
-    V2.load_pdb("data/1mru.pdb");
+    V2.load_pdb_and_ccp4_maps("data/pdb_redo/1mru_final.pdb",
+                              "data/pdb_redo/1mru.map",
+                              "data/pdb_redo/1mru_diff.map", function () {
+      V1.load_ccp4_maps("data/1mru.map", "data/1mru_diff.map");
+    });
   </script>
 </body>
 </html>

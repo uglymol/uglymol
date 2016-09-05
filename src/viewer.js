@@ -1507,6 +1507,15 @@ Viewer.prototype.load_ccp4_maps = function (url1, url2, callback) {
   }, true);
 };
 
+// Load a model (PDB), normal map and a difference map. One after anotk
+// To show the first map ASAP we do not download both maps in parallel.
+Viewer.prototype.load_pdb_and_ccp4_maps = function (pdb, map1, map2, callback) {
+  var self = this;
+  this.load_pdb(pdb, {callback: function () {
+    self.load_ccp4_maps(map1, map2, callback);
+  }});
+};
+
 // TODO: navigation window like in gimp and mifit
 /*
 Viewer.prototype.show_nav = function (inset_id) {
