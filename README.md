@@ -16,26 +16,23 @@ a quick look without downloading the data and starting Coot.
 For instance, when screening
 [Dimple](http://ccp4.github.io/dimple/) results in a synchrotron.
 Of course, for this to work, it needs to be integrated into a website
-that provides the data access.
+that provides the data access
+(see the [FAQ](https://github.com/uglymol/uglymol/wiki) on how to do it).
 
-Try it:
+But first try it:
 
 - [1MRU](https://uglymol.github.io/1mru.html) (60kDa, 3Å),
-- [4UN4](https://uglymol.github.io/4un4.html) (200kDa, 2.4Å),
+  and in [dual view](https://uglymol.github.io/dual.html) with PDB_REDO,
+- a bigger one -- [4UN4](https://uglymol.github.io/4un4.html) (200kDa, 2.4Å),
 - [a blob](https://uglymol.github.io/dimple_thaum.html#xyz=14,18,12&eye=80,71,-41&zoom=70)
   (Dimple result, thaumatin, 1.4Å).
 
-Technically, UglyMol is a small
-[project](https://github.com/uglymol/uglymol) (below 3 KLOC)
+UglyMol is a small (~3 KLOC) [project](https://github.com/uglymol/uglymol)
 forked from Nat Echols' [xtal.js](https://github.com/natechols/xtal.js/).
-See the [FAQ](https://github.com/uglymol/uglymol/wiki)
-on how to add it to your website.
-
 The [plan](https://github.com/uglymol/uglymol/blob/master/TODO.md)
-is to keep UglyMol small and ugly rather than to add many features.
-Actually this project is an experiment and further development, if any,
-will depend on received feedback. So, what should be added or changed?
-Use [Issues ](https://github.com/uglymol/uglymol/issues)
+is to keep it small. But if you're missing some functionality,
+it won't hurt if you get in touch --
+use [Issues](https://github.com/uglymol/uglymol/issues)
 or [chat](https://gitter.im/ccp4/dimple)
 or email wojdyr@gmail.com.
 
