@@ -730,7 +730,6 @@ Viewer.prototype.set_colors = function (scheme) {
       }
     }
   }
-  this.config.colors = scheme;
   this.redraw_all();
 };
 
@@ -748,7 +747,11 @@ Viewer.prototype.hud = function (text, type) {
   var el = this.hud_el;
   if (el) {
     if (text !== undefined) {
-      el.textContent = text;
+      if (type === 'HTML') {
+        el.innerHTML = text;
+      } else {
+        el.textContent = text;
+      }
     } else {
       el.innerHTML = this.initial_hud_html;
     }
@@ -1024,30 +1027,38 @@ function vec3_to_str(vec, n, sep) {
   return vec.x.toFixed(n) + sep + vec.y.toFixed(n) + sep + vec.z.toFixed(n);
 }
 
-Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
-  function next(elem, arr) {
-    var delta = evt.shiftKey ? arr.length - 1 : 1;
-    return arr[(arr.indexOf(elem) + delta) % arr.length];
+Viewer.prototype.select_next = function (info, key, options, back) {
+  var old_idx = options.indexOf(this.config[key]);
+  var len = options.length;
+  var new_idx = (old_idx + (back ? len - 1 : 1)) % len;
+  this.config[key] = options[new_idx];
+  var html = info + ':';
+  for (var i = 0; i < len; i++) {
+    var tag = (i === new_idx ? 'u' : 's');
+    var opt_name = options[i].name || options[i];
+    html += ' <' + tag + '>' + opt_name + '</' + tag + '>';
   }
+  this.hud(html, 'HTML');
+};
+
+Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
   var key = evt.keyCode;
   switch (key) {
     case 84:  // t
-      this.config.render_style = next(this.config.render_style, RENDER_STYLES);
-      this.hud('rendering as ' + this.config.render_style);
+      this.select_next('rendering as', 'render_style', RENDER_STYLES,
+                       evt.shiftKey);
       this.redraw_models();
       break;
     case 66:  // b
-      this.set_colors(next(this.config.colors, ColorSchemes));
-      this.hud('color scheme: ' + this.config.colors.name);
+      this.select_next('color scheme', 'colors', ColorSchemes, evt.shiftKey);
+      this.set_colors(this.config.colors);
       break;
     case 67:  // c
-      this.config.color_aim = next(this.config.color_aim, COLOR_AIMS);
-      this.hud('coloring by ' + this.config.color_aim);
+      this.select_next('coloring by', 'color_aim', COLOR_AIMS, evt.shiftKey);
       this.redraw_models();
       break;
     case 87:  // w
-      this.config.map_style = next(this.config.map_style, MAP_STYLES);
-      this.hud('map style: ' + this.config.map_style);
+      this.select_next('map style', 'map_style', MAP_STYLES, evt.shiftKey);
       this.redraw_maps(true);
       break;
     case 89:  // y
