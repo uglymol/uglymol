@@ -26,7 +26,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-var UGLYMOL_VERSION = '0.3.1'
+var UGLYMOL_VERSION = '0.4.0'
 var THREE = THREE || require('three'); // eslint-disable-line
 
 var UnitCell = (function () {
