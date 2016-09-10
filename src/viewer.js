@@ -888,18 +888,18 @@ Viewer.prototype.change_isolevel_by = function (map_idx, delta) {
   this.clear_el_objects(map_bag);
   this.add_el_objects(map_bag);
   var abs_level = map_bag.map.abs_level(map_bag.isolevel);
-  var abs_display = abs_level.toFixed(4);
+  var abs_text = abs_level.toFixed(4);
   var tied = this.tied_viewer;
   if (tied && map_idx < tied.map_bags.length) {
     var tied_bag = tied.map_bags[map_idx];
+    // Should we tie by sigma or absolute level? Now it's sigma.
     tied_bag.isolevel = map_bag.isolevel;
-    // show we tie by sigma or absolute level?
-    //abs_display += '/' + tied_bag.map.abs_level(tied_bag.isolevel).toFixed(4);
+    abs_text += ' / ' + tied_bag.map.abs_level(tied_bag.isolevel).toFixed(4);
     tied.clear_el_objects(tied_bag);
     tied.add_el_objects(tied_bag);
   }
-  this.hud('map ' + (map_idx+1) + ' level =  ' + abs_display +
-           'e/A^3 (' + map_bag.isolevel.toFixed(2) + ' rmsd)');
+  this.hud('map ' + (map_idx+1) + ' level =  ' + abs_text +
+           ' e/\u212B\u00B3 (' + map_bag.isolevel.toFixed(2) + ' rmsd)');
 };
 
 Viewer.prototype.change_map_radius = function (delta) {
