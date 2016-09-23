@@ -10,12 +10,12 @@
     "src"
   ],
   "dependencies": {
-    "three": "~0.80.1"
+    "three": "~0.81.2"
   },
   "devDependencies": {
     "benchmark": "^2.1.0",
     "chai": "^3.5.0",
-    "eslint": "^3.4.0",
+    "eslint": "^3.5.0",
     "eslint-config-xo": "^0.15.4",
     "http-server": "^0.9.0",
     "istanbul": "^0.4.5",
