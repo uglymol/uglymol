@@ -1,6 +1,6 @@
 
 var assert = require('chai').assert;
-var ElMap = require('../src/elmap');
+var ElMap = require('../uglymol').ElMap;
 var util = require('../perf/util');
 
 

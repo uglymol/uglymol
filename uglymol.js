@@ -1,36 +1,17 @@
-/* UglyMol - macromolecular viewer for crystallographers, a fork of xtal.js.
- * https://uglymol.github.io
+/*!
+ * UglyMol v0.5.0. Macromolecular Viewer for Crystallographers.
+ * Copyright 2014 Nat Echols
+ * Copyright 2016 Diamond Light Source Ltd
+ * Copyright 2016 Marcin Wojdyr
+ * Released under the MIT License.
+ */
+(function (global, factory) {
+  typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('three')) :
+  typeof define === 'function' && define.amd ? define(['exports', 'three'], factory) :
+  (factory((global.UM = global.UM || {}),global.THREE));
+}(this, (function (exports,THREE) { 'use strict';
 
-The MIT License (MIT)
-
-Copyright (c) 2014 Nat Echols
-Copyright (c) 2016 Diamond Light Source Ltd
-Copyright (c) 2016 Marcin Wojdyr
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-*/
-
-var UGLYMOL_VERSION = '0.4.0'
-var THREE = THREE || require('three'); // eslint-disable-line
-
-var UnitCell = (function () {
-'use strict';
+exports.VERSION = '0.5.0';
 
 // eslint-disable-next-line max-params
 function UnitCell(a /*:number*/, b /*:number*/, c /*:number*/,
@@ -85,14 +66,6 @@ function UnitCell(a /*:number*/, b /*:number*/, c /*:number*/,
   this.fractionalize = function (xyz) { return multiply(xyz, frac); };
   this.orthogonalize = function (xyz) { return multiply(xyz, orth); };
 }
-
-return UnitCell;
-})();
-
-
-
-var Model = (function () {
-'use strict';
 
 var AMINO_ACIDS = [
   'ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HIS', 'ILE', 'LEU',
@@ -513,12 +486,6 @@ Model.prototype.get_nearest_atom = function (x, y, z, atom_name) {
   return nearest;
 };
 
-return Model;
-})();
-
-
-var isosurface = (function () {
-'use strict';
 /* eslint comma-spacing: 0, no-multi-spaces: 0 */
 
 var edgeTable = new Int32Array([
@@ -1174,14 +1141,6 @@ function isosurface(dims, values, points, isolevel, method) {
   return marching_cubes(dims, values, points, isolevel, method);
 }
 
-return isosurface;
-})();
-
-
-
-var ElMap = (function () {
-'use strict';
-
 function GridArray(dim) {
   this.dim = dim; // dimensions of the grid for the entire unit cell
   this.values = new Float32Array(dim[0] * dim[1] * dim[2]);
@@ -1495,13 +1454,6 @@ ElMap.prototype.isomesh_in_block = function (sigma, method) {
   var bl = this.block;
   return isosurface(bl.size, bl.values, bl.points, abs_level, method);
 };
-
-return ElMap;
-})();
-
-
-var LineFactory = (function () {
-'use strict';
 
 // input arrays must be of the same length
 function wide_line_geometry(vertex_arr, color_arr) {
@@ -1930,14 +1882,6 @@ function line_raycast(raycaster, intersects) {
     });
   }
 }
-
-return LineFactory;
-})();
-
-
-
-var Viewer = (function () {
-'use strict';
 
 var use_gl_lines = false;
 
@@ -3489,14 +3433,13 @@ Viewer.prototype.show_nav = function (inset_id) {
 Viewer.ColorSchemes = ColorSchemes;
 Viewer.auto_speed = auto_speed;
 
-return Viewer;
-})();
+exports.UnitCell = UnitCell;
+exports.Model = Model;
+exports.isosurface = isosurface;
+exports.ElMap = ElMap;
+exports.LineFactory = LineFactory;
+exports.Viewer = Viewer;
 
-if (typeof module !== 'undefined') module.exports = {
-  VERSION: UGLYMOL_VERSION,
-  UnitCell: UnitCell,
-  Model: Model,
-  ElMap: ElMap,
-  isosurface: isosurface,
-  Viewer: Viewer
-};
+Object.defineProperty(exports, '__esModule', { value: true });
+
+})));

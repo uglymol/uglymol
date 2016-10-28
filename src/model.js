@@ -1,8 +1,5 @@
 
-var UnitCell = UnitCell || require('./unitcell'); // eslint-disable-line
-
-var Model = (function () {
-'use strict';
+import { UnitCell } from './unitcell.js';
 
 var AMINO_ACIDS = [
   'ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HIS', 'ILE', 'LEU',
@@ -15,7 +12,7 @@ var NUCLEIC_ACIDS = [
 
 var NOT_LIGANDS = ['HOH'].concat(AMINO_ACIDS, NUCLEIC_ACIDS);
 
-function Model() {
+export function Model() {
   this.atoms = [];
   this.unit_cell = null;
   this.space_group = null;
@@ -423,7 +420,3 @@ Model.prototype.get_nearest_atom = function (x, y, z, atom_name) {
   return nearest;
 };
 
-return Model;
-})();
-
-if (typeof module !== 'undefined') module.exports = Model;

@@ -1,6 +1,4 @@
 
-var isosurface = (function () {
-'use strict';
 /* eslint comma-spacing: 0, no-multi-spaces: 0 */
 
 var edgeTable = new Int32Array([
@@ -648,7 +646,7 @@ function marching_cubes(dims, values, points, isolevel, method) {
   return { vertices: vertices, segments: segments };
 }
 
-function isosurface(dims, values, points, isolevel, method) {
+export function isosurface(dims, values, points, isolevel, method) {
   check_input(dims, values, points);
   //if (method === 'marching tetrahedra') {
   //  return marching_tetrahedra(dims, values, points, isolevel);
@@ -656,7 +654,3 @@ function isosurface(dims, values, points, isolevel, method) {
   return marching_cubes(dims, values, points, isolevel, method);
 }
 
-return isosurface;
-})();
-
-if (typeof module !== 'undefined') module.exports = isosurface;

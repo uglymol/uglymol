@@ -1,7 +1,5 @@
-var THREE = THREE || require('three'); // eslint-disable-line
 
-var LineFactory = (function () {
-'use strict';
+import * as THREE from 'three';
 
 // input arrays must be of the same length
 function wide_line_geometry(vertex_arr, color_arr) {
@@ -203,7 +201,7 @@ function make_uniforms(params) {
   return uniforms;
 }
 
-function LineFactory(use_gl_lines, material_param, as_segments) {
+export function LineFactory(use_gl_lines, material_param, as_segments) {
   this.use_gl_lines = use_gl_lines;
   if (use_gl_lines) {
     if (material_param.color === undefined) {
@@ -431,7 +429,3 @@ function line_raycast(raycaster, intersects) {
   }
 }
 
-return LineFactory;
-})();
-
-if (typeof module !== 'undefined') module.exports = LineFactory;

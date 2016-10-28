@@ -7,8 +7,6 @@
 
 - show other copies of the molecule
 
-- Use UMD format for built files. Switch to ES6 modules and use rollup.js.
-
 - Revisit resizing when https://github.com/mrdoob/three.js/issues/4903
   is closed.
 

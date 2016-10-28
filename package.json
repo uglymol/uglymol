@@ -1,9 +1,10 @@
 {
   "name": "uglymol",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Macromolecular Viewer for Crystallographers",
   "homepage": "https://uglymol.github.io",
   "main": "uglymol.js",
+  "jsnext:main": "./src/all.js",
   "files": [
     "uglymol.js",
     "uglymol.min.js",
@@ -20,6 +21,8 @@
     "http-server": "^0.9.0",
     "istanbul": "^0.4.5",
     "mocha": "^3.1.0",
+    "rollup": "^0.36.3",
+    "rollup-watch": "^2.5.0",
     "uglify-js": "^2.7.3"
   },
   "scripts": {
@@ -27,14 +30,14 @@
     "coverage": "istanbul cover -x '**/perf/**' _mocha -- --timeout 100000",
     "lint": "eslint src test perf || exit 0",
     "download-data": "node perf/util.js download-data",
-    "build:concat": "tools/concat.sh",
-    "build:uglify": "uglifyjs uglymol.js -o uglymol.min.js --compress --mangle",
-    "build": "npm run build:concat && npm run build:uglify",
+    "bundle": "rollup -c",
+    "uglify": "uglifyjs uglymol.js -o uglymol.min.js --compress --mangle",
+    "build": "npm test && npm run uglify",
     "version": "npm run build && git add -A uglymol.js",
     "prepublish": "npm run build",
-    "prebuild": "npm test",
-    "pretest": "npm run lint",
-    "start": "http-server -a localhost -p 7890 -c-1"
+    "pretest": "npm run lint && npm run bundle",
+    "watch": "rollup -c --watch",
+    "start": "npm run watch & http-server -a localhost -p 7890 -c-1"
   },
   "repository": {
     "type": "git",

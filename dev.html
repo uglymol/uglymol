@@ -63,16 +63,10 @@
   <!-- -DEV- using directly source files and node_modules -->
   <script src="node_modules/three/build/three.js"></script><!--DEV-->
   <script src="node_modules/three/examples/js/libs/stats.min.js"></script><!--DEV-->
-  <script src="src/lines.js"></script><!--DEV-->
-  <script src="src/isosurface.js"></script><!--DEV-->
-  <script src="src/unitcell.js"></script><!--DEV-->
-  <script src="src/elmap.js"></script><!--DEV-->
-  <script src="src/model.js"></script><!--DEV-->
-  <script src="src/viewer.js"></script><!--DEV-->
   <!--DEV-: normally, use uglymol[.min].js and three.min.js from CDN.
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r82/three.min.js"></script>
-  <script src="uglymol.js"></script>
   -DEV-->
+  <script src="uglymol.js"></script>
 
 </head>
 <body style="background-color: black">
@@ -86,7 +80,7 @@
   <footer id="help"></footer>
   <div id="inset"></div>
   <script>
-    V = new Viewer({viewer: "viewer", hud: "hud", help: "help"});
+    V = new UM.Viewer({viewer: "viewer", hud: "hud", help: "help"});
     V.load_pdb("data/1mru.pdb");
     V.load_ccp4_maps("data/1mru.map", "data/1mru_diff.map");
   </script>

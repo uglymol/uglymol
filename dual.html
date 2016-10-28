@@ -12,7 +12,7 @@
    #viewer1 { left: 0; }
    #viewer2 { right: 0; }
    #hud {
-     font: 14px;
+     font-size: 14px;
      color: #ddd;
      background-color: rgba(0,0,0,0.6);
      text-align: center;
@@ -30,7 +30,7 @@
    #hud s { padding: 0 8px; text-decoration: none; opacity: 0.5; }
    #help {
      display: none;
-     font: 16px;
+     font-size: 16px;
      color: #eee;
      background-color: rgba(0,0,0,0.7);
      position: absolute;
@@ -51,16 +51,10 @@
 
   <!-- -DEV- using directly source files and node_modules -->
   <script src="node_modules/three/build/three.js"></script><!--DEV-->
-  <script src="src/lines.js"></script><!--DEV-->
-  <script src="src/isosurface.js"></script><!--DEV-->
-  <script src="src/unitcell.js"></script><!--DEV-->
-  <script src="src/elmap.js"></script><!--DEV-->
-  <script src="src/model.js"></script><!--DEV-->
-  <script src="src/viewer.js"></script><!--DEV-->
   <!--DEV-: normally, use uglymol[.min].js and three.min.js from CDN.
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r82/three.min.js"></script>
-  <script src="uglymol.js"></script>
   -DEV-->
+  <script src="uglymol.js"></script>
 
 </head>
 <body>
@@ -69,9 +63,9 @@
   <header id="hud">Welcome to UglyMol. Press H for help.</header>
   <footer id="help"></footer>
   <script>
-    V1 = new Viewer({viewer: "viewer1", focusable: true});
+    V1 = new UM.Viewer({viewer: "viewer1", focusable: true});
     V1.load_pdb("data/1mru.pdb");
-    V2 = new Viewer({viewer: "viewer2", focusable: true, share_view: V1});
+    V2 = new UM.Viewer({viewer: "viewer2", focusable: true, share_view: V1});
     V2.load_pdb_and_ccp4_maps("data/pdb_redo/1mru_final.pdb",
                               "data/pdb_redo/1mru.map",
                               "data/pdb_redo/1mru_diff.map", function () {

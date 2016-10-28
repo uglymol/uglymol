@@ -1,17 +1,15 @@
 
-var ElMap = require('../src/elmap');
-var Model = require('../src/model');
-var Viewer = require('../src/viewer');
+var UM = require('../uglymol');
 var util = require('../perf/util');
 
 describe('Viewer', function () {
   'use strict';
-  var viewer = new Viewer('viewer');
-  var emap = new ElMap();
+  var viewer = new UM.Viewer('viewer');
+  var emap = new UM.ElMap();
   var cmap_buf = util.open_as_array_buffer('1mru.map');
   emap.from_ccp4(cmap_buf);
   var pdb_string = util.open_as_utf8('1mru.pdb');
-  var model = new Model();
+  var model = new UM.Model();
   model.from_pdb(pdb_string);
   it('misc calls (1mru)', function () {
     viewer.add_map(emap, false);

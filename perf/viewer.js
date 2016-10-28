@@ -1,8 +1,6 @@
 
 var util = util || require('./util'); // eslint-disable-line
-var Model = Model || require('../src/model'); // eslint-disable-line
-var ElMap = ElMap || require('../src/elmap'); // eslint-disable-line
-var Viewer = Viewer || require('../src/viewer'); // eslint-disable-line
+var UM = UM || require('../uglymol'); // eslint-disable-line
 
 (function () {  // namespace is needed for perf.html
 'use strict';
@@ -10,11 +8,11 @@ var Viewer = Viewer || require('../src/viewer'); // eslint-disable-line
 var pdb_string = util.open_as_utf8('1mru.pdb');
 var cmap_buf = util.open_as_array_buffer('1mru.map');
 
-var viewer = new Viewer({});
-var model = new Model();
+var viewer = new UM.Viewer({});
+var model = new UM.Model();
 model.from_pdb(pdb_string);
 viewer.set_model(model);
-var emap = new ElMap();
+var emap = new UM.ElMap();
 emap.from_ccp4(cmap_buf);
 
 util.bench('add trace', function () {

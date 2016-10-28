@@ -1,6 +1,6 @@
 
 var assert = require('chai').assert;
-var isosurface = require('../src/isosurface');
+var isosurface = require('../uglymol').isosurface;
 
 describe('isosurface', function () {
   'use strict';

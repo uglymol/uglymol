@@ -1,9 +1,6 @@
 
-var UnitCell = UnitCell || require('./unitcell'); // eslint-disable-line
-var isosurface = isosurface || require('./isosurface'); // eslint-disable-line
-
-var ElMap = (function () {
-'use strict';
+import { UnitCell } from './unitcell.js';
+import { isosurface } from './isosurface.js';
 
 function GridArray(dim) {
   this.dim = dim; // dimensions of the grid for the entire unit cell
@@ -45,7 +42,7 @@ GridArray.prototype.get_grid_value = function (i, j, k) {
   return this.values[idx];
 };
 
-function ElMap() {
+export function ElMap() {
   this.unit_cell = null;
   this.grid = null;
   this.mean = 0.0;
@@ -319,7 +316,3 @@ ElMap.prototype.isomesh_in_block = function (sigma, method) {
   return isosurface(bl.size, bl.values, bl.points, abs_level, method);
 };
 
-return ElMap;
-})();
-
-if (typeof module !== 'undefined') module.exports = ElMap;

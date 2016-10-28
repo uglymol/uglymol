@@ -1,7 +1,7 @@
 
 var assert = require('chai').assert;
 var util = require('../perf/util');
-var Model = require('../src/model');
+var Model = require('../uglymol').Model;
 
 // O(n^2) loop, for testing purposes only
 function get_connectivity_simple(atoms) {

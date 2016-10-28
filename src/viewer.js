@@ -1,11 +1,9 @@
 
-var THREE = THREE || require('three'); // eslint-disable-line
-var LineFactory = LineFactory || require('./lines'); // eslint-disable-line
-var ElMap = ElMap || require('./elmap'); // eslint-disable-line
-var Model = Model || require('./model'); // eslint-disable-line
+import * as THREE from 'three';
+import { LineFactory } from './lines.js';
+import { ElMap } from './elmap.js';
+import { Model } from './model.js';
 
-var Viewer = (function () {
-'use strict';
 
 var use_gl_lines = false;
 
@@ -596,7 +594,7 @@ ModelBag.prototype.add_ribbon = function (smoothness) {
   }
 };
 
-function Viewer(options) {
+export function Viewer(options) {
   this.config = {
     bond_line: 4.0, // ~ to height, like in Coot (see scale_by_height())
     map_line: 1.25,  // for any height
@@ -1557,7 +1555,3 @@ Viewer.prototype.show_nav = function (inset_id) {
 Viewer.ColorSchemes = ColorSchemes;
 Viewer.auto_speed = auto_speed;
 
-return Viewer;
-})();
-
-if (typeof module !== 'undefined') module.exports = Viewer;

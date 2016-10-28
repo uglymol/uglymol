@@ -1,5 +1,5 @@
 var assert = require('chai').assert;
-var UnitCell = require('../src/unitcell');
+var UnitCell = require('../uglymol').UnitCell;
 
 function assert_equal_arrays(a, b, rtol) {
   'use strict';
