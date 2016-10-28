@@ -10,7 +10,7 @@
     "src"
   ],
   "dependencies": {
-    "three": "~0.82.0"
+    "three": "~0.82.1"
   },
   "devDependencies": {
     "benchmark": "^2.1.0",
