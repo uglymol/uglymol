@@ -6,8 +6,6 @@ import { ElMap } from './elmap.js';
 import { Model } from './model.js';
 
 
-var use_gl_lines = false;
-
 var ColorSchemes = [ // accessible as Viewer.ColorSchemes
   { // generally mimicks Coot
     name: 'coot dark',
@@ -356,6 +354,7 @@ var CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
 var COLOR_AIMS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
 var RENDER_STYLES = ['lines', 'trace', 'ribbon'/*, 'ball&stick'*/];
 var MAP_STYLES = ['marching cubes', 'squarish'/*, 'snapped MC'*/];
+var LINE_STYLES = ['normal', 'simplistic'];
 
 function make_center_cube(size, ctr, color) {
   var geometry = new THREE.Geometry();
@@ -535,7 +534,7 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
     }
   }
   var line_factory = new LineFactory({
-    gl_lines: use_gl_lines,
+    gl_lines: this.conf.line_style === 'simplistic',
     linewidth: scale_by_height(this.conf.bond_line, this.win_size),
     size: this.win_size,
     as_segments: true
@@ -545,7 +544,7 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
   if (opt.balls) {
     this.atomic_objects.push(line_factory.make_balls(visible_atoms, colors,
                                                      ball_size));
-  } else if (!use_gl_lines && !ligands_only) {
+  } else if (!line_factory.use_gl_lines && !ligands_only) {
     this.atomic_objects.push(line_factory.make_caps(visible_atoms, colors));
   }
 };
@@ -555,7 +554,7 @@ ModelBag.prototype.add_trace = function (smoothness) {
   var visible_atoms = [].concat.apply([], segments);
   var colors = color_by(this.conf.color_aim, visible_atoms, this.conf.colors);
   var line_factory = new LineFactory({
-    gl_lines: use_gl_lines,
+    gl_lines: this.conf.line_style === 'simplistic',
     linewidth: scale_by_height(this.conf.bond_line, this.win_size),
     size: this.win_size
   });
@@ -606,6 +605,7 @@ export function Viewer(options /*: {[key: string]: any}*/) {
     map_style: MAP_STYLES[0],
     render_style: RENDER_STYLES[0],
     color_aim: COLOR_AIMS[0],
+    line_style: LINE_STYLES[0],
     colors: ColorSchemes[0],
     hydrogens: false
   };
@@ -1080,8 +1080,7 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       this.redraw_models();
       break;
     case 220:  // \ (backslash)
-      use_gl_lines = !use_gl_lines;
-      this.hud((use_gl_lines ? 'simple' : 'round-capped') + ' bonds');
+      this.select_next('bond lines', 'line_style', LINE_STYLES, evt.shiftKey);
       this.redraw_models();
       break;
     case 107:  // add
