@@ -1,3 +1,4 @@
+// @flow
 
 /* eslint comma-spacing: 0, no-multi-spaces: 0 */
 
@@ -586,7 +587,8 @@ function marching_cubes(dims, values, points, isolevel, method) {
   var vlist = new Array(12);
   var vert_offsets = calculate_vert_offsets(dims);
   var vertex_values = new Float32Array(8);
-  var vertex_points = [null, null, null, null, null, null, null, null];
+  var p0 = [0, 0, 0]; // initial value - never used, but makes Flow happy
+  var vertex_points = [p0, p0, p0, p0, p0, p0, p0, p0];
   var size_x = dims[0];
   var size_y = dims[1];
   var size_z = dims[2];
@@ -646,7 +648,11 @@ function marching_cubes(dims, values, points, isolevel, method) {
   return { vertices: vertices, segments: segments };
 }
 
-export function isosurface(dims, values, points, isolevel, method) {
+export function isosurface(dims /*: [number, number, number]*/,
+                           values /*: number[]*/,
+                           points /*: Array<[number, number, number]>*/,
+                           isolevel /*: number*/,
+                           method /*: string*/) {
   check_input(dims, values, points);
   //if (method === 'marching tetrahedra') {
   //  return marching_tetrahedra(dims, values, points, isolevel);
