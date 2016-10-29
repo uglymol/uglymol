@@ -1,3 +1,4 @@
+// @flow
 
 import { UnitCell } from './unitcell.js';
 import { isosurface } from './isosurface.js';

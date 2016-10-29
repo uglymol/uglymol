@@ -1,3 +1,4 @@
+// @flow
 
 import * as THREE from 'three';
 
@@ -201,18 +202,22 @@ function make_uniforms(params) {
   return uniforms;
 }
 
-export function LineFactory(use_gl_lines, material_param, as_segments) {
-  this.use_gl_lines = use_gl_lines;
-  if (use_gl_lines) {
-    if (material_param.color === undefined) {
-      material_param.vertexColors = THREE.VertexColors;
+export function LineFactory(options /*: {[key: string]: mixed}*/) {
+  var mparams = {};
+  mparams.linewidth = options.linewidth;
+  this.use_gl_lines = options.gl_lines;
+  if (this.use_gl_lines) {
+    if (options.color === undefined) {
+      mparams.vertexColors = THREE.VertexColors;
+    } else {
+      mparams.color = options.color;
     }
-    delete material_param.size; // only needed for ShaderMaterial
-    this.material = new THREE.LineBasicMaterial(material_param);
+    this.material = new THREE.LineBasicMaterial(mparams);
   } else {
+    mparams.size = options.size;
     this.material = new THREE.ShaderMaterial({
-      uniforms: make_uniforms(material_param),
-      vertexShader: as_segments ? wide_segments_vert : wide_line_vert,
+      uniforms: make_uniforms(mparams),
+      vertexShader: options.as_segments ? wide_segments_vert : wide_line_vert,
       fragmentShader: wide_line_frag,
       fog: true,
       vertexColors: THREE.VertexColors

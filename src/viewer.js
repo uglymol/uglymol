@@ -1,3 +1,4 @@
+// @flow
 
 import * as THREE from 'three';
 import { LineFactory } from './lines.js';
@@ -224,7 +225,7 @@ var Controls = function (camera, target) {
       changed = true;
     }
     camera.position.addVectors(target, eye);
-    if (_state === STATE.GO) {
+    if (_state === STATE.GO && _go_func) {
       _go_func();
       changed = true;
     }
@@ -533,10 +534,12 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
       }
     }
   }
-  var line_factory = new LineFactory(use_gl_lines, {
+  var line_factory = new LineFactory({
+    gl_lines: use_gl_lines,
     linewidth: scale_by_height(this.conf.bond_line, this.win_size),
-    size: this.win_size
-  }, true);
+    size: this.win_size,
+    as_segments: true
+  });
   //console.log('make_bonds() vertex count: ' + geometry.vertices.length);
   this.atomic_objects.push(line_factory.make_line_segments(geometry));
   if (opt.balls) {
@@ -551,7 +554,8 @@ ModelBag.prototype.add_trace = function (smoothness) {
   var segments = this.model.extract_trace();
   var visible_atoms = [].concat.apply([], segments);
   var colors = color_by(this.conf.color_aim, visible_atoms, this.conf.colors);
-  var line_factory = new LineFactory(use_gl_lines, {
+  var line_factory = new LineFactory({
+    gl_lines: use_gl_lines,
     linewidth: scale_by_height(this.conf.bond_line, this.win_size),
     size: this.win_size
   });
@@ -594,7 +598,7 @@ ModelBag.prototype.add_ribbon = function (smoothness) {
   }
 };
 
-export function Viewer(options) {
+export function Viewer(options /*: {[key: string]: any}*/) {
   this.config = {
     bond_line: 4.0, // ~ to height, like in Coot (see scale_by_height())
     map_line: 1.25,  // for any height
@@ -923,7 +927,9 @@ Viewer.prototype.toggle_full_screen = function () {
   if (d.fullscreenElement || d.mozFullScreenElement ||
       d.webkitFullscreenElement || d.msFullscreenElement) {
     var ex = d.exitFullscreen || d.webkitExitFullscreen ||
+    // flow-ignore-line property `msExitFullscreen` not found in document
              d.mozCancelFullScreen || d.msExitFullscreen;
+    // flow-ignore-line cannot call property `exitFullscreen` of unknown type
     if (ex) ex.call(d);
   } else {
     var el = this.container;
@@ -1326,14 +1332,12 @@ function parse_url_fragment() {
 Viewer.prototype.recenter = function (xyz, eye, steps) {
   var new_up = null;
   var ctr;
-  if (xyz == null || eye == null) {
-    ctr = this.active_model_bag.model.get_center();
-  }
   if (eye) {
     eye = new THREE.Vector3(eye[0], eye[1], eye[2]);
   }
   if (xyz == null) { // center on the molecule
     if (this.active_model_bag === null) return;
+    ctr = this.active_model_bag.model.get_center();
     xyz = new THREE.Vector3(ctr[0], ctr[1], ctr[2]);
     if (!eye) {
       eye = xyz.clone();
@@ -1344,6 +1348,7 @@ Viewer.prototype.recenter = function (xyz, eye, steps) {
     xyz = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
     if (eye == null && this.active_model_bag !== null) {
       // look toward the center of the molecule
+      ctr = this.active_model_bag.model.get_center();
       eye = new THREE.Vector3(ctr[0], ctr[1], ctr[2]);
       eye.sub(xyz).negate().setLength(100); // we store now (eye - xyz)
       new_up = new THREE.Vector3(0, 1, 0).projectOnPlane(eye);
@@ -1468,10 +1473,11 @@ Viewer.prototype.load_file = function (url, binary, callback, show_progress) {
   };
   if (show_progress) {
     req.addEventListener('progress', function (evt) {
-      if (evt.lengthComputable) {
+      if (evt.lengthComputable && evt.loaded && evt.total) {
         var fn = url.split('/').pop();
-        self.hud('loading ' + fn + ' ... ' + (evt.loaded >> 10) + ' / ' +
-                 (evt.total >> 10) + ' kB');
+        self.hud('loading ' + fn + ' ... ' +
+                 // flow-ignore-line  Property `loaded` not found in Event
+                 (evt.loaded >> 10) + ' / ' + (evt.total >> 10) + ' kB');
       }
     });
   }
@@ -1505,7 +1511,7 @@ Viewer.prototype.load_map = function (url, is_diff_map, filetype, callback,
   var self = this;
   this.load_file(url, true, function (req) {
     var map = new ElMap();
-    if (filetype === 'ccp4') map.from_ccp4(req.response);
+    if (filetype === 'ccp4') map.from_ccp4(req.response, true);
     else /* === 'dsn6'*/ map.from_dsn6(req.response);
     self.add_map(map, is_diff_map);
     if (callback) callback();
