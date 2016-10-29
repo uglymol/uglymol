@@ -67,6 +67,8 @@ function UnitCell(a /*:number*/, b /*:number*/, c /*:number*/,
   this.orthogonalize = function (xyz) { return multiply(xyz, orth); };
 }
 
+// @flow
+
 var AMINO_ACIDS = [
   'ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HIS', 'ILE', 'LEU',
   'LYS', 'MET', 'MSE', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL', 'UNK'
@@ -485,6 +487,8 @@ Model.prototype.get_nearest_atom = function (x, y, z, atom_name) {
   }
   return nearest;
 };
+
+// @flow
 
 /* eslint comma-spacing: 0, no-multi-spaces: 0 */
 
@@ -1073,7 +1077,8 @@ function marching_cubes(dims, values, points, isolevel, method) {
   var vlist = new Array(12);
   var vert_offsets = calculate_vert_offsets(dims);
   var vertex_values = new Float32Array(8);
-  var vertex_points = [null, null, null, null, null, null, null, null];
+  var p0 = [0, 0, 0]; // initial value - never used, but makes Flow happy
+  var vertex_points = [p0, p0, p0, p0, p0, p0, p0, p0];
   var size_x = dims[0];
   var size_y = dims[1];
   var size_z = dims[2];
@@ -1133,13 +1138,19 @@ function marching_cubes(dims, values, points, isolevel, method) {
   return { vertices: vertices, segments: segments };
 }
 
-function isosurface(dims, values, points, isolevel, method) {
+function isosurface(dims /*: [number, number, number]*/,
+                           values /*: number[]*/,
+                           points /*: Array<[number, number, number]>*/,
+                           isolevel /*: number*/,
+                           method /*: string*/) {
   check_input(dims, values, points);
   //if (method === 'marching tetrahedra') {
   //  return marching_tetrahedra(dims, values, points, isolevel);
   //}
   return marching_cubes(dims, values, points, isolevel, method);
 }
+
+// @flow
 
 function GridArray(dim) {
   this.dim = dim; // dimensions of the grid for the entire unit cell
@@ -1455,6 +1466,8 @@ ElMap.prototype.isomesh_in_block = function (sigma, method) {
   return isosurface(bl.size, bl.values, bl.points, abs_level, method);
 };
 
+// @flow
+
 // input arrays must be of the same length
 function wide_line_geometry(vertex_arr, color_arr) {
   var len = vertex_arr.length;
@@ -1655,18 +1668,22 @@ function make_uniforms(params) {
   return uniforms;
 }
 
-function LineFactory(use_gl_lines, material_param, as_segments) {
-  this.use_gl_lines = use_gl_lines;
-  if (use_gl_lines) {
-    if (material_param.color === undefined) {
-      material_param.vertexColors = THREE.VertexColors;
+function LineFactory(options /*: {[key: string]: mixed}*/) {
+  var mparams = {};
+  mparams.linewidth = options.linewidth;
+  this.use_gl_lines = options.gl_lines;
+  if (this.use_gl_lines) {
+    if (options.color === undefined) {
+      mparams.vertexColors = THREE.VertexColors;
+    } else {
+      mparams.color = options.color;
     }
-    delete material_param.size; // only needed for ShaderMaterial
-    this.material = new THREE.LineBasicMaterial(material_param);
+    this.material = new THREE.LineBasicMaterial(mparams);
   } else {
+    mparams.size = options.size;
     this.material = new THREE.ShaderMaterial({
-      uniforms: make_uniforms(material_param),
-      vertexShader: as_segments ? wide_segments_vert : wide_line_vert,
+      uniforms: make_uniforms(mparams),
+      vertexShader: options.as_segments ? wide_segments_vert : wide_line_vert,
       fragmentShader: wide_line_frag,
       fog: true,
       vertexColors: THREE.VertexColors
@@ -1883,7 +1900,7 @@ function line_raycast(raycaster, intersects) {
   }
 }
 
-var use_gl_lines = false;
+// @flow
 
 var ColorSchemes = [ // accessible as Viewer.ColorSchemes
   { // generally mimicks Coot
@@ -2102,7 +2119,7 @@ var Controls = function (camera, target) {
       changed = true;
     }
     camera.position.addVectors(target, eye);
-    if (_state === STATE.GO) {
+    if (_state === STATE.GO && _go_func) {
       _go_func();
       changed = true;
     }
@@ -2233,6 +2250,7 @@ var CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
 var COLOR_AIMS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
 var RENDER_STYLES = ['lines', 'trace', 'ribbon'/*, 'ball&stick'*/];
 var MAP_STYLES = ['marching cubes', 'squarish'/*, 'snapped MC'*/];
+var LINE_STYLES = ['normal', 'simplistic'];
 
 function make_center_cube(size, ctr, color) {
   var geometry = new THREE.Geometry();
@@ -2411,16 +2429,18 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
       }
     }
   }
-  var line_factory = new LineFactory(use_gl_lines, {
+  var line_factory = new LineFactory({
+    gl_lines: this.conf.line_style === 'simplistic',
     linewidth: scale_by_height(this.conf.bond_line, this.win_size),
-    size: this.win_size
-  }, true);
+    size: this.win_size,
+    as_segments: true
+  });
   //console.log('make_bonds() vertex count: ' + geometry.vertices.length);
   this.atomic_objects.push(line_factory.make_line_segments(geometry));
   if (opt.balls) {
     this.atomic_objects.push(line_factory.make_balls(visible_atoms, colors,
                                                      ball_size));
-  } else if (!use_gl_lines && !ligands_only) {
+  } else if (!line_factory.use_gl_lines && !ligands_only) {
     this.atomic_objects.push(line_factory.make_caps(visible_atoms, colors));
   }
 };
@@ -2429,7 +2449,8 @@ ModelBag.prototype.add_trace = function (smoothness) {
   var segments = this.model.extract_trace();
   var visible_atoms = [].concat.apply([], segments);
   var colors = color_by(this.conf.color_aim, visible_atoms, this.conf.colors);
-  var line_factory = new LineFactory(use_gl_lines, {
+  var line_factory = new LineFactory({
+    gl_lines: this.conf.line_style === 'simplistic',
     linewidth: scale_by_height(this.conf.bond_line, this.win_size),
     size: this.win_size
   });
@@ -2472,7 +2493,7 @@ ModelBag.prototype.add_ribbon = function (smoothness) {
   }
 };
 
-function Viewer(options) {
+function Viewer(options /*: {[key: string]: any}*/) {
   this.config = {
     bond_line: 4.0, // ~ to height, like in Coot (see scale_by_height())
     map_line: 1.25,  // for any height
@@ -2480,6 +2501,7 @@ function Viewer(options) {
     map_style: MAP_STYLES[0],
     render_style: RENDER_STYLES[0],
     color_aim: COLOR_AIMS[0],
+    line_style: LINE_STYLES[0],
     colors: ColorSchemes[0],
     hydrogens: false
   };
@@ -2801,7 +2823,9 @@ Viewer.prototype.toggle_full_screen = function () {
   if (d.fullscreenElement || d.mozFullScreenElement ||
       d.webkitFullscreenElement || d.msFullscreenElement) {
     var ex = d.exitFullscreen || d.webkitExitFullscreen ||
+    // flow-ignore-line property `msExitFullscreen` not found in document
              d.mozCancelFullScreen || d.msExitFullscreen;
+    // flow-ignore-line cannot call property `exitFullscreen` of unknown type
     if (ex) ex.call(d);
   } else {
     var el = this.container;
@@ -2952,8 +2976,7 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       this.redraw_models();
       break;
     case 220:  // \ (backslash)
-      use_gl_lines = !use_gl_lines;
-      this.hud((use_gl_lines ? 'simple' : 'round-capped') + ' bonds');
+      this.select_next('bond lines', 'line_style', LINE_STYLES, evt.shiftKey);
       this.redraw_models();
       break;
     case 107:  // add
@@ -3204,14 +3227,12 @@ function parse_url_fragment() {
 Viewer.prototype.recenter = function (xyz, eye, steps) {
   var new_up = null;
   var ctr;
-  if (xyz == null || eye == null) {
-    ctr = this.active_model_bag.model.get_center();
-  }
   if (eye) {
     eye = new THREE.Vector3(eye[0], eye[1], eye[2]);
   }
   if (xyz == null) { // center on the molecule
     if (this.active_model_bag === null) return;
+    ctr = this.active_model_bag.model.get_center();
     xyz = new THREE.Vector3(ctr[0], ctr[1], ctr[2]);
     if (!eye) {
       eye = xyz.clone();
@@ -3222,6 +3243,7 @@ Viewer.prototype.recenter = function (xyz, eye, steps) {
     xyz = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
     if (eye == null && this.active_model_bag !== null) {
       // look toward the center of the molecule
+      ctr = this.active_model_bag.model.get_center();
       eye = new THREE.Vector3(ctr[0], ctr[1], ctr[2]);
       eye.sub(xyz).negate().setLength(100); // we store now (eye - xyz)
       new_up = new THREE.Vector3(0, 1, 0).projectOnPlane(eye);
@@ -3346,10 +3368,11 @@ Viewer.prototype.load_file = function (url, binary, callback, show_progress) {
   };
   if (show_progress) {
     req.addEventListener('progress', function (evt) {
-      if (evt.lengthComputable) {
+      if (evt.lengthComputable && evt.loaded && evt.total) {
         var fn = url.split('/').pop();
-        self.hud('loading ' + fn + ' ... ' + (evt.loaded >> 10) + ' / ' +
-                 (evt.total >> 10) + ' kB');
+        self.hud('loading ' + fn + ' ... ' +
+                 // flow-ignore-line  Property `loaded` not found in Event
+                 (evt.loaded >> 10) + ' / ' + (evt.total >> 10) + ' kB');
       }
     });
   }
@@ -3383,7 +3406,7 @@ Viewer.prototype.load_map = function (url, is_diff_map, filetype, callback,
   var self = this;
   this.load_file(url, true, function (req) {
     var map = new ElMap();
-    if (filetype === 'ccp4') map.from_ccp4(req.response);
+    if (filetype === 'ccp4') map.from_ccp4(req.response, true);
     else /* === 'dsn6'*/ map.from_dsn6(req.response);
     self.add_map(map, is_diff_map);
     if (callback) callback();
@@ -3443,3 +3466,4 @@ exports.Viewer = Viewer;
 Object.defineProperty(exports, '__esModule', { value: true });
 
 })));
+//# sourceMappingURL=uglymol.js.map

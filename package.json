@@ -37,7 +37,7 @@
     "build": "npm test && npm run uglify",
     "version": "npm run build && git add -A uglymol.js",
     "prepublish": "npm run build",
-    "pretest": "npm run lint && npm run bundle",
+    "pretest": "npm run lint && npm run flow && npm run bundle",
     "watch": "rollup -c --watch",
     "start": "npm run watch & http-server -a localhost -p 7890 -c-1"
   },
