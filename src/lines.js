@@ -202,29 +202,6 @@ function make_uniforms(params) {
   return uniforms;
 }
 
-export function LineFactory(options /*: {[key: string]: mixed}*/) {
-  var mparams = {};
-  mparams.linewidth = options.linewidth;
-  this.use_gl_lines = options.gl_lines;
-  if (this.use_gl_lines) {
-    if (options.color === undefined) {
-      mparams.vertexColors = THREE.VertexColors;
-    } else {
-      mparams.color = options.color;
-    }
-    this.material = new THREE.LineBasicMaterial(mparams);
-  } else {
-    mparams.size = options.size;
-    this.material = new THREE.ShaderMaterial({
-      uniforms: make_uniforms(mparams),
-      vertexShader: options.as_segments ? wide_segments_vert : wide_line_vert,
-      fragmentShader: wide_line_frag,
-      fog: true,
-      vertexColors: THREE.VertexColors
-    });
-  }
-}
-
 function rgb_to_buf(colors) {
   var arr = new Float32Array(colors.length * 3);
   for (var i = 0; i < colors.length; i++) {
@@ -258,23 +235,6 @@ function atoms_to_buf(atoms) {
   return arr;
 }
 
-LineFactory.prototype.make_line = function (vertices, colors, smoothness) {
-  var vertex_arr = interpolate_vertices(vertices, smoothness);
-  var color_arr = interpolate_colors(colors, smoothness);
-  if (this.use_gl_lines) {
-    var geometry = new THREE.BufferGeometry();
-    var pos = xyz_to_buf(vertex_arr);
-    geometry.addAttribute('position', new THREE.BufferAttribute(pos, 3));
-    var col = rgb_to_buf(color_arr);
-    geometry.addAttribute('color', new THREE.BufferAttribute(col, 3));
-    return new THREE.Line(geometry, this.material);
-  }
-  var mesh = new THREE.Mesh(wide_line_geometry(vertex_arr, color_arr),
-                            this.material);
-  mesh.drawMode = THREE.TriangleStripDrawMode;
-  mesh.raycast = line_raycast;
-  return mesh;
-};
 
 var ribbon_vert = [
   //'attribute vec3 normal;' is added by default for ShaderMaterial
@@ -295,7 +255,10 @@ var ribbon_frag = [
   '}'].join('\n');
 
 // 9-line ribbon
-LineFactory.make_ribbon = function (vertices, colors, tangents, smoothness) {
+export function makeRibbon(vertices /*: Array<{xyz: [number,number,number]}>*/,
+                           colors /*: Array<THREE.Color>*/,
+                           tangents /*: Array<[number,number,number]>*/,
+                           smoothness /*: number*/) {
   var vertex_arr = interpolate_vertices(vertices, smoothness);
   var color_arr = interpolate_colors(colors, smoothness);
   var tang_arr = interpolate_directions(tangents, smoothness);
@@ -321,21 +284,12 @@ LineFactory.make_ribbon = function (vertices, colors, tangents, smoothness) {
     obj.add(new THREE.Line(geometry, material));
   }
   return obj;
-};
+}
 
-LineFactory.prototype.make_line_segments = function (geometry) {
-  if (this.use_gl_lines) {
-    return new THREE.LineSegments(geometry, this.material);
-  }
-  var vertex_arr = geometry.vertices;
-  var color_arr = geometry.colors;
-  var mesh = new THREE.Mesh(wide_segments_geometry(vertex_arr, color_arr),
-                            this.material);
-  mesh.raycast = line_raycast;
-  return mesh;
-};
 
-LineFactory.make_chickenwire = function (data, parameters) {
+export
+function makeChickenWire(data /*: {vertices: number[], segments: number[]}*/,
+                         parameters /*: {[key: string]: any}*/) {
   var geom = new THREE.BufferGeometry();
   var position = new Float32Array(data.vertices);
   geom.addAttribute('position', new THREE.BufferAttribute(position, 3));
@@ -357,6 +311,60 @@ LineFactory.make_chickenwire = function (data, parameters) {
   geom.setIndex(new THREE.BufferAttribute(arr, 1));
   var material = new THREE.LineBasicMaterial(parameters);
   return new THREE.LineSegments(geom, material);
+}
+
+
+export function LineFactory(options /*: {[key: string]: mixed}*/) {
+  var mparams = {};
+  mparams.linewidth = options.linewidth;
+  this.use_gl_lines = options.gl_lines;
+  if (this.use_gl_lines) {
+    if (options.color === undefined) {
+      mparams.vertexColors = THREE.VertexColors;
+    } else {
+      mparams.color = options.color;
+    }
+    this.material = new THREE.LineBasicMaterial(mparams);
+  } else {
+    mparams.size = options.size;
+    this.material = new THREE.ShaderMaterial({
+      uniforms: make_uniforms(mparams),
+      vertexShader: options.as_segments ? wide_segments_vert : wide_line_vert,
+      fragmentShader: wide_line_frag,
+      fog: true,
+      vertexColors: THREE.VertexColors
+    });
+  }
+}
+
+LineFactory.prototype.make_line = function (vertices, colors, smoothness) {
+  var vertex_arr = interpolate_vertices(vertices, smoothness);
+  var color_arr = interpolate_colors(colors, smoothness);
+  if (this.use_gl_lines) {
+    var geometry = new THREE.BufferGeometry();
+    var pos = xyz_to_buf(vertex_arr);
+    geometry.addAttribute('position', new THREE.BufferAttribute(pos, 3));
+    var col = rgb_to_buf(color_arr);
+    geometry.addAttribute('color', new THREE.BufferAttribute(col, 3));
+    return new THREE.Line(geometry, this.material);
+  }
+  var mesh = new THREE.Mesh(wide_line_geometry(vertex_arr, color_arr),
+                            this.material);
+  mesh.drawMode = THREE.TriangleStripDrawMode;
+  mesh.raycast = line_raycast;
+  return mesh;
+};
+
+LineFactory.prototype.make_line_segments = function (geometry) {
+  if (this.use_gl_lines) {
+    return new THREE.LineSegments(geometry, this.material);
+  }
+  var vertex_arr = geometry.vertices;
+  var color_arr = geometry.colors;
+  var mesh = new THREE.Mesh(wide_segments_geometry(vertex_arr, color_arr),
+                            this.material);
+  mesh.raycast = line_raycast;
+  return mesh;
 };
 
 var cap_vert = [

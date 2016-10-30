@@ -1,7 +1,7 @@
 // @flow
 
 import * as THREE from 'three';
-import { LineFactory } from './lines.js';
+import { LineFactory, makeRibbon, makeChickenWire } from './lines.js';
 import { ElMap } from './elmap.js';
 import { Model } from './model.js';
 
@@ -592,7 +592,7 @@ ModelBag.prototype.add_ribbon = function (smoothness) {
     }
     var color_slice = colors.slice(k, k + seg.length);
     k += seg.length;
-    var obj = LineFactory.make_ribbon(seg, color_slice, tangents, smoothness);
+    var obj = makeRibbon(seg, color_slice, tangents, smoothness);
     this.atomic_objects.push(obj);
   }
 };
@@ -873,7 +873,7 @@ Viewer.prototype.add_el_objects = function (map_bag) {
     var isolevel = (mtype === 'map_neg' ? -1 : 1) * map_bag.isolevel;
     var iso = map_bag.map.isomesh_in_block(isolevel, this.config.map_style);
 
-    var obj = LineFactory.make_chickenwire(iso, {
+    var obj = makeChickenWire(iso, {
       color: this.config.colors[mtype],
       linewidth: this.config.map_line
     });
