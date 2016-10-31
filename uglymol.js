@@ -1468,6 +1468,53 @@ ElMap.prototype.isomesh_in_block = function (sigma, method) {
 
 // @flow
 
+var CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
+                  [0, 0, 0], [0, 1, 0],
+                  [0, 0, 0], [0, 0, 1],
+                  [1, 0, 0], [1, 1, 0],
+                  [1, 0, 0], [1, 0, 1],
+                  [0, 1, 0], [1, 1, 0],
+                  [0, 1, 0], [0, 1, 1],
+                  [0, 0, 1], [1, 0, 1],
+                  [0, 0, 1], [0, 1, 1],
+                  [1, 0, 1], [1, 1, 1],
+                  [1, 1, 0], [1, 1, 1],
+                  [0, 1, 1], [1, 1, 1]];
+
+function makeCentralCube(size, ctr, color) {
+  var geometry = new THREE.Geometry();
+  for (var i = 0; i < CUBE_EDGES.length; i++) {
+    var a = CUBE_EDGES[i];
+    var x = ctr.x + size * (a[0] - 0.5);
+    var y = ctr.y + size * (a[1] - 0.5);
+    var z = ctr.z + size * (a[2] - 0.5);
+    geometry.vertices.push(new THREE.Vector3(x, y, z));
+  }
+  var material = new THREE.LineBasicMaterial({color: color, linewidth: 2});
+  return new THREE.LineSegments(geometry, material);
+}
+
+// A cube with 3 edges (for x, y, z axes) colored in red, green and blue.
+function makeRgbBox(transform_func, color) {
+  var geometry = new THREE.Geometry();
+  for (var i = 0; i < CUBE_EDGES.length; i++) {
+    var xyz = transform_func(CUBE_EDGES[i]);
+    geometry.vertices.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]));
+  }
+  geometry.colors.push(
+    new THREE.Color(0xff0000), new THREE.Color(0xffaa00),
+    new THREE.Color(0x00ff00), new THREE.Color(0xaaff00),
+    new THREE.Color(0x0000ff), new THREE.Color(0x00aaff)
+  );
+  for (var j = 6; j < CUBE_EDGES.length; j++) {
+    geometry.colors.push(color);
+  }
+  var material = new THREE.LineBasicMaterial({vertexColors:
+                                                THREE.VertexColors});
+  return new THREE.LineSegments(geometry, material);
+}
+
+
 // input arrays must be of the same length
 function wide_line_geometry(vertex_arr, color_arr) {
   var len = vertex_arr.length;
@@ -1753,8 +1800,8 @@ function makeRibbon(vertices /*: Array<{xyz: [number,number,number]}>*/,
 }
 
 
-function makeChickenWire(data /*: {[key: string]: any}*/,
-                                parameters /*: {[key: string]: any}*/) {
+function makeChickenWire(data /*: {vertices: number[], segments: number[]}*/,
+                         parameters /*: {[key: string]: any}*/) {
   var geom = new THREE.BufferGeometry();
   var position = new Float32Array(data.vertices);
   geom.addAttribute('position', new THREE.BufferAttribute(position, 3));
@@ -2241,58 +2288,10 @@ var Controls = function (camera, target) {
 
 // constants
 
-var CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
-                  [0, 0, 0], [0, 1, 0],
-                  [0, 0, 0], [0, 0, 1],
-                  [1, 0, 0], [1, 1, 0],
-                  [1, 0, 0], [1, 0, 1],
-                  [0, 1, 0], [1, 1, 0],
-                  [0, 1, 0], [0, 1, 1],
-                  [0, 0, 1], [1, 0, 1],
-                  [0, 0, 1], [0, 1, 1],
-                  [1, 0, 1], [1, 1, 1],
-                  [1, 1, 0], [1, 1, 1],
-                  [0, 1, 1], [1, 1, 1]];
-
 var COLOR_AIMS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
 var RENDER_STYLES = ['lines', 'trace', 'ribbon'/*, 'ball&stick'*/];
 var MAP_STYLES = ['marching cubes', 'squarish'/*, 'snapped MC'*/];
 var LINE_STYLES = ['normal', 'simplistic'];
-
-function make_center_cube(size, ctr, color) {
-  var geometry = new THREE.Geometry();
-  for (var i = 0; i < CUBE_EDGES.length; i++) {
-    var a = CUBE_EDGES[i];
-    var x = ctr.x + size * (a[0] - 0.5);
-    var y = ctr.y + size * (a[1] - 0.5);
-    var z = ctr.z + size * (a[2] - 0.5);
-    geometry.vertices.push(new THREE.Vector3(x, y, z));
-  }
-  var material = new THREE.LineBasicMaterial({color: color, linewidth: 2});
-  return new THREE.LineSegments(geometry, material);
-}
-
-function make_unitcell_box(uc, color) {
-  if (!uc) {
-    throw Error('Unit cell not defined!');
-  }
-  var geometry = new THREE.Geometry();
-  for (var i = 0; i < CUBE_EDGES.length; i++) {
-    var xyz = uc.orthogonalize(CUBE_EDGES[i]);
-    geometry.vertices.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]));
-  }
-  geometry.colors.push(
-    new THREE.Color(0xff0000), new THREE.Color(0xffaa00),
-    new THREE.Color(0x00ff00), new THREE.Color(0xaaff00),
-    new THREE.Color(0x0000ff), new THREE.Color(0x00aaff)
-  );
-  for (var j = 6; j < CUBE_EDGES.length; j++) {
-    geometry.colors.push(color);
-  }
-  var material = new THREE.LineBasicMaterial({vertexColors:
-                                                THREE.VertexColors});
-  return new THREE.LineSegments(geometry, material);
-}
 
 function rainbow_value(v, vmin, vmax) {
   var c = new THREE.Color(0xe0e0e0);
@@ -2672,7 +2671,7 @@ Viewer.prototype.redraw_center = function () {
     if (this.mark) {
       this.scene.remove(this.mark);
     }
-    this.mark = make_center_cube(0.1, this.target, this.config.colors.center);
+    this.mark = makeCentralCube(0.1, this.target, this.config.colors.center);
     this.scene.add(this.mark);
   }
 };
@@ -2856,7 +2855,8 @@ Viewer.prototype.toggle_cell_box = function () {
       uc = this.map_bags[0].map.unit_cell;
     }
     if (uc) {
-      this.decor.cell_box = make_unitcell_box(uc, this.config.colors.cell_box);
+      this.decor.cell_box = makeRgbBox(uc.orthogonalize,
+                                       this.config.colors.cell_box);
       this.scene.add(this.decor.cell_box);
     }
   }
@@ -3467,6 +3467,8 @@ exports.UnitCell = UnitCell;
 exports.Model = Model;
 exports.isosurface = isosurface;
 exports.ElMap = ElMap;
+exports.makeCentralCube = makeCentralCube;
+exports.makeRgbBox = makeRgbBox;
 exports.makeRibbon = makeRibbon;
 exports.makeChickenWire = makeChickenWire;
 exports.LineFactory = LineFactory;
