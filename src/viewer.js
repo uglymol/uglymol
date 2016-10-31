@@ -1,7 +1,7 @@
 // @flow
 
 import * as THREE from 'three';
-import { LineFactory, makeRibbon, makeChickenWire,
+import { LineFactory, makeRibbon, makeChickenWire, makeGrid,
          makeCentralCube, makeRgbBox } from './lines.js';
 import { ElMap } from './elmap.js';
 import { Model } from './model.js';
@@ -569,7 +569,7 @@ export function Viewer(options /*: {[key: string]: any}*/) {
   // rendered objects
   this.model_bags = [];
   this.map_bags = [];
-  this.decor = {cell_box: null, selection: null};
+  this.decor = {cell_box: null, selection: null, zoom_grid: null };
   this.nav = null;
 
   this.last_ctr = new THREE.Vector3(Infinity, 0, 0);
@@ -590,7 +590,8 @@ export function Viewer(options /*: {[key: string]: any}*/) {
     this.camera = new THREE.OrthographicCamera();
     this.controls = new Controls(this.camera, this.target);
   }
-
+  //this.decor.zoom_grid = makeGrid({color: this.config.colors.cell_box});
+  //this.scene.add(this.decor.zoom_grid);
   if (typeof document === 'undefined') return;  // for testing on node
 
   try {
@@ -1351,6 +1352,9 @@ Viewer.prototype.update_camera = function () {
   */
 };
 
+// The main loop. Running when a mouse button is pressed or when the view
+// is moving (and run once more after the mouse button is released).
+// It is also triggered by keydown events.
 Viewer.prototype.render = function () {
   this.scheduled = true;
   if (this.renderer === null) return;

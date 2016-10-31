@@ -15,7 +15,9 @@ var CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
                   [1, 1, 0], [1, 1, 1],
                   [0, 1, 1], [1, 1, 1]];
 
-export function makeCentralCube(size, ctr, color) {
+export function makeCentralCube(size /*:number*/,
+                                ctr /*:{x:number, y:number, z:number}*/,
+                                color /*:THREE.Color*/) {
   var geometry = new THREE.Geometry();
   for (var i = 0; i < CUBE_EDGES.length; i++) {
     var a = CUBE_EDGES[i];
@@ -29,7 +31,8 @@ export function makeCentralCube(size, ctr, color) {
 }
 
 // A cube with 3 edges (for x, y, z axes) colored in red, green and blue.
-export function makeRgbBox(transform_func, color) {
+export function makeRgbBox(transform_func /*: number[] => number[]*/,
+                           color /*:THREE.Color*/) {
   var geometry = new THREE.Geometry();
   for (var i = 0; i < CUBE_EDGES.length; i++) {
     var xyz = transform_func(CUBE_EDGES[i]);
@@ -357,6 +360,47 @@ function makeChickenWire(data /*: {vertices: number[], segments: number[]}*/,
   //console.log('arr len:', data.vertices.length, data.segments.length);
   geom.setIndex(new THREE.BufferAttribute(arr, 1));
   var material = new THREE.LineBasicMaterial(parameters);
+  return new THREE.LineSegments(geom, material);
+}
+
+
+var grid_vert = [
+  //'attribute vec3 normal;' is added by default for ShaderMaterial
+  //'uniform float shift;',
+  'varying float alpha;',
+  'void main() {',
+  '  alpha = 0.3;',
+  '  vec3 pos = position / 14.0;',
+  '  gl_Position = vec4(pos, 1.0);',
+  '}'].join('\n');
+
+var grid_frag = [
+  'uniform vec3 ucolor;',
+  'varying float alpha;',
+  'void main() {',
+  '  gl_FragColor = vec4(ucolor, alpha);',
+  '}'].join('\n');
+
+export function makeGrid(parameters /*: {[key: string]: any}*/) {
+  var N = 12;
+  var pos = [];
+  var major = [];
+  for (var i = -N; i <= N; i++) {
+    pos.push(-N, i, 0, N, i, 0);  // vertical line
+    pos.push(i, -N, 0, i, N, 0);  // horizontal line
+    var is_major = i % 5 == 0;
+    major.push(is_major, is_major, is_major, is_major);
+  }
+  var geom = new THREE.BufferGeometry();
+  geom.addAttribute('position',
+                    new THREE.BufferAttribute(new Float32Array(pos), 3));
+  var material = new THREE.ShaderMaterial({
+    uniforms: make_uniforms({shift: 0, ucolor: parameters.color}),
+    vertexShader: grid_vert,
+    fragmentShader: grid_frag,
+    fog: false
+  });
+  material.transparent = true;
   return new THREE.LineSegments(geom, material);
 }
 
