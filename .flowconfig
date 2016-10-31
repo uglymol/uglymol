@@ -1,0 +1,12 @@
+[ignore]
+.*/node_modules/.*
+<PROJECT_ROOT>/uglymol.*\.js
+
+[include]
+
+[libs]
+
+[options]
+suppress_comment= flow-ignore-line
+module.name_mapper='^three$' -> '../tools/three-imports.js'
+
