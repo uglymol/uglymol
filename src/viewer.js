@@ -621,8 +621,8 @@ export function Viewer(options /*: {[key: string]: any}*/) {
   if (options.focusable) {
     this.renderer.domElement.tabIndex = 0;
   }
-  this.decor.zoom_grid = makeGrid({size: this.window_size,
-                                   color: this.config.colors.cell_box});
+  this.decor.zoom_grid = makeGrid({color: this.config.colors.cell_box});
+  this.decor.zoom_grid.visible = false;
   this.scene.add(this.decor.zoom_grid);
   if (window.Stats) { // set by including three/examples/js/libs/stats.min.js
     this.stats = new window.Stats();
@@ -654,6 +654,7 @@ export function Viewer(options /*: {[key: string]: any}*/) {
   this.mouseup = function (event) {
     event.preventDefault();
     event.stopPropagation();
+    self.decor.zoom_grid.visible = false;
     self.controls.stop(self.active_model_bag);
     document.removeEventListener('mousemove', self.mousemove);
     document.removeEventListener('mouseup', self.mouseup);
@@ -1163,6 +1164,7 @@ Viewer.prototype.mousedown = function (event) {
     if (event.ctrlKey) {
       state = event.shiftKey ? STATE.ROLL : STATE.SLAB;
     } else {
+      this.decor.zoom_grid.visible = true;
       state = STATE.ZOOM;
     }
   }

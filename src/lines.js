@@ -366,17 +366,11 @@ function makeChickenWire(data /*: {vertices: number[], segments: number[]}*/,
 
 
 var grid_vert = [
-  //'attribute vec3 normal;' is added by default for ShaderMaterial
-  //'uniform float shift;',
-  'uniform vec2 size;',
   'varying float alpha;',
   'void main() {',
-  '  alpha = mod(position.x, 5.) == 0. || mod(position.y, 5.) == 0. ? .8 : .3;',
-  '  mat4 mat = projectionMatrix * modelViewMatrix;',
-  '  vec3 pos = position / 14.0;',
-  '  pos.y *= size.x / size.y;',
-  '  pos.z = -0.5;',
-  '  gl_Position = vec4(pos, 1.0);',
+  '  alpha = (position.z == 1.0 ? 0.8 : 0.3);',
+  '  vec2 scale = vec2(projectionMatrix[0][0], projectionMatrix[1][1]);',
+  '  gl_Position = vec4(position.xy * scale, -0.99, 1.0);',
   '}'].join('\n');
 
 var grid_frag = [
@@ -388,20 +382,22 @@ var grid_frag = [
   '}'].join('\n');
 
 export function makeGrid(parameters /*: {[key: string]: any}*/) {
-  var N = 12;
+  var N = 50;
   var pos = [];
-  var major = [];
   for (var i = -N; i <= N; i++) {
-    pos.push(-N, i, 0, N, i, 0);  // vertical line
-    pos.push(i, -N, 0, i, N, 0);  // horizontal line
-    var is_major = i % 5 === 0;
-    major.push(is_major, is_major, is_major, is_major);
+    var z = i % 5 === 0 ? 1 : 0; // z is used only to mark major/minor axes
+    pos.push(-N, i, z, N, i, z);  // horizontal line
+    pos.push(i, -N, z, i, N, z);  // vertical line
   }
   var geom = new THREE.BufferGeometry();
   geom.addAttribute('position',
                     new THREE.BufferAttribute(new Float32Array(pos), 3));
+  // infinite boundingSphere makes sure the object is drawn, see
+  // https://github.com/mrdoob/three.js/issues/9983
+  geom.boundingSphere = new THREE.Sphere(new THREE.Vector3(), Infinity);
   var material = new THREE.ShaderMaterial({
-    uniforms: make_uniforms({size: parameters.size, ucolor: parameters.color}),
+    uniforms: make_uniforms({ucolor: parameters.color}),
+    //linewidth: 3,
     vertexShader: grid_vert,
     fragmentShader: grid_frag,
     fog: true, // no really, but we use fogColor
