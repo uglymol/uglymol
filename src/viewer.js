@@ -787,6 +787,7 @@ Viewer.prototype.toggle_map_visibility = function (map_bag) {
   }
   map_bag.visible = !map_bag.visible;
   this.redraw_map(map_bag);
+  this.request_render();
 };
 
 Viewer.prototype.redraw_map = function (map_bag) {
@@ -801,6 +802,7 @@ Viewer.prototype.toggle_model_visibility = function (model_bag) {
   model_bag = model_bag || this.active_model_bag;
   model_bag.visible = !model_bag.visible;
   this.redraw_model(model_bag);
+  this.request_render();
 };
 
 Viewer.prototype.redraw_model = function (model_bag) {
@@ -875,6 +877,12 @@ Viewer.prototype.change_slab_width_by = function (delta) {
   this.controls.change_slab_width(delta);
   this.update_camera();
   this.hud('clip width: ' + (this.camera.far-this.camera.near).toFixed(1));
+};
+
+Viewer.prototype.change_zoom_by_factor = function (mult) {
+  this.camera.zoom *= mult;
+  this.update_camera();
+  this.hud('zoom: ' + this.camera.zoom.toFixed(2));
 };
 
 Viewer.prototype.toggle_full_screen = function () {
@@ -1066,10 +1074,10 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       }
       break;
     case 77:  // m
+      this.change_zoom_by_factor(evt.shiftKey ? 1.2 : 1.03);
+      break;
     case 78:  // n
-      this.camera.zoom *= (key === 77 ? 1.03 : (1 / 1.03));
-      this.update_camera();
-      this.hud('zoom: ' + this.camera.zoom.toFixed(2));
+      this.change_zoom_by_factor(1 / (evt.shiftKey ? 1.2 : 1.03));
       break;
     case 80:  // p
       if (evt.shiftKey) {
