@@ -16,8 +16,8 @@
   "devDependencies": {
     "benchmark": "^2.1.0",
     "chai": "^3.5.0",
-    "eslint": "^3.8.0",
-    "eslint-config-xo": "^0.17.0",
+    "eslint": "~3.8.1",
+    "eslint-config-google": "^0.7.0",
     "flow-bin": "^0.34.0",
     "http-server": "^0.9.0",
     "istanbul": "^0.4.5",

@@ -2,31 +2,25 @@ root: true
 env:
   node: true
   browser: true
-extends: 'xo'
+  es6: true  # includes Float32Array
+parserOptions:
+  ecmaVersion: 5
+  sourceType: 'module'
+extends: ['eslint:recommended', 'google']
 rules:
-  max-len: [2, 80, {'ignoreComments': true, 'ignoreUrls': true}]
+  # eslint@3.9.0 started enforcing indention of continuation lines for array
+  # we stick with 3.8.1 for now
   indent: [1, 2, {'SwitchCase': 1, 'outerIIFEBody': 0}]
-  # relaxing rules
   brace-style: [2, '1tbs', {'allowSingleLine': true}]
-  max-statements-per-line: [2, {'max': 2}] # sometimes 2 is ok
+  space-before-function-paren: [2, {'anonymous': 'always', 'named': 'never'}]
   curly: [2, 'multi-line', 'consistent']
   spaced-comment: 0  # comments are spaced, but not commented out code
-  space-infix-ops: 0  # no space is useful for visual grouping
-  no-path-concat: 0
-  default-case: 0
-  one-var: 0
-  no-negated-condition: 0
   object-curly-spacing: 0
-  no-multiple-empty-lines: [2, {'max': 2}]
   operator-linebreak: [2, 'after', {'overrides': {':': 'ignore'}}]
   camelcase: 0
-  no-mixed-operators: 0
-  object-property-newline: 0
-  no-warning-comments: 0
-  max-depth: 0
-  max-lines: 0
-  max-params: [2, 5]
-  no-eq-null: 0
-  eqeqeq: [2, 'allow-null']
   linebreak-style: 0  # \r\n is ok in a working copy, but not in the repo
-  guard-for-in: 0
+  require-jsdoc: 0
+  no-console: 0
+  # not using es6 yet
+  no-var: 0
+  prefer-spread: 0

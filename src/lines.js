@@ -247,7 +247,7 @@ function make_uniforms(params) {
     fogFar: { value: null },
     fogColor: { value: null },
   };
-  for (var p in params) {
+  for (var p in params) {  // eslint-disable-line guard-for-in
     uniforms[p] = { value: params[p] };
   }
   return uniforms;
