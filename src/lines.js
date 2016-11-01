@@ -368,18 +368,23 @@ function makeChickenWire(data /*: {vertices: number[], segments: number[]}*/,
 var grid_vert = [
   //'attribute vec3 normal;' is added by default for ShaderMaterial
   //'uniform float shift;',
+  'uniform vec2 size;',
   'varying float alpha;',
   'void main() {',
-  '  alpha = 0.3;',
+  '  alpha = mod(position.x, 5.) == 0. || mod(position.y, 5.) == 0. ? .8 : .3;',
+  '  mat4 mat = projectionMatrix * modelViewMatrix;',
   '  vec3 pos = position / 14.0;',
+  '  pos.y *= size.x / size.y;',
+  '  pos.z = -0.5;',
   '  gl_Position = vec4(pos, 1.0);',
   '}'].join('\n');
 
 var grid_frag = [
   'uniform vec3 ucolor;',
+  'uniform vec3 fogColor;',
   'varying float alpha;',
   'void main() {',
-  '  gl_FragColor = vec4(ucolor, alpha);',
+  '  gl_FragColor = vec4(mix(fogColor, ucolor, alpha), 1.0);',
   '}'].join('\n');
 
 export function makeGrid(parameters /*: {[key: string]: any}*/) {
@@ -396,12 +401,11 @@ export function makeGrid(parameters /*: {[key: string]: any}*/) {
   geom.addAttribute('position',
                     new THREE.BufferAttribute(new Float32Array(pos), 3));
   var material = new THREE.ShaderMaterial({
-    uniforms: make_uniforms({shift: 0, ucolor: parameters.color}),
+    uniforms: make_uniforms({size: parameters.size, ucolor: parameters.color}),
     vertexShader: grid_vert,
     fragmentShader: grid_frag,
-    fog: false,
+    fog: true, // no really, but we use fogColor
   });
-  material.transparent = true;
   return new THREE.LineSegments(geom, material);
 }
 
@@ -468,6 +472,7 @@ var cap_vert = [
   '  gl_PointSize = linewidth;',
   '}'].join('\n');
 
+// not sure how portable it is
 var cap_frag = [
   '#include <fog_pars_fragment>',
   'varying vec3 vcolor;',

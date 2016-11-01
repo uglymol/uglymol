@@ -590,8 +590,6 @@ export function Viewer(options /*: {[key: string]: any}*/) {
     this.camera = new THREE.OrthographicCamera();
     this.controls = new Controls(this.camera, this.target);
   }
-  //this.decor.zoom_grid = makeGrid({color: this.config.colors.cell_box});
-  //this.scene.add(this.decor.zoom_grid);
   if (typeof document === 'undefined') return;  // for testing on node
 
   try {
@@ -623,6 +621,9 @@ export function Viewer(options /*: {[key: string]: any}*/) {
   if (options.focusable) {
     this.renderer.domElement.tabIndex = 0;
   }
+  this.decor.zoom_grid = makeGrid({size: this.window_size,
+                                   color: this.config.colors.cell_box});
+  this.scene.add(this.decor.zoom_grid);
   if (window.Stats) { // set by including three/examples/js/libs/stats.min.js
     this.stats = new window.Stats();
     this.container.appendChild(this.stats.dom);
