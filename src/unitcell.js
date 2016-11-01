@@ -39,7 +39,7 @@ export function UnitCell(a /*:number*/, b /*:number*/, c /*:number*/,
     cos_alpha_star / (s1rca2 * sin_gamma * b),
     0.0,
     0.0,
-    1.0 / (sin_beta * s1rca2 * c)
+    1.0 / (sin_beta * s1rca2 * c),
   ];
 
   function multiply(xyz, mat) {

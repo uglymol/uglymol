@@ -31,7 +31,7 @@ var ColorSchemes = [ // accessible as Viewer.ColorSchemes
     MN: 0xff90c0,
     FE: 0xa03000,
     NI: 0x00ff80,
-    def: 0xa0a0a0 // default atom color
+    def: 0xa0a0a0, // default atom color
   },
   // scheme made of "solarized" colors (http://ethanschoonover.com/solarized):
   // base03  base02  base01  base00  base0   base1   base2   base3
@@ -51,7 +51,7 @@ var ColorSchemes = [ // accessible as Viewer.ColorSchemes
     N: 0x6c71c4,
     O: 0xcb4b16,
     S: 0xb58900,
-    def: 0xeee8d5
+    def: 0xeee8d5,
   },
   {
     name: 'solarized light',
@@ -66,7 +66,7 @@ var ColorSchemes = [ // accessible as Viewer.ColorSchemes
     N: 0x6c71c4,
     O: 0xcb4b16,
     S: 0xb58900,
-    def: 0x073642
+    def: 0x073642,
   },
   { // like in Coot after Edit > Background Color > White
     name: 'coot light',
@@ -81,8 +81,8 @@ var ColorSchemes = [ // accessible as Viewer.ColorSchemes
     N: 0x1C51B3,
     O: 0xC33869,
     S: 0x9E7B3D,
-    def: 0x808080
-  }
+    def: 0x808080,
+  },
 ];
 
 var auto_speed = 1.0;  // accessible as Viewer.auto_speed
@@ -490,7 +490,7 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
     gl_lines: this.conf.line_style === 'simplistic',
     linewidth: scale_by_height(this.conf.bond_line, this.win_size),
     size: this.win_size,
-    as_segments: true
+    as_segments: true,
   });
   //console.log('make_bonds() vertex count: ' + geometry.vertices.length);
   this.atomic_objects.push(line_factory.make_line_segments(geometry));
@@ -509,7 +509,7 @@ ModelBag.prototype.add_trace = function (smoothness) {
   var line_factory = new LineFactory({
     gl_lines: this.conf.line_style === 'simplistic',
     linewidth: scale_by_height(this.conf.bond_line, this.win_size),
-    size: this.win_size
+    size: this.win_size,
   });
   var k = 0;
   for (var i = 0; i < segments.length; i++) {
@@ -560,7 +560,7 @@ export function Viewer(options /*: {[key: string]: any}*/) {
     color_aim: COLOR_AIMS[0],
     line_style: LINE_STYLES[0],
     colors: ColorSchemes[0],
-    hydrogens: false
+    hydrogens: false,
   };
   this.set_colors();
   this.window_size = [1, 1]; // it will be set in resize()
@@ -829,7 +829,7 @@ Viewer.prototype.add_el_objects = function (map_bag) {
 
     var obj = makeChickenWire(iso, {
       color: this.config.colors[mtype],
-      linewidth: this.config.map_line
+      linewidth: this.config.map_line,
     });
     map_bag.el_objects.push(obj);
     this.scene.add(obj);

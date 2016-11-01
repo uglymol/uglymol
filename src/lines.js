@@ -98,7 +98,8 @@ function wide_line_geometry(vertex_arr, color_arr) {
 function wide_segments_geometry(vertex_arr, color_arr) {
   // n input vertices => 2n output vertices, n triangles, 3n indexes
   var len = vertex_arr.length;
-  var i, j;
+  var i;
+  var j;
   var pos = [];
   for (i = 0; i < len; i++) {
     var v = vertex_arr[i];
@@ -244,7 +245,7 @@ function make_uniforms(params) {
   var uniforms = {
     fogNear: { value: null },  // will be updated in setProgram()
     fogFar: { value: null },
-    fogColor: { value: null }
+    fogColor: { value: null },
   };
   for (var p in params) {
     uniforms[p] = { value: params[p] };
@@ -326,7 +327,7 @@ export function makeRibbon(vertices /*: Array<{xyz: [number,number,number]}>*/,
     vertexShader: ribbon_vert,
     fragmentShader: ribbon_frag,
     fog: true,
-    vertexColors: THREE.VertexColors
+    vertexColors: THREE.VertexColors,
   });
   for (var n = -4; n < 5; n++) {
     var material = n === 0 ? material0 : material0.clone();
@@ -388,7 +389,7 @@ export function makeGrid(parameters /*: {[key: string]: any}*/) {
   for (var i = -N; i <= N; i++) {
     pos.push(-N, i, 0, N, i, 0);  // vertical line
     pos.push(i, -N, 0, i, N, 0);  // horizontal line
-    var is_major = i % 5 == 0;
+    var is_major = i % 5 === 0;
     major.push(is_major, is_major, is_major, is_major);
   }
   var geom = new THREE.BufferGeometry();
@@ -398,7 +399,7 @@ export function makeGrid(parameters /*: {[key: string]: any}*/) {
     uniforms: make_uniforms({shift: 0, ucolor: parameters.color}),
     vertexShader: grid_vert,
     fragmentShader: grid_frag,
-    fog: false
+    fog: false,
   });
   material.transparent = true;
   return new THREE.LineSegments(geom, material);
@@ -423,7 +424,7 @@ export function LineFactory(options /*: {[key: string]: mixed}*/) {
       vertexShader: options.as_segments ? wide_segments_vert : wide_line_vert,
       fragmentShader: wide_line_frag,
       fog: true,
-      vertexColors: THREE.VertexColors
+      vertexColors: THREE.VertexColors,
     });
   }
 }
@@ -488,7 +489,7 @@ LineFactory.prototype.make_caps = function (atom_arr, color_arr) {
     vertexShader: cap_vert,
     fragmentShader: cap_frag,
     fog: true,
-    vertexColors: THREE.VertexColors
+    vertexColors: THREE.VertexColors,
   });
   return new THREE.Points(geometry, material);
 };
@@ -505,6 +506,8 @@ LineFactory.prototype.make_balls = function (atom_arr, color_arr, ball_size) {
 // based on THREE.Line.prototype.raycast(), but skipping duplicated points
 var inverseMatrix = new THREE.Matrix4();
 var ray = new THREE.Ray();
+// this function will be put on prototype
+/* eslint-disable no-invalid-this */
 function line_raycast(raycaster, intersects) {
   var precisionSq = raycaster.linePrecision * raycaster.linePrecision;
   inverseMatrix.getInverse(this.matrixWorld);
@@ -528,7 +531,7 @@ function line_raycast(raycaster, intersects) {
       distance: distance,
       point: interSegment.clone().applyMatrix4(this.matrixWorld),
       index: i,
-      object: this
+      object: this,
     });
   }
 }

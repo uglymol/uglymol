@@ -600,7 +600,8 @@ function marching_cubes(dims, values, points, isolevel, method) {
       for (var z = 0; z < size_z - 1; z++) {
         var offset0 = z + size_z * (y + size_y * x);
         var cubeindex = 0;
-        var i, j;
+        var i;
+        var j;
         for (i = 0; i < 8; ++i) {
           j = offset0 + vert_offsets[i];
           cubeindex |= (values[j] < isolevel) ? 1 << i : 0;
