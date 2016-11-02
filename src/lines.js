@@ -384,7 +384,7 @@ var grid_frag = [
   '  gl_FragColor = vcolor;',
   '}'].join('\n');
 
-export function makeGrid(parameters /*: {[key: string]: any}*/) {
+export function makeGrid() {
   var N = 50;
   var pos = [];
   for (var i = -N; i <= N; i++) {
@@ -397,7 +397,7 @@ export function makeGrid(parameters /*: {[key: string]: any}*/) {
   geom.addAttribute('position',
                     new THREE.BufferAttribute(new Float32Array(pos), 3));
   var material = new THREE.ShaderMaterial({
-    uniforms: make_uniforms({ucolor: parameters.color}),
+    uniforms: make_uniforms({ucolor: new THREE.Color(0x888888)}),
     //linewidth: 3,
     vertexShader: grid_vert,
     fragmentShader: grid_frag,
@@ -406,6 +406,7 @@ export function makeGrid(parameters /*: {[key: string]: any}*/) {
   material.transparent = true;
   var obj = new THREE.LineSegments(geom, material);
   obj.frustumCulled = false;  // otherwise the renderer could skip it
+  obj.color_value = material.uniforms.ucolor.value; // shortcut
   return obj;
 }
 

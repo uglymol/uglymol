@@ -1850,7 +1850,7 @@ var grid_frag = [
   '  gl_FragColor = vcolor;',
   '}'].join('\n');
 
-function makeGrid(parameters /*: {[key: string]: any}*/) {
+function makeGrid() {
   var N = 50;
   var pos = [];
   for (var i = -N; i <= N; i++) {
@@ -1863,7 +1863,7 @@ function makeGrid(parameters /*: {[key: string]: any}*/) {
   geom.addAttribute('position',
                     new THREE.BufferAttribute(new Float32Array(pos), 3));
   var material = new THREE.ShaderMaterial({
-    uniforms: make_uniforms({ucolor: parameters.color}),
+    uniforms: make_uniforms({ucolor: new THREE.Color(0x888888)}),
     //linewidth: 3,
     vertexShader: grid_vert,
     fragmentShader: grid_frag,
@@ -1872,6 +1872,7 @@ function makeGrid(parameters /*: {[key: string]: any}*/) {
   material.transparent = true;
   var obj = new THREE.LineSegments(geom, material);
   obj.frustumCulled = false;  // otherwise the renderer could skip it
+  obj.color_value = material.uniforms.ucolor.value; // shortcut
   return obj;
 }
 
@@ -2553,6 +2554,12 @@ ModelBag.prototype.add_ribbon = function (smoothness) {
 };
 
 function Viewer(options /*: {[key: string]: any}*/) {
+  // rendered objects
+  this.model_bags = [];
+  this.map_bags = [];
+  this.decor = {cell_box: null, selection: null, zoom_grid: makeGrid() };
+  this.nav = null;
+
   this.config = {
     bond_line: 4.0, // ~ to height, like in Coot (see scale_by_height())
     map_line: 1.25,  // for any height
@@ -2567,12 +2574,6 @@ function Viewer(options /*: {[key: string]: any}*/) {
   this.set_colors();
   this.window_size = [1, 1]; // it will be set in resize()
   this.window_offset = [0, 0];
-
-  // rendered objects
-  this.model_bags = [];
-  this.map_bags = [];
-  this.decor = {cell_box: null, selection: null, zoom_grid: null };
-  this.nav = null;
 
   this.last_ctr = new THREE.Vector3(Infinity, 0, 0);
   this.selected_atom = null;
@@ -2623,7 +2624,6 @@ function Viewer(options /*: {[key: string]: any}*/) {
   if (options.focusable) {
     this.renderer.domElement.tabIndex = 0;
   }
-  this.decor.zoom_grid = makeGrid({color: this.config.colors.cell_box});
   this.decor.zoom_grid.visible = false;
   this.scene.add(this.decor.zoom_grid);
   if (window.Stats) { // set by including three/examples/js/libs/stats.min.js
@@ -2688,6 +2688,7 @@ Viewer.prototype.set_colors = function (scheme) {
       }
     }
   }
+  this.decor.zoom_grid.color_value.set(scheme.cell_box);
   this.redraw_all();
 };
 
