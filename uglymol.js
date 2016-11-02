@@ -53,7 +53,7 @@ function UnitCell(a /*:number*/, b /*:number*/, c /*:number*/,
     cos_alpha_star / (s1rca2 * sin_gamma * b),
     0.0,
     0.0,
-    1.0 / (sin_beta * s1rca2 * c)
+    1.0 / (sin_beta * s1rca2 * c),
   ];
 
   function multiply(xyz, mat) {
@@ -71,11 +71,11 @@ function UnitCell(a /*:number*/, b /*:number*/, c /*:number*/,
 
 var AMINO_ACIDS = [
   'ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HIS', 'ILE', 'LEU',
-  'LYS', 'MET', 'MSE', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL', 'UNK'
+  'LYS', 'MET', 'MSE', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL', 'UNK',
 ];
 var NUCLEIC_ACIDS = [
   'DA', 'DC', 'DG', 'DT', 'A', 'C', 'G', 'U', 'rA', 'rC', 'rG', 'rU',
-  'Ar', 'Cr', 'Gr', 'Ur'
+  'Ar', 'Cr', 'Gr', 'Ur',
 ];
 
 var NOT_LIGANDS = ['HOH'].concat(AMINO_ACIDS, NUCLEIC_ACIDS);
@@ -1090,7 +1090,8 @@ function marching_cubes(dims, values, points, isolevel, method) {
       for (var z = 0; z < size_z - 1; z++) {
         var offset0 = z + size_z * (y + size_y * x);
         var cubeindex = 0;
-        var i, j;
+        var i;
+        var j;
         for (i = 0; i < 8; ++i) {
           j = offset0 + vert_offsets[i];
           cubeindex |= (values[j] < isolevel) ? 1 << i : 0;
@@ -1481,7 +1482,9 @@ var CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
                   [1, 1, 0], [1, 1, 1],
                   [0, 1, 1], [1, 1, 1]];
 
-function makeCentralCube(size, ctr, color) {
+function makeCentralCube(size /*:number*/,
+                                ctr /*:{x:number, y:number, z:number}*/,
+                                color /*:THREE.Color*/) {
   var geometry = new THREE.Geometry();
   for (var i = 0; i < CUBE_EDGES.length; i++) {
     var a = CUBE_EDGES[i];
@@ -1495,7 +1498,8 @@ function makeCentralCube(size, ctr, color) {
 }
 
 // A cube with 3 edges (for x, y, z axes) colored in red, green and blue.
-function makeRgbBox(transform_func, color) {
+function makeRgbBox(transform_func /*: number[] => number[]*/,
+                           color /*:THREE.Color*/) {
   var geometry = new THREE.Geometry();
   for (var i = 0; i < CUBE_EDGES.length; i++) {
     var xyz = transform_func(CUBE_EDGES[i]);
@@ -1561,7 +1565,8 @@ function wide_line_geometry(vertex_arr, color_arr) {
 function wide_segments_geometry(vertex_arr, color_arr) {
   // n input vertices => 2n output vertices, n triangles, 3n indexes
   var len = vertex_arr.length;
-  var i, j;
+  var i;
+  var j;
   var pos = [];
   for (i = 0; i < len; i++) {
     var v = vertex_arr[i];
@@ -1707,9 +1712,9 @@ function make_uniforms(params) {
   var uniforms = {
     fogNear: { value: null },  // will be updated in setProgram()
     fogFar: { value: null },
-    fogColor: { value: null }
+    fogColor: { value: null },
   };
-  for (var p in params) {
+  for (var p in params) {  // eslint-disable-line guard-for-in
     uniforms[p] = { value: params[p] };
   }
   return uniforms;
@@ -1789,7 +1794,7 @@ function makeRibbon(vertices /*: Array<{xyz: [number,number,number]}>*/,
     vertexShader: ribbon_vert,
     fragmentShader: ribbon_frag,
     fog: true,
-    vertexColors: THREE.VertexColors
+    vertexColors: THREE.VertexColors,
   });
   for (var n = -4; n < 5; n++) {
     var material = n === 0 ? material0 : material0.clone();
@@ -1826,6 +1831,51 @@ function makeChickenWire(data /*: {vertices: number[], segments: number[]}*/,
 }
 
 
+var grid_vert = [
+  'uniform vec3 ucolor;',
+  'uniform vec3 fogColor;',
+  'varying vec4 vcolor;',
+  'void main() {',
+  '  vec2 scale = vec2(projectionMatrix[0][0], projectionMatrix[1][1]);',
+  '  float z = position.z;',
+  '  float fogFactor = (z > 0.5 ? 0.2 : 0.7);',
+  '  float alpha = 0.8 * smoothstep(z > 1.5 ? -10.0 : 0.01, 0.1, scale.y);',
+  '  vcolor = vec4(mix(ucolor, fogColor, fogFactor), alpha);',
+  '  gl_Position = vec4(position.xy * scale, -0.99, 1.0);',
+  '}'].join('\n');
+
+var grid_frag = [
+  'varying vec4 vcolor;',
+  'void main() {',
+  '  gl_FragColor = vcolor;',
+  '}'].join('\n');
+
+function makeGrid(parameters /*: {[key: string]: any}*/) {
+  var N = 50;
+  var pos = [];
+  for (var i = -N; i <= N; i++) {
+    var z = 0; // z only marks major/minor axes
+    if (i % 5 === 0) z = i % 2 === 0 ? 2 : 1;
+    pos.push(-N, i, z, N, i, z);  // horizontal line
+    pos.push(i, -N, z, i, N, z);  // vertical line
+  }
+  var geom = new THREE.BufferGeometry();
+  geom.addAttribute('position',
+                    new THREE.BufferAttribute(new Float32Array(pos), 3));
+  var material = new THREE.ShaderMaterial({
+    uniforms: make_uniforms({ucolor: parameters.color}),
+    //linewidth: 3,
+    vertexShader: grid_vert,
+    fragmentShader: grid_frag,
+    fog: true, // no really, but we use fogColor
+  });
+  material.transparent = true;
+  var obj = new THREE.LineSegments(geom, material);
+  obj.frustumCulled = false;  // otherwise the renderer could skip it
+  return obj;
+}
+
+
 function LineFactory(options /*: {[key: string]: mixed}*/) {
   var mparams = {};
   mparams.linewidth = options.linewidth;
@@ -1844,7 +1894,7 @@ function LineFactory(options /*: {[key: string]: mixed}*/) {
       vertexShader: options.as_segments ? wide_segments_vert : wide_line_vert,
       fragmentShader: wide_line_frag,
       fog: true,
-      vertexColors: THREE.VertexColors
+      vertexColors: THREE.VertexColors,
     });
   }
 }
@@ -1888,6 +1938,7 @@ var cap_vert = [
   '  gl_PointSize = linewidth;',
   '}'].join('\n');
 
+// not sure how portable it is
 var cap_frag = [
   '#include <fog_pars_fragment>',
   'varying vec3 vcolor;',
@@ -1909,7 +1960,7 @@ LineFactory.prototype.make_caps = function (atom_arr, color_arr) {
     vertexShader: cap_vert,
     fragmentShader: cap_frag,
     fog: true,
-    vertexColors: THREE.VertexColors
+    vertexColors: THREE.VertexColors,
   });
   return new THREE.Points(geometry, material);
 };
@@ -1926,6 +1977,8 @@ LineFactory.prototype.make_balls = function (atom_arr, color_arr, ball_size) {
 // based on THREE.Line.prototype.raycast(), but skipping duplicated points
 var inverseMatrix = new THREE.Matrix4();
 var ray = new THREE.Ray();
+// this function will be put on prototype
+/* eslint-disable no-invalid-this */
 function line_raycast(raycaster, intersects) {
   var precisionSq = raycaster.linePrecision * raycaster.linePrecision;
   inverseMatrix.getInverse(this.matrixWorld);
@@ -1949,7 +2002,7 @@ function line_raycast(raycaster, intersects) {
       distance: distance,
       point: interSegment.clone().applyMatrix4(this.matrixWorld),
       index: i,
-      object: this
+      object: this,
     });
   }
 }
@@ -1980,7 +2033,7 @@ var ColorSchemes = [ // accessible as Viewer.ColorSchemes
     MN: 0xff90c0,
     FE: 0xa03000,
     NI: 0x00ff80,
-    def: 0xa0a0a0 // default atom color
+    def: 0xa0a0a0, // default atom color
   },
   // scheme made of "solarized" colors (http://ethanschoonover.com/solarized):
   // base03  base02  base01  base00  base0   base1   base2   base3
@@ -2000,7 +2053,7 @@ var ColorSchemes = [ // accessible as Viewer.ColorSchemes
     N: 0x6c71c4,
     O: 0xcb4b16,
     S: 0xb58900,
-    def: 0xeee8d5
+    def: 0xeee8d5,
   },
   {
     name: 'solarized light',
@@ -2015,7 +2068,7 @@ var ColorSchemes = [ // accessible as Viewer.ColorSchemes
     N: 0x6c71c4,
     O: 0xcb4b16,
     S: 0xb58900,
-    def: 0x073642
+    def: 0x073642,
   },
   { // like in Coot after Edit > Background Color > White
     name: 'coot light',
@@ -2030,8 +2083,8 @@ var ColorSchemes = [ // accessible as Viewer.ColorSchemes
     N: 0x1C51B3,
     O: 0xC33869,
     S: 0x9E7B3D,
-    def: 0x808080
-  }
+    def: 0x808080,
+  },
 ];
 
 var auto_speed = 1.0;  // accessible as Viewer.auto_speed
@@ -2439,7 +2492,7 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
     gl_lines: this.conf.line_style === 'simplistic',
     linewidth: scale_by_height(this.conf.bond_line, this.win_size),
     size: this.win_size,
-    as_segments: true
+    as_segments: true,
   });
   //console.log('make_bonds() vertex count: ' + geometry.vertices.length);
   this.atomic_objects.push(line_factory.make_line_segments(geometry));
@@ -2458,7 +2511,7 @@ ModelBag.prototype.add_trace = function (smoothness) {
   var line_factory = new LineFactory({
     gl_lines: this.conf.line_style === 'simplistic',
     linewidth: scale_by_height(this.conf.bond_line, this.win_size),
-    size: this.win_size
+    size: this.win_size,
   });
   var k = 0;
   for (var i = 0; i < segments.length; i++) {
@@ -2509,7 +2562,7 @@ function Viewer(options /*: {[key: string]: any}*/) {
     color_aim: COLOR_AIMS[0],
     line_style: LINE_STYLES[0],
     colors: ColorSchemes[0],
-    hydrogens: false
+    hydrogens: false,
   };
   this.set_colors();
   this.window_size = [1, 1]; // it will be set in resize()
@@ -2518,7 +2571,7 @@ function Viewer(options /*: {[key: string]: any}*/) {
   // rendered objects
   this.model_bags = [];
   this.map_bags = [];
-  this.decor = {cell_box: null, selection: null};
+  this.decor = {cell_box: null, selection: null, zoom_grid: null };
   this.nav = null;
 
   this.last_ctr = new THREE.Vector3(Infinity, 0, 0);
@@ -2539,7 +2592,6 @@ function Viewer(options /*: {[key: string]: any}*/) {
     this.camera = new THREE.OrthographicCamera();
     this.controls = new Controls(this.camera, this.target);
   }
-
   if (typeof document === 'undefined') return;  // for testing on node
 
   try {
@@ -2571,6 +2623,9 @@ function Viewer(options /*: {[key: string]: any}*/) {
   if (options.focusable) {
     this.renderer.domElement.tabIndex = 0;
   }
+  this.decor.zoom_grid = makeGrid({color: this.config.colors.cell_box});
+  this.decor.zoom_grid.visible = false;
+  this.scene.add(this.decor.zoom_grid);
   if (window.Stats) { // set by including three/examples/js/libs/stats.min.js
     this.stats = new window.Stats();
     this.container.appendChild(this.stats.dom);
@@ -2601,6 +2656,7 @@ function Viewer(options /*: {[key: string]: any}*/) {
   this.mouseup = function (event) {
     event.preventDefault();
     event.stopPropagation();
+    self.decor.zoom_grid.visible = false;
     self.controls.stop(self.active_model_bag);
     document.removeEventListener('mousemove', self.mousemove);
     document.removeEventListener('mouseup', self.mouseup);
@@ -2734,6 +2790,7 @@ Viewer.prototype.toggle_map_visibility = function (map_bag) {
   }
   map_bag.visible = !map_bag.visible;
   this.redraw_map(map_bag);
+  this.request_render();
 };
 
 Viewer.prototype.redraw_map = function (map_bag) {
@@ -2748,6 +2805,7 @@ Viewer.prototype.toggle_model_visibility = function (model_bag) {
   model_bag = model_bag || this.active_model_bag;
   model_bag.visible = !model_bag.visible;
   this.redraw_model(model_bag);
+  this.request_render();
 };
 
 Viewer.prototype.redraw_model = function (model_bag) {
@@ -2777,7 +2835,7 @@ Viewer.prototype.add_el_objects = function (map_bag) {
 
     var obj = makeChickenWire(iso, {
       color: this.config.colors[mtype],
-      linewidth: this.config.map_line
+      linewidth: this.config.map_line,
     });
     map_bag.el_objects.push(obj);
     this.scene.add(obj);
@@ -2822,6 +2880,12 @@ Viewer.prototype.change_slab_width_by = function (delta) {
   this.controls.change_slab_width(delta);
   this.update_camera();
   this.hud('clip width: ' + (this.camera.far-this.camera.near).toFixed(1));
+};
+
+Viewer.prototype.change_zoom_by_factor = function (mult) {
+  this.camera.zoom *= mult;
+  this.update_camera();
+  this.hud('zoom: ' + this.camera.zoom.toFixed(2));
 };
 
 Viewer.prototype.toggle_full_screen = function () {
@@ -3013,10 +3077,10 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       }
       break;
     case 77:  // m
+      this.change_zoom_by_factor(evt.shiftKey ? 1.2 : 1.03);
+      break;
     case 78:  // n
-      this.camera.zoom *= (key === 77 ? 1.03 : (1 / 1.03));
-      this.update_camera();
-      this.hud('zoom: ' + this.camera.zoom.toFixed(2));
+      this.change_zoom_by_factor(1 / (evt.shiftKey ? 1.2 : 1.03));
       break;
     case 80:  // p
       if (evt.shiftKey) {
@@ -3102,6 +3166,7 @@ Viewer.prototype.mousedown = function (event) {
     if (event.ctrlKey) {
       state = event.shiftKey ? STATE.ROLL : STATE.SLAB;
     } else {
+      this.decor.zoom_grid.visible = true;
       state = STATE.ZOOM;
     }
   }
@@ -3300,6 +3365,9 @@ Viewer.prototype.update_camera = function () {
   */
 };
 
+// The main loop. Running when a mouse button is pressed or when the view
+// is moving (and run once more after the mouse button is released).
+// It is also triggered by keydown events.
 Viewer.prototype.render = function () {
   this.scheduled = true;
   if (this.renderer === null) return;
@@ -3471,6 +3539,7 @@ exports.makeCentralCube = makeCentralCube;
 exports.makeRgbBox = makeRgbBox;
 exports.makeRibbon = makeRibbon;
 exports.makeChickenWire = makeChickenWire;
+exports.makeGrid = makeGrid;
 exports.LineFactory = LineFactory;
 exports.Viewer = Viewer;
 

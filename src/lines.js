@@ -366,35 +366,36 @@ function makeChickenWire(data /*: {vertices: number[], segments: number[]}*/,
 
 
 var grid_vert = [
-  'varying float alpha;',
+  'uniform vec3 ucolor;',
+  'uniform vec3 fogColor;',
+  'varying vec4 vcolor;',
   'void main() {',
-  '  alpha = (position.z == 1.0 ? 0.8 : 0.3);',
   '  vec2 scale = vec2(projectionMatrix[0][0], projectionMatrix[1][1]);',
+  '  float z = position.z;',
+  '  float fogFactor = (z > 0.5 ? 0.2 : 0.7);',
+  '  float alpha = 0.8 * smoothstep(z > 1.5 ? -10.0 : 0.01, 0.1, scale.y);',
+  '  vcolor = vec4(mix(ucolor, fogColor, fogFactor), alpha);',
   '  gl_Position = vec4(position.xy * scale, -0.99, 1.0);',
   '}'].join('\n');
 
 var grid_frag = [
-  'uniform vec3 ucolor;',
-  'uniform vec3 fogColor;',
-  'varying float alpha;',
+  'varying vec4 vcolor;',
   'void main() {',
-  '  gl_FragColor = vec4(mix(fogColor, ucolor, alpha), 1.0);',
+  '  gl_FragColor = vcolor;',
   '}'].join('\n');
 
 export function makeGrid(parameters /*: {[key: string]: any}*/) {
   var N = 50;
   var pos = [];
   for (var i = -N; i <= N; i++) {
-    var z = i % 5 === 0 ? 1 : 0; // z is used only to mark major/minor axes
+    var z = 0; // z only marks major/minor axes
+    if (i % 5 === 0) z = i % 2 === 0 ? 2 : 1;
     pos.push(-N, i, z, N, i, z);  // horizontal line
     pos.push(i, -N, z, i, N, z);  // vertical line
   }
   var geom = new THREE.BufferGeometry();
   geom.addAttribute('position',
                     new THREE.BufferAttribute(new Float32Array(pos), 3));
-  // infinite boundingSphere makes sure the object is drawn, see
-  // https://github.com/mrdoob/three.js/issues/9983
-  geom.boundingSphere = new THREE.Sphere(new THREE.Vector3(), Infinity);
   var material = new THREE.ShaderMaterial({
     uniforms: make_uniforms({ucolor: parameters.color}),
     //linewidth: 3,
@@ -402,7 +403,10 @@ export function makeGrid(parameters /*: {[key: string]: any}*/) {
     fragmentShader: grid_frag,
     fog: true, // no really, but we use fogColor
   });
-  return new THREE.LineSegments(geom, material);
+  material.transparent = true;
+  var obj = new THREE.LineSegments(geom, material);
+  obj.frustumCulled = false;  // otherwise the renderer could skip it
+  return obj;
 }
 
 
