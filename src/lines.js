@@ -542,3 +542,17 @@ function line_raycast(raycaster, intersects) {
   }
 }
 
+
+export function makeLabel(text /*:string*/, options) {
+  var canvas = document.createElement('canvas');
+  var context = canvas.getContext('2d');
+  if (!context) return null;
+  context.font = '72px sans-serif';
+  if (options.color) context.fillStyle = options.color;
+  context.fillText(text, 3, 70 + 3);
+  var texture = new THREE.Texture(canvas);
+  texture.needsUpdate = true;
+  var spriteMaterial = new THREE.SpriteMaterial({map: texture});
+  var sprite = new THREE.Sprite(spriteMaterial);
+  return sprite;
+}

@@ -2,7 +2,7 @@
 
 import * as THREE from 'three';
 import { LineFactory, makeRibbon, makeChickenWire, makeGrid,
-         makeCentralCube, makeRgbBox } from './lines.js';
+         makeCentralCube, makeRgbBox, makeLabel } from './lines.js';
 import { ElMap } from './elmap.js';
 import { Model } from './model.js';
 
@@ -294,7 +294,7 @@ var Controls = function (camera, target) {
     _pinch_start = _pinch_end;
     _pan_start.copy(_pan_end);
     if (atom !== null) { // center on atom
-      this.go_to(new THREE.Vector3(atom.xyz[0], atom.xyz[1], atom.xyz[2]));
+      this.go_to(atom.xyz);
     }
   };
 
@@ -302,6 +302,9 @@ var Controls = function (camera, target) {
   this.change_slab_width = change_slab_width;
 
   this.go_to = function (targ, cam_pos, cam_up, steps) {
+    if (targ instanceof Array) {
+      targ = new THREE.Vector3(targ[0], targ[1], targ[2]);
+    }
     if ((!targ || targ.distanceToSquared(target) < 0.1) &&
         (!cam_pos || cam_pos.distanceToSquared(camera.position) < 0.1) &&
         (!cam_up || cam_up.distanceToSquared(camera.up) < 0.1)) {
@@ -555,6 +558,7 @@ export function Viewer(options /*: {[key: string]: any}*/) {
   this.model_bags = [];
   this.map_bags = [];
   this.decor = {cell_box: null, selection: null, zoom_grid: makeGrid() };
+  this.labels = {};
   this.nav = null;
 
   this.config = {
@@ -782,6 +786,23 @@ Viewer.prototype.set_atomic_objects = function (model_bag) {
   }
 };
 
+Viewer.prototype.add_label = function (atom) {
+  var text = atom.resid();
+  this.remove_label(text);
+  var label = makeLabel(text, {color: 'red'});
+  label.position.set(atom.xyz[0], atom.xyz[1], atom.xyz[2]-0.1);
+  //label.scale.set();
+  this.labels[text] = label;
+  this.scene.add(label);
+};
+
+Viewer.prototype.remove_label = function (text) {
+  if (text in this.labels) {
+    this.scene.remove(this.labels[text]);
+    delete this.labels[text];
+  }
+};
+
 Viewer.prototype.toggle_map_visibility = function (map_bag) {
   if (typeof map_bag === 'number') {
     map_bag = this.map_bags[map_bag];
@@ -943,9 +964,9 @@ Viewer.prototype.go_to_nearest_Ca = function () {
   if (a) {
     this.hud(a.long_label());
     //this.set_selection(a);
-    this.controls.go_to(new THREE.Vector3(a.xyz[0], a.xyz[1], a.xyz[2]),
-                        null, null, 30 / auto_speed);
+    this.controls.go_to(a.xyz, null, null, 30 / auto_speed);
     this.selected_atom = a;
+    this.add_label(a);
   } else {
     this.hud('no nearby CA');
   }
@@ -1334,8 +1355,7 @@ Viewer.prototype.center_next_residue = function (back) {
   var a = this.active_model_bag.model.next_residue(this.selected_atom, back);
   if (a) {
     this.hud('-> ' + a.long_label());
-    this.controls.go_to(new THREE.Vector3(a.xyz[0], a.xyz[1], a.xyz[2]),
-                        null, null, 30 / auto_speed);
+    this.controls.go_to(a.xyz, null, null, 30 / auto_speed);
     this.selected_atom = a;
   }
 };
