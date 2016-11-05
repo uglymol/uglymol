@@ -542,17 +542,68 @@ function line_raycast(raycaster, intersects) {
   }
 }
 
-
-export function makeLabel(text /*:string*/, options) {
+function makeCanvasWithText(text, options) {
   var canvas = document.createElement('canvas');
+  // canvas size should be 2^N
+  canvas.width = 256;  // arbitrary limit, to keep it simple
+  canvas.height = 16;  // font size
   var context = canvas.getContext('2d');
   if (!context) return null;
-  context.font = '72px sans-serif';
+  //context.fillStyle = 'green';
+  //context.fillRect(0, 0, canvas.width, canvas.height);
+  context.font = 'bold 16px Arial, sans-serif';
+  context.textBaseline = 'bottom';
   if (options.color) context.fillStyle = options.color;
-  context.fillText(text, 3, 70 + 3);
+  context.fillText(text, 0, canvas.height);
+  return canvas;
+}
+
+var label_vert = [
+  'uniform vec2 canvas_size;',
+  'uniform vec2 win_size;',
+  'varying vec2 vUv;',
+  'void main() {',
+  '  vUv = uv;',
+  '  vec2 rel_offset = vec2(0.02, -0.3);',
+  '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
+  '  gl_Position.xy += (uv + rel_offset) * 2.0 * canvas_size / win_size;',
+  '  gl_Position.z += 1.0 * projectionMatrix[2][2];',
+  '}'].join('\n');
+
+var label_frag = [
+  '#include <fog_pars_fragment>',
+  'varying vec2 vUv;',
+  'uniform sampler2D map;',
+  'void main() {',
+  '  gl_FragColor = texture2D(map, vUv);',
+  '#include <fog_fragment>',
+  '}'].join('\n');
+
+
+export function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
+  var canvas = makeCanvasWithText(text, options);
+  if (!canvas) return;
   var texture = new THREE.Texture(canvas);
   texture.needsUpdate = true;
-  var spriteMaterial = new THREE.SpriteMaterial({map: texture});
-  var sprite = new THREE.Sprite(spriteMaterial);
-  return sprite;
+
+  // Rectangle geometry.
+  var geometry = new THREE.BufferGeometry();
+  var pos = options.pos;
+  var position = new Float32Array([].concat(pos, pos, pos, pos));
+  var uvs = new Float32Array([0, 1, 1, 1, 0, 0, 1, 0]);
+  var indices = new Uint16Array([0, 2, 1, 2, 3, 1]);
+  geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+  geometry.addAttribute('position', new THREE.BufferAttribute(position, 3));
+  geometry.addAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+
+  var material = new THREE.ShaderMaterial({
+    uniforms: make_uniforms({map: texture,
+                             canvas_size: [canvas.width, canvas.height],
+                             win_size: options.win_size}),
+    vertexShader: label_vert,
+    fragmentShader: label_frag,
+    fog: true,
+  });
+  material.transparent = true;
+  return new THREE.Mesh(geometry, material);
 }

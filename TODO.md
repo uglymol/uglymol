@@ -3,8 +3,6 @@
   in the browser, but currently no one is working on it. Volunteers needed.
   Requires 3D FFT.
 
-- atom labels
-
 - show other copies of the molecule
 
 - Revisit resizing when https://github.com/mrdoob/three.js/issues/4903

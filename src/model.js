@@ -316,6 +316,10 @@ Atom.prototype.long_label = function () {
          a.xyz[1].toFixed(2) + ',' + a.xyz[2].toFixed(2) + ')';
 };
 
+Atom.prototype.short_label = function () {
+  var a = this;
+  return a.name + ' /' + a.resseq + ' ' + a.resname + '/' + a.chain;
+};
 
 // Partition atoms into boxes for quick neighbor searching.
 function Cubicles(atoms, box_length, lower_bound, upper_bound) {

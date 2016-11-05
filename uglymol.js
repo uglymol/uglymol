@@ -383,6 +383,10 @@ Atom.prototype.long_label = function () {
          a.xyz[1].toFixed(2) + ',' + a.xyz[2].toFixed(2) + ')';
 };
 
+Atom.prototype.short_label = function () {
+  var a = this;
+  return a.name + ' /' + a.resseq + ' ' + a.resname + '/' + a.chain;
+};
 
 // Partition atoms into boxes for quick neighbor searching.
 function Cubicles(atoms, box_length, lower_bound, upper_bound) {
@@ -2008,6 +2012,72 @@ function line_raycast(raycaster, intersects) {
   }
 }
 
+function makeCanvasWithText(text, options) {
+  var canvas = document.createElement('canvas');
+  // canvas size should be 2^N
+  canvas.width = 256;  // arbitrary limit, to keep it simple
+  canvas.height = 16;  // font size
+  var context = canvas.getContext('2d');
+  if (!context) return null;
+  //context.fillStyle = 'green';
+  //context.fillRect(0, 0, canvas.width, canvas.height);
+  context.font = 'bold 16px Arial, sans-serif';
+  context.textBaseline = 'bottom';
+  if (options.color) context.fillStyle = options.color;
+  context.fillText(text, 0, canvas.height);
+  return canvas;
+}
+
+var label_vert = [
+  'uniform vec2 canvas_size;',
+  'uniform vec2 win_size;',
+  'varying vec2 vUv;',
+  'void main() {',
+  '  vUv = uv;',
+  '  vec2 rel_offset = vec2(0.02, -0.3);',
+  '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
+  '  gl_Position.xy += (uv + rel_offset) * 2.0 * canvas_size / win_size;',
+  '  gl_Position.z += 1.0 * projectionMatrix[2][2];',
+  '}'].join('\n');
+
+var label_frag = [
+  '#include <fog_pars_fragment>',
+  'varying vec2 vUv;',
+  'uniform sampler2D map;',
+  'void main() {',
+  '  gl_FragColor = texture2D(map, vUv);',
+  '#include <fog_fragment>',
+  '}'].join('\n');
+
+
+function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
+  var canvas = makeCanvasWithText(text, options);
+  if (!canvas) return;
+  var texture = new THREE.Texture(canvas);
+  texture.needsUpdate = true;
+
+  // Rectangle geometry.
+  var geometry = new THREE.BufferGeometry();
+  var pos = options.pos;
+  var position = new Float32Array([].concat(pos, pos, pos, pos));
+  var uvs = new Float32Array([0, 1, 1, 1, 0, 0, 1, 0]);
+  var indices = new Uint16Array([0, 2, 1, 2, 3, 1]);
+  geometry.setIndex(new THREE.BufferAttribute(indices, 1));
+  geometry.addAttribute('position', new THREE.BufferAttribute(position, 3));
+  geometry.addAttribute('uv', new THREE.BufferAttribute(uvs, 2));
+
+  var material = new THREE.ShaderMaterial({
+    uniforms: make_uniforms({map: texture,
+                             canvas_size: [canvas.width, canvas.height],
+                             win_size: options.win_size}),
+    vertexShader: label_vert,
+    fragmentShader: label_frag,
+    fog: true,
+  });
+  material.transparent = true;
+  return new THREE.Mesh(geometry, material);
+}
+
 // @flow
 
 var ColorSchemes = [ // accessible as Viewer.ColorSchemes
@@ -2264,8 +2334,8 @@ var Controls = function (camera, target) {
     switch (_state) {
       case STATE.ROTATE:
         var xyz = project_on_ball(x, y);
-        //console.log(this.camera.projectionMatrix);
-        //console.log(this.camera.matrixWorld);
+        //console.log(camera.projectionMatrix);
+        //console.log(camera.matrixWorld);
         // TODO maybe use project()/unproject()/applyProjection()
         var eye = camera.position.clone().sub(target);
         _rotate_end.crossVectors(camera.up, eye).setLength(xyz[0]);
@@ -2297,7 +2367,7 @@ var Controls = function (camera, target) {
     _pinch_start = _pinch_end;
     _pan_start.copy(_pan_end);
     if (atom !== null) { // center on atom
-      this.go_to(new THREE.Vector3(atom.xyz[0], atom.xyz[1], atom.xyz[2]));
+      this.go_to(atom.xyz);
     }
   };
 
@@ -2305,6 +2375,9 @@ var Controls = function (camera, target) {
   this.change_slab_width = change_slab_width;
 
   this.go_to = function (targ, cam_pos, cam_up, steps) {
+    if (targ instanceof Array) {
+      targ = new THREE.Vector3(targ[0], targ[1], targ[2]);
+    }
     if ((!targ || targ.distanceToSquared(target) < 0.1) &&
         (!cam_pos || cam_pos.distanceToSquared(camera.position) < 0.1) &&
         (!cam_up || cam_up.distanceToSquared(camera.up) < 0.1)) {
@@ -2558,6 +2631,7 @@ function Viewer(options /*: {[key: string]: any}*/) {
   this.model_bags = [];
   this.map_bags = [];
   this.decor = {cell_box: null, selection: null, zoom_grid: makeGrid() };
+  this.labels = {};
   this.nav = null;
 
   this.config = {
@@ -2743,10 +2817,23 @@ Viewer.prototype.redraw_maps = function (force) {
   }
 };
 
+Viewer.prototype.remove_and_dispose = function (obj, only_dispose) {
+  if (!only_dispose) this.scene.remove(obj);
+  if (obj.geometry) obj.geometry.dispose();
+  if (obj.material) {
+    if (obj.material.uniforms && obj.material.uniforms.map) {
+      obj.material.uniforms.map.value.dispose();
+    }
+    obj.material.dispose();
+  }
+  for (var i = 0; i < obj.children.length; i++) {
+    this.remove_and_dispose(obj.children[i]);
+  }
+};
+
 Viewer.prototype.clear_el_objects = function (map_bag) {
   for (var i = 0; i < map_bag.el_objects.length; i++) {
-    this.scene.remove(map_bag.el_objects[i]);
-    map_bag.el_objects[i].geometry.dispose();
+    this.remove_and_dispose(map_bag.el_objects[i]);
   }
   map_bag.el_objects = [];
 };
@@ -2754,7 +2841,7 @@ Viewer.prototype.clear_el_objects = function (map_bag) {
 Viewer.prototype.clear_atomic_objects = function (model) {
   if (model.atomic_objects) {
     for (var i = 0; i < model.atomic_objects.length; i++) {
-      this.scene.remove(model.atomic_objects[i]);
+      this.remove_and_dispose(model.atomic_objects[i]);
     }
   }
   model.atomic_objects = null;
@@ -2782,6 +2869,30 @@ Viewer.prototype.set_atomic_objects = function (model_bag) {
   }
   for (var i = 0; i < model_bag.atomic_objects.length; i++) {
     this.scene.add(model_bag.atomic_objects[i]);
+  }
+};
+
+// Add/remove label if `show` is specified, toggle otherwise.
+Viewer.prototype.toggle_label = function (atom, show) {
+  if (!atom) return;
+  var text = atom.short_label();
+  var uid = text; // we assume that the labels are unique - often true
+  var is_shown = (uid in this.labels);
+  if (show === undefined) show = !is_shown;
+  if (show) {
+    if (is_shown) return;
+    var label = makeLabel(text, {
+      pos: atom.xyz,
+      color: '#' + this.config.colors.cell_box.getHexString(),
+      win_size: this.window_size,
+    });
+    if (!label) return;
+    this.labels[uid] = label;
+    this.scene.add(label);
+  } else {
+    if (!is_shown) return;
+    this.remove_and_dispose(this.labels[uid]);
+    delete this.labels[uid];
   }
 };
 
@@ -2944,11 +3055,7 @@ Viewer.prototype.go_to_nearest_Ca = function () {
   if (this.active_model_bag === null) return;
   var a = this.active_model_bag.model.get_nearest_atom(t.x, t.y, t.z, 'CA');
   if (a) {
-    this.hud(a.long_label());
-    //this.set_selection(a);
-    this.controls.go_to(new THREE.Vector3(a.xyz[0], a.xyz[1], a.xyz[2]),
-                        null, null, 30 / auto_speed);
-    this.selected_atom = a;
+    this.select_atom(a);
   } else {
     this.hud('no nearby CA');
   }
@@ -3190,14 +3297,15 @@ Viewer.prototype.dblclick = function (event) {
   }
   if (atom) {
     this.hud(atom.long_label());
-    this.set_selection(atom);
+    this.toggle_label(atom);
+    this.set_mark(atom);
   } else {
     this.hud();
   }
   this.request_render();
 };
 
-Viewer.prototype.set_selection = function (atom) {
+Viewer.prototype.set_mark = function (atom) {
   var geometry = new THREE.Geometry();
   geometry.vertices.push(new THREE.Vector3(atom.xyz[0], atom.xyz[1],
                                            atom.xyz[2]));
@@ -3335,12 +3443,15 @@ Viewer.prototype.recenter = function (xyz, eye, steps) {
 Viewer.prototype.center_next_residue = function (back) {
   if (!this.active_model_bag) return;
   var a = this.active_model_bag.model.next_residue(this.selected_atom, back);
-  if (a) {
-    this.hud('-> ' + a.long_label());
-    this.controls.go_to(new THREE.Vector3(a.xyz[0], a.xyz[1], a.xyz[2]),
-                        null, null, 30 / auto_speed);
-    this.selected_atom = a;
-  }
+  if (a) this.select_atom(a);
+};
+
+Viewer.prototype.select_atom = function (atom) {
+  this.hud('-> ' + atom.long_label());
+  this.controls.go_to(atom.xyz, null, null, 30 / auto_speed);
+  this.toggle_label(this.selected_atom);
+  this.selected_atom = atom;
+  this.toggle_label(atom);
 };
 
 Viewer.prototype.update_camera = function () {
@@ -3532,6 +3643,8 @@ Viewer.prototype.show_nav = function (inset_id) {
 Viewer.ColorSchemes = ColorSchemes;
 Viewer.auto_speed = auto_speed;
 
+// UnitCell class with methods to fractionalize/orthogonalize coords
+
 exports.UnitCell = UnitCell;
 exports.Model = Model;
 exports.isosurface = isosurface;
@@ -3542,6 +3655,7 @@ exports.makeRibbon = makeRibbon;
 exports.makeChickenWire = makeChickenWire;
 exports.makeGrid = makeGrid;
 exports.LineFactory = LineFactory;
+exports.makeLabel = makeLabel;
 exports.Viewer = Viewer;
 
 Object.defineProperty(exports, '__esModule', { value: true });

@@ -261,8 +261,8 @@ var Controls = function (camera, target) {
     switch (_state) {
       case STATE.ROTATE:
         var xyz = project_on_ball(x, y);
-        //console.log(this.camera.projectionMatrix);
-        //console.log(this.camera.matrixWorld);
+        //console.log(camera.projectionMatrix);
+        //console.log(camera.matrixWorld);
         // TODO maybe use project()/unproject()/applyProjection()
         var eye = camera.position.clone().sub(target);
         _rotate_end.crossVectors(camera.up, eye).setLength(xyz[0]);
@@ -744,10 +744,23 @@ Viewer.prototype.redraw_maps = function (force) {
   }
 };
 
+Viewer.prototype.remove_and_dispose = function (obj, only_dispose) {
+  if (!only_dispose) this.scene.remove(obj);
+  if (obj.geometry) obj.geometry.dispose();
+  if (obj.material) {
+    if (obj.material.uniforms && obj.material.uniforms.map) {
+      obj.material.uniforms.map.value.dispose();
+    }
+    obj.material.dispose();
+  }
+  for (var i = 0; i < obj.children.length; i++) {
+    this.remove_and_dispose(obj.children[i]);
+  }
+};
+
 Viewer.prototype.clear_el_objects = function (map_bag) {
   for (var i = 0; i < map_bag.el_objects.length; i++) {
-    this.scene.remove(map_bag.el_objects[i]);
-    map_bag.el_objects[i].geometry.dispose();
+    this.remove_and_dispose(map_bag.el_objects[i]);
   }
   map_bag.el_objects = [];
 };
@@ -755,7 +768,7 @@ Viewer.prototype.clear_el_objects = function (map_bag) {
 Viewer.prototype.clear_atomic_objects = function (model) {
   if (model.atomic_objects) {
     for (var i = 0; i < model.atomic_objects.length; i++) {
-      this.scene.remove(model.atomic_objects[i]);
+      this.remove_and_dispose(model.atomic_objects[i]);
     }
   }
   model.atomic_objects = null;
@@ -786,20 +799,27 @@ Viewer.prototype.set_atomic_objects = function (model_bag) {
   }
 };
 
-Viewer.prototype.add_label = function (atom) {
-  var text = atom.resid();
-  this.remove_label(text);
-  var label = makeLabel(text, {color: 'red'});
-  label.position.set(atom.xyz[0], atom.xyz[1], atom.xyz[2]-0.1);
-  //label.scale.set();
-  this.labels[text] = label;
-  this.scene.add(label);
-};
-
-Viewer.prototype.remove_label = function (text) {
-  if (text in this.labels) {
-    this.scene.remove(this.labels[text]);
-    delete this.labels[text];
+// Add/remove label if `show` is specified, toggle otherwise.
+Viewer.prototype.toggle_label = function (atom, show) {
+  if (!atom) return;
+  var text = atom.short_label();
+  var uid = text; // we assume that the labels are unique - often true
+  var is_shown = (uid in this.labels);
+  if (show === undefined) show = !is_shown;
+  if (show) {
+    if (is_shown) return;
+    var label = makeLabel(text, {
+      pos: atom.xyz,
+      color: '#' + this.config.colors.cell_box.getHexString(),
+      win_size: this.window_size,
+    });
+    if (!label) return;
+    this.labels[uid] = label;
+    this.scene.add(label);
+  } else {
+    if (!is_shown) return;
+    this.remove_and_dispose(this.labels[uid]);
+    delete this.labels[uid];
   }
 };
 
@@ -962,11 +982,7 @@ Viewer.prototype.go_to_nearest_Ca = function () {
   if (this.active_model_bag === null) return;
   var a = this.active_model_bag.model.get_nearest_atom(t.x, t.y, t.z, 'CA');
   if (a) {
-    this.hud(a.long_label());
-    //this.set_selection(a);
-    this.controls.go_to(a.xyz, null, null, 30 / auto_speed);
-    this.selected_atom = a;
-    this.add_label(a);
+    this.select_atom(a);
   } else {
     this.hud('no nearby CA');
   }
@@ -1208,14 +1224,15 @@ Viewer.prototype.dblclick = function (event) {
   }
   if (atom) {
     this.hud(atom.long_label());
-    this.set_selection(atom);
+    this.toggle_label(atom);
+    this.set_mark(atom);
   } else {
     this.hud();
   }
   this.request_render();
 };
 
-Viewer.prototype.set_selection = function (atom) {
+Viewer.prototype.set_mark = function (atom) {
   var geometry = new THREE.Geometry();
   geometry.vertices.push(new THREE.Vector3(atom.xyz[0], atom.xyz[1],
                                            atom.xyz[2]));
@@ -1353,11 +1370,15 @@ Viewer.prototype.recenter = function (xyz, eye, steps) {
 Viewer.prototype.center_next_residue = function (back) {
   if (!this.active_model_bag) return;
   var a = this.active_model_bag.model.next_residue(this.selected_atom, back);
-  if (a) {
-    this.hud('-> ' + a.long_label());
-    this.controls.go_to(a.xyz, null, null, 30 / auto_speed);
-    this.selected_atom = a;
-  }
+  if (a) this.select_atom(a);
+};
+
+Viewer.prototype.select_atom = function (atom) {
+  this.hud('-> ' + atom.long_label());
+  this.controls.go_to(atom.xyz, null, null, 30 / auto_speed);
+  this.toggle_label(this.selected_atom);
+  this.selected_atom = atom;
+  this.toggle_label(atom);
 };
 
 Viewer.prototype.update_camera = function () {
