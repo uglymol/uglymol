@@ -2015,14 +2015,14 @@ function line_raycast(raycaster, intersects) {
 function makeCanvasWithText(text, options) {
   if (typeof document === 'undefined') return;  // for testing on node
   var canvas = document.createElement('canvas');
-  // canvas size should be 2^N
+  // Canvas size should be 2^N.
   canvas.width = 256;  // arbitrary limit, to keep it simple
   canvas.height = 16;  // font size
   var context = canvas.getContext('2d');
   if (!context) return null;
+  context.font = (options.font || 'bold 14px') + ' sans-serif';
   //context.fillStyle = 'green';
   //context.fillRect(0, 0, canvas.width, canvas.height);
-  context.font = 'bold 16px Arial, sans-serif';
   context.textBaseline = 'bottom';
   if (options.color) context.fillStyle = options.color;
   context.fillText(text, 0, canvas.height);
@@ -2076,7 +2076,12 @@ function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
     fog: true,
   });
   material.transparent = true;
-  return new THREE.Mesh(geometry, material);
+  var mesh = new THREE.Mesh(geometry, material);
+  mesh.remake = function (text, options) {
+    texture.image = makeCanvasWithText(text, options);
+    texture.needsUpdate = true;
+  };
+  return mesh;
 }
 
 // @flow
@@ -2184,7 +2189,7 @@ function get_raycaster(coords, camera) {
   if (_raycaster === undefined) _raycaster = new THREE.Raycaster();
   _raycaster.setFromCamera(coords, camera);
   _raycaster.near = camera.near;
-  _raycaster.far = camera.far - 0.2 * (camera.far - camera.near); // 20% in fog
+  _raycaster.far = camera.far - 0.1 * (camera.far - camera.near); // 10% in fog
   _raycaster.linePrecision = 0.2;
   return _raycaster;
 }
@@ -2420,6 +2425,7 @@ var COLOR_AIMS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
 var RENDER_STYLES = ['lines', 'trace', 'ribbon'/*, 'ball&stick'*/];
 var MAP_STYLES = ['marching cubes', 'squarish'/*, 'snapped MC'*/];
 var LINE_STYLES = ['normal', 'simplistic'];
+var LABEL_FONTS = ['bold 14px', '14px', '16px', 'bold 16px'];
 
 function rainbow_value(v, vmin, vmax) {
   var c = new THREE.Color(0xe0e0e0);
@@ -2643,6 +2649,7 @@ function Viewer(options /*: {[key: string]: any}*/) {
     render_style: RENDER_STYLES[0],
     color_aim: COLOR_AIMS[0],
     line_style: LINE_STYLES[0],
+    label_font: LABEL_FONTS[0],
     colors: ColorSchemes[0],
     hydrogens: false,
   };
@@ -2884,6 +2891,7 @@ Viewer.prototype.toggle_label = function (atom, show) {
     if (is_shown) return;
     var label = makeLabel(text, {
       pos: atom.xyz,
+      font: this.config.label_font,
       color: '#' + this.config.colors.cell_box.getHexString(),
       win_size: this.window_size,
     });
@@ -2896,6 +2904,17 @@ Viewer.prototype.toggle_label = function (atom, show) {
     delete this.labels[uid];
   }
 };
+
+Viewer.prototype.redraw_labels = function () {
+  for (var uid in this.labels) { // eslint-disable-line guard-for-in
+    var text = uid;
+    this.labels[uid].remake(text, {
+      font: this.config.label_font,
+      color: '#' + this.config.colors.cell_box.getHexString(),
+    });
+  }
+};
+
 
 Viewer.prototype.toggle_map_visibility = function (map_bag) {
   if (typeof map_bag === 'number') {
@@ -3068,6 +3087,7 @@ Viewer.prototype.redraw_all = function () {
   if (this.renderer) this.renderer.setClearColor(this.config.colors.bg, 1);
   this.redraw_models();
   this.redraw_maps(true);
+  this.redraw_labels();
 };
 
 Viewer.toggle_help = function (el) {
@@ -3089,6 +3109,7 @@ Viewer.toggle_help = function (el) {
       'T = representation',
       'C = coloring',
       'B = bg color',
+      'Q = label font',
       '+/- = sigma level',
       ']/[ = map radius',
       'D/F = clip width',
@@ -3216,6 +3237,10 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
     case 73:  // i
       this.hud('toggled camera movement');
       this.controls.toggle_auto({rock: evt.shiftKey});
+      break;
+    case 81:  // q
+      this.select_next('label font', 'label_font', LABEL_FONTS, evt.shiftKey);
+      this.redraw_labels();
       break;
     case 82:  // r
       if (evt.shiftKey) {

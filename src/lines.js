@@ -545,14 +545,14 @@ function line_raycast(raycaster, intersects) {
 function makeCanvasWithText(text, options) {
   if (typeof document === 'undefined') return;  // for testing on node
   var canvas = document.createElement('canvas');
-  // canvas size should be 2^N
+  // Canvas size should be 2^N.
   canvas.width = 256;  // arbitrary limit, to keep it simple
   canvas.height = 16;  // font size
   var context = canvas.getContext('2d');
   if (!context) return null;
+  context.font = (options.font || 'bold 14px') + ' sans-serif';
   //context.fillStyle = 'green';
   //context.fillRect(0, 0, canvas.width, canvas.height);
-  context.font = 'bold 16px Arial, sans-serif';
   context.textBaseline = 'bottom';
   if (options.color) context.fillStyle = options.color;
   context.fillText(text, 0, canvas.height);
@@ -606,5 +606,10 @@ export function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
     fog: true,
   });
   material.transparent = true;
-  return new THREE.Mesh(geometry, material);
+  var mesh = new THREE.Mesh(geometry, material);
+  mesh.remake = function (text, options) {
+    texture.image = makeCanvasWithText(text, options);
+    texture.needsUpdate = true;
+  };
+  return mesh;
 }
