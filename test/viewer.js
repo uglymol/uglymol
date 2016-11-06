@@ -25,7 +25,8 @@ describe('Viewer', function () {
     viewer.center_next_residue();
     viewer.recenter();
     viewer.recenter([11, 22, 33]);
-    viewer.set_selection(model.atoms[0]);
+    viewer.set_mark(model.atoms[0]);
+    viewer.select_atom(model.atoms[1]);
   });
 
   pdb_string = util.open_as_utf8('1yk4.pdb');

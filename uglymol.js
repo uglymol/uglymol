@@ -2013,6 +2013,7 @@ function line_raycast(raycaster, intersects) {
 }
 
 function makeCanvasWithText(text, options) {
+  if (typeof document === 'undefined') return;  // for testing on node
   var canvas = document.createElement('canvas');
   // canvas size should be 2^N
   canvas.width = 256;  // arbitrary limit, to keep it simple
@@ -3642,8 +3643,6 @@ Viewer.prototype.show_nav = function (inset_id) {
 
 Viewer.ColorSchemes = ColorSchemes;
 Viewer.auto_speed = auto_speed;
-
-// UnitCell class with methods to fractionalize/orthogonalize coords
 
 exports.UnitCell = UnitCell;
 exports.Model = Model;

@@ -543,6 +543,7 @@ function line_raycast(raycaster, intersects) {
 }
 
 function makeCanvasWithText(text, options) {
+  if (typeof document === 'undefined') return;  // for testing on node
   var canvas = document.createElement('canvas');
   // canvas size should be 2^N
   canvas.width = 256;  // arbitrary limit, to keep it simple
