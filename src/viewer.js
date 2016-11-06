@@ -875,7 +875,7 @@ Viewer.prototype.redraw_models = function () {
 };
 
 Viewer.prototype.add_el_objects = function (map_bag) {
-  if (!map_bag.visible || this.cofnig.map_radius <= 0) return;
+  if (!map_bag.visible || this.config.map_radius <= 0) return;
   if (!map_bag.map.block) {
     map_bag.block_ctr.copy(this.target);
     map_bag.map.extract_block(this.config.map_radius,
