@@ -875,7 +875,7 @@ Viewer.prototype.redraw_models = function () {
 };
 
 Viewer.prototype.add_el_objects = function (map_bag) {
-  if (!map_bag.visible) return;
+  if (!map_bag.visible || this.cofnig.map_radius <= 0) return;
   if (!map_bag.map.block) {
     map_bag.block_ctr.copy(this.target);
     map_bag.map.extract_block(this.config.map_radius,
@@ -918,15 +918,14 @@ Viewer.prototype.change_isolevel_by = function (map_idx, delta) {
 };
 
 Viewer.prototype.change_map_radius = function (delta) {
-  var RMIN = 2;
   var RMAX = 40;
   var cf = this.config;
-  cf.map_radius = Math.min(Math.max(cf.map_radius + delta, RMIN), RMAX);
+  cf.map_radius = Math.min(Math.max(cf.map_radius + delta, 0), RMAX);
   var info = 'map "radius": ' + cf.map_radius;
   if (cf.map_radius === RMAX) info += ' (max)';
-  else if (cf.map_radius === RMIN) info += ' (min)';
+  else if (cf.map_radius === 0) info += ' (hidden maps)';
   this.hud(info);
-  this.redraw_maps(true); //TODO: move slow part into update()
+  this.redraw_maps(true);
 };
 
 Viewer.prototype.change_slab_width_by = function (delta) {

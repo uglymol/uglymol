@@ -1,5 +1,5 @@
 /*!
- * UglyMol v0.5.1. Macromolecular Viewer for Crystallographers.
+ * UglyMol v0.5.0. Macromolecular Viewer for Crystallographers.
  * Copyright 2014 Nat Echols
  * Copyright 2016 Diamond Light Source Ltd
  * Copyright 2016 Marcin Wojdyr
@@ -11,7 +11,7 @@
   (factory((global.UM = global.UM || {}),global.THREE));
 }(this, (function (exports,THREE) { 'use strict';
 
-exports.VERSION = '0.5.1';
+exports.VERSION = '0.5.0';
 
 // eslint-disable-next-line max-params
 function UnitCell(a /*:number*/, b /*:number*/, c /*:number*/,
@@ -2997,13 +2997,13 @@ Viewer.prototype.change_isolevel_by = function (map_idx, delta) {
 };
 
 Viewer.prototype.change_map_radius = function (delta) {
-  var RMIN = 2;
+  var RMIN = 0;
   var RMAX = 40;
   var cf = this.config;
   cf.map_radius = Math.min(Math.max(cf.map_radius + delta, RMIN), RMAX);
   var info = 'map "radius": ' + cf.map_radius;
   if (cf.map_radius === RMAX) info += ' (max)';
-  else if (cf.map_radius === RMIN) info += ' (min)';
+  else if (cf.map_radius === RMIN) info += ' (hidden maps)';
   this.hud(info);
   this.redraw_maps(true); //TODO: move slow part into update()
 };
@@ -3668,6 +3668,8 @@ Viewer.prototype.show_nav = function (inset_id) {
 
 Viewer.ColorSchemes = ColorSchemes;
 Viewer.auto_speed = auto_speed;
+
+// UnitCell class with methods to fractionalize/orthogonalize coords
 
 exports.UnitCell = UnitCell;
 exports.Model = Model;
