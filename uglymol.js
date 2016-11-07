@@ -1934,17 +1934,17 @@ LineFactory.prototype.make_line_segments = function (geometry) {
   return mesh;
 };
 
-var cap_vert = [
-  'uniform float linewidth;',
+var wheel_vert = [
+  'uniform float size;',
   'varying vec3 vcolor;',
   'void main() {',
   '  vcolor = color;',
   '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
-  '  gl_PointSize = linewidth;',
+  '  gl_PointSize = size;',
   '}'].join('\n');
 
 // not sure how portable it is
-var cap_frag = [
+var wheel_frag = [
   '#include <fog_pars_fragment>',
   'varying vec3 vcolor;',
   'void main() {',
@@ -1954,29 +1954,23 @@ var cap_frag = [
   '#include <fog_fragment>',
   '}'].join('\n');
 
-LineFactory.prototype.make_caps = function (atom_arr, color_arr) {
+function makeWheels(atom_arr /*:{xyz: [number,number,number]}[]*/,
+                           color_arr /*:THREE.Color[]*/,
+                           size /*:number*/) {
   var positions = atoms_to_buf(atom_arr);
   var colors = rgb_to_buf(color_arr);
   var geometry = new THREE.BufferGeometry();
   geometry.addAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.addAttribute('color', new THREE.BufferAttribute(colors, 3));
   var material = new THREE.ShaderMaterial({
-    uniforms: this.material.uniforms,
-    vertexShader: cap_vert,
-    fragmentShader: cap_frag,
+    uniforms: make_uniforms({size: size}),
+    vertexShader: wheel_vert,
+    fragmentShader: wheel_frag,
     fog: true,
     vertexColors: THREE.VertexColors,
   });
   return new THREE.Points(geometry, material);
-};
-
-LineFactory.prototype.make_balls = function (atom_arr, color_arr, ball_size) {
-  // TODO: proper ball & stick impostors
-  var obj = this.make_caps(atom_arr, color_arr);
-  obj.material.vertexShader = obj.material.vertexShader.replace('= linewidth',
-                                  '=' + ball_size.toFixed(4));
-  return obj;
-};
+}
 
 
 // based on THREE.Line.prototype.raycast(), but skipping duplicated points
@@ -2569,19 +2563,21 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
       }
     }
   }
+  var linewidth = scale_by_height(this.conf.bond_line, this.win_size);
+  var use_gl_lines = this.conf.line_style === 'simplistic';
   var line_factory = new LineFactory({
-    gl_lines: this.conf.line_style === 'simplistic',
-    linewidth: scale_by_height(this.conf.bond_line, this.win_size),
+    gl_lines: use_gl_lines,
+    linewidth: linewidth,
     size: this.win_size,
     as_segments: true,
   });
   //console.log('make_bonds() vertex count: ' + geometry.vertices.length);
   this.atomic_objects.push(line_factory.make_line_segments(geometry));
   if (opt.balls) {
-    this.atomic_objects.push(line_factory.make_balls(visible_atoms, colors,
-                                                     ball_size));
-  } else if (!line_factory.use_gl_lines && !ligands_only) {
-    this.atomic_objects.push(line_factory.make_caps(visible_atoms, colors));
+    this.atomic_objects.push(makeWheels(visible_atoms, colors, ball_size));
+  } else if (!use_gl_lines && !ligands_only) {
+    // wheels (discs) as simplistic round caps
+    this.atomic_objects.push(makeWheels(visible_atoms, colors, linewidth));
   }
 };
 
@@ -3312,7 +3308,7 @@ Viewer.prototype.mousedown = function (event) {
 Viewer.prototype.dblclick = function (event) {
   if (event.button !== 0) return;
   if (this.decor.selection) {
-    this.scene.remove(this.decor.selection);
+    this.remove_and_dispose(this.decor.selection);
     this.decor.selection = null;
   }
   var mouse = new THREE.Vector2(this.relX(event), this.relY(event));
@@ -3323,21 +3319,14 @@ Viewer.prototype.dblclick = function (event) {
   if (atom) {
     this.hud(atom.long_label());
     this.toggle_label(atom);
-    this.set_mark(atom);
+    var color = this.config.colors[atom.element] || this.config.colors.def;
+    var size = 2.5 * scale_by_height(this.config.bond_line, this.window_size);
+    this.decor.selection = makeWheels([atom], [color], size);
+    this.scene.add(this.decor.selection);
   } else {
     this.hud();
   }
   this.request_render();
-};
-
-Viewer.prototype.set_mark = function (atom) {
-  var geometry = new THREE.Geometry();
-  geometry.vertices.push(new THREE.Vector3(atom.xyz[0], atom.xyz[1],
-                                           atom.xyz[2]));
-  var color = this.config.colors[atom.element] || this.config.colors.def;
-  var material = new THREE.PointsMaterial({size: 3, color: color});
-  this.decor.selection = new THREE.Points(geometry, material);
-  this.scene.add(this.decor.selection);
 };
 
 // for two-finger touch events
@@ -3678,6 +3667,7 @@ exports.makeRibbon = makeRibbon;
 exports.makeChickenWire = makeChickenWire;
 exports.makeGrid = makeGrid;
 exports.LineFactory = LineFactory;
+exports.makeWheels = makeWheels;
 exports.makeLabel = makeLabel;
 exports.Viewer = Viewer;
 

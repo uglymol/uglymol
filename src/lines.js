@@ -464,17 +464,17 @@ LineFactory.prototype.make_line_segments = function (geometry) {
   return mesh;
 };
 
-var cap_vert = [
-  'uniform float linewidth;',
+var wheel_vert = [
+  'uniform float size;',
   'varying vec3 vcolor;',
   'void main() {',
   '  vcolor = color;',
   '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
-  '  gl_PointSize = linewidth;',
+  '  gl_PointSize = size;',
   '}'].join('\n');
 
 // not sure how portable it is
-var cap_frag = [
+var wheel_frag = [
   '#include <fog_pars_fragment>',
   'varying vec3 vcolor;',
   'void main() {',
@@ -484,29 +484,23 @@ var cap_frag = [
   '#include <fog_fragment>',
   '}'].join('\n');
 
-LineFactory.prototype.make_caps = function (atom_arr, color_arr) {
+export function makeWheels(atom_arr /*:{xyz: [number,number,number]}[]*/,
+                           color_arr /*:THREE.Color[]*/,
+                           size /*:number*/) {
   var positions = atoms_to_buf(atom_arr);
   var colors = rgb_to_buf(color_arr);
   var geometry = new THREE.BufferGeometry();
   geometry.addAttribute('position', new THREE.BufferAttribute(positions, 3));
   geometry.addAttribute('color', new THREE.BufferAttribute(colors, 3));
   var material = new THREE.ShaderMaterial({
-    uniforms: this.material.uniforms,
-    vertexShader: cap_vert,
-    fragmentShader: cap_frag,
+    uniforms: make_uniforms({size: size}),
+    vertexShader: wheel_vert,
+    fragmentShader: wheel_frag,
     fog: true,
     vertexColors: THREE.VertexColors,
   });
   return new THREE.Points(geometry, material);
-};
-
-LineFactory.prototype.make_balls = function (atom_arr, color_arr, ball_size) {
-  // TODO: proper ball & stick impostors
-  var obj = this.make_caps(atom_arr, color_arr);
-  obj.material.vertexShader = obj.material.vertexShader.replace('= linewidth',
-                                  '=' + ball_size.toFixed(4));
-  return obj;
-};
+}
 
 
 // based on THREE.Line.prototype.raycast(), but skipping duplicated points
