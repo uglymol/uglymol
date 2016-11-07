@@ -661,10 +661,10 @@ export function Viewer(options /*: {[key: string]: any}*/) {
   this.mouseup = function (event) {
     event.preventDefault();
     event.stopPropagation();
-    self.decor.zoom_grid.visible = false;
-    self.controls.stop(self.active_model_bag);
     document.removeEventListener('mousemove', self.mousemove);
     document.removeEventListener('mouseup', self.mouseup);
+    self.decor.zoom_grid.visible = false;
+    self.controls.stop(self.active_model_bag);
     self.redraw_maps();
   };
 
@@ -1209,6 +1209,8 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
 Viewer.prototype.mousedown = function (event) {
   //event.preventDefault(); // default involves setting focus, which we need
   event.stopPropagation();
+  document.addEventListener('mouseup', this.mouseup);
+  document.addEventListener('mousemove', this.mousemove);
   var state = STATE.NONE;
   if (event.button === 1 || (event.button === 0 && event.ctrlKey)) {
     state = STATE.PAN;
@@ -1227,8 +1229,6 @@ Viewer.prototype.mousedown = function (event) {
     }
   }
   this.controls.start(state, this.relX(event), this.relY(event));
-  document.addEventListener('mousemove', this.mousemove);
-  document.addEventListener('mouseup', this.mouseup);
   this.request_render();
 };
 

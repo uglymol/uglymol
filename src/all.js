@@ -1,4 +1,15 @@
 
+/* Dependencies between files (ES6 modules):
+ *
+ *  isosurface.js <--,
+ *                    \
+ *              v-- elmap.js <-.
+ *    unitcell.js               \
+ *              ^-  model.js <- viewer.js
+ * THREE.js <--------------------' /
+ *        ^----- lines.js <-------'
+ */
+
 // UnitCell class with methods to fractionalize/orthogonalize coords
 export * from './unitcell.js';
 
