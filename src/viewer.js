@@ -284,18 +284,14 @@ var Controls = function (camera, target) {
     }
   };
 
-  this.stop = function (model_bag) {
-    var atom = null;
-    if (_state === STATE.PAN && !_panned && model_bag) {
-      atom = model_bag.pick_atom(get_raycaster(_pan_start, camera));
-    }
+  this.stop = function () {
+    var ret = null;
+    if (_state === STATE.PAN && !_panned) ret = _pan_start;
     _state = STATE.NONE;
     _rotate_start.copy(_rotate_end);
     _pinch_start = _pinch_end;
     _pan_start.copy(_pan_end);
-    if (atom !== null) { // center on atom
-      this.go_to(atom.xyz);
-    }
+    return ret;
   };
 
   this.slab_width = function () { return _slab_width; };
@@ -664,7 +660,15 @@ export function Viewer(options /*: {[key: string]: any}*/) {
     document.removeEventListener('mousemove', self.mousemove);
     document.removeEventListener('mouseup', self.mouseup);
     self.decor.zoom_grid.visible = false;
-    self.controls.stop(self.active_model_bag);
+    var not_panned = self.controls.stop();
+    // special case - centering on atoms after action 'pan' with no shift
+    if (not_panned) {
+      var rc = get_raycaster(not_panned, self.camera);
+      var atom = self.active_model_bag.pick_atom(rc);
+      if (atom !== null) {
+        self.controls.go_to(atom.xyz);
+      }
+    }
     self.redraw_maps();
   };
 
