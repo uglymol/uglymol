@@ -122,7 +122,7 @@ var Controls = function (camera, target) {
   var _pan_end = new THREE.Vector2();
   var _panned = true;
   var _slab_width = 10.0;
-  var _rock_state = 0.0;
+  var _rotating = null;
   var _auto_stamp = null;
   var _go_func = null;
 
@@ -165,10 +165,14 @@ var Controls = function (camera, target) {
     _pan_start.copy(_pan_end);
   }
 
-  this.toggle_auto = function (params) {
-    _state = (_state === STATE.AUTO_ROTATE ? STATE.NONE : STATE.AUTO_ROTATE);
-    _auto_stamp = null;
-    _rock_state = params.rock ? 0.0 : null;
+  this.toggle_auto = function (param) {
+    if (_state === STATE.AUTO_ROTATE && typeof param === typeof _rotating) {
+      _state = STATE.NONE;
+    } else {
+      _state = STATE.AUTO_ROTATE;
+      _auto_stamp = null;
+      _rotating = param;
+    }
   };
 
   this.is_going = function () { return _state === STATE.GO; };
@@ -181,9 +185,11 @@ var Controls = function (camera, target) {
     var elapsed = (_auto_stamp !== null ? now - _auto_stamp : 16.7);
     var speed = 1.8e-5 * elapsed * auto_speed;
     _auto_stamp = now;
-    if (_rock_state !== null) {
-      _rock_state += 0.02;
-      speed = 4e-5 * auto_speed * Math.cos(_rock_state);
+    if (_rotating === true) {
+      speed = -speed;
+    } else if (_rotating !== false) {
+      _rotating += 0.02;
+      speed = 4e-5 * auto_speed * Math.cos(_rotating);
     }
     _rotate_end.crossVectors(camera.up, eye).multiplyScalar(speed)
       .add(_rotate_start);
@@ -1043,7 +1049,7 @@ Viewer.toggle_help = function (el) {
       'R = center view',
       'W = wireframe style',
       'I = spin',
-      'Shift+I = rock',
+      'K = rock',
       'Home/End = bond width',
       '\\ = bond caps',
       'P = nearest Cα',
@@ -1158,8 +1164,12 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       this.toggle_cell_box();
       break;
     case 73:  // i
-      this.hud('toggled camera movement');
-      this.controls.toggle_auto({rock: evt.shiftKey});
+      this.hud('toggled spinning');
+      this.controls.toggle_auto(evt.shiftKey);
+      break;
+    case 75:  // k
+      this.hud('toggled rocking');
+      this.controls.toggle_auto(0.0);
       break;
     case 81:  // q
       this.select_next('label font', 'label_font', LABEL_FONTS, evt.shiftKey);
