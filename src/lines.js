@@ -499,7 +499,10 @@ export function makeWheels(atom_arr /*:{xyz: [number,number,number]}[]*/,
     fog: true,
     vertexColors: THREE.VertexColors,
   });
-  return new THREE.Points(geometry, material);
+  var obj = new THREE.Points(geometry, material);
+  // currently we use only lines for picking
+  obj.raycast = function () {};
+  return obj;
 }
 
 
@@ -521,8 +524,7 @@ function line_raycast(raycaster, intersects) {
   for (var i = 0, l = positions.length / 6 - 1; i < l; i += step) {
     vStart.fromArray(positions, 6 * i);
     vEnd.fromArray(positions, 6 * i + 6);
-    var distSq = ray.distanceSqToSegment(vStart, vEnd,
-                                         interRay, interSegment);
+    var distSq = ray.distanceSqToSegment(vStart, vEnd, interRay, interSegment);
     if (distSq > precisionSq) continue;
     interRay.applyMatrix4(this.matrixWorld);
     var distance = raycaster.ray.origin.distanceTo(interRay);
@@ -532,6 +534,7 @@ function line_raycast(raycaster, intersects) {
       point: interSegment.clone().applyMatrix4(this.matrixWorld),
       index: i,
       object: this,
+      line_dist: Math.sqrt(distSq), // extra property, not in Three.js
     });
   }
 }

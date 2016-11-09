@@ -1969,7 +1969,10 @@ function makeWheels(atom_arr /*:{xyz: [number,number,number]}[]*/,
     fog: true,
     vertexColors: THREE.VertexColors,
   });
-  return new THREE.Points(geometry, material);
+  var obj = new THREE.Points(geometry, material);
+  // currently we use only lines for picking
+  obj.raycast = function () {};
+  return obj;
 }
 
 
@@ -1991,8 +1994,7 @@ function line_raycast(raycaster, intersects) {
   for (var i = 0, l = positions.length / 6 - 1; i < l; i += step) {
     vStart.fromArray(positions, 6 * i);
     vEnd.fromArray(positions, 6 * i + 6);
-    var distSq = ray.distanceSqToSegment(vStart, vEnd,
-                                         interRay, interSegment);
+    var distSq = ray.distanceSqToSegment(vStart, vEnd, interRay, interSegment);
     if (distSq > precisionSq) continue;
     interRay.applyMatrix4(this.matrixWorld);
     var distance = raycaster.ray.origin.distanceTo(interRay);
@@ -2002,6 +2004,7 @@ function line_raycast(raycaster, intersects) {
       point: interSegment.clone().applyMatrix4(this.matrixWorld),
       index: i,
       object: this,
+      line_dist: Math.sqrt(distSq), // extra property, not in Three.js
     });
   }
 }
@@ -2178,16 +2181,6 @@ function scale_by_height(value, size) { // for scaling bond_line
   return value * size[1] / 700;
 }
 
-var _raycaster;
-function get_raycaster(coords, camera) {
-  if (_raycaster === undefined) _raycaster = new THREE.Raycaster();
-  _raycaster.setFromCamera(coords, camera);
-  _raycaster.near = camera.near;
-  _raycaster.far = camera.far - 0.1 * (camera.far - camera.near); // 10% in fog
-  _raycaster.linePrecision = 0.2;
-  return _raycaster;
-}
-
 var STATE = {NONE: -1, ROTATE: 0, PAN: 1, ZOOM: 2, PAN_ZOOM: 3, SLAB: 4,
              ROLL: 5, AUTO_ROTATE: 6, GO: 7};
 
@@ -2357,18 +2350,14 @@ var Controls = function (camera, target) {
     }
   };
 
-  this.stop = function (model_bag) {
-    var atom = null;
-    if (_state === STATE.PAN && !_panned && model_bag) {
-      atom = model_bag.pick_atom(get_raycaster(_pan_start, camera));
-    }
+  this.stop = function () {
+    var ret = null;
+    if (_state === STATE.PAN && !_panned) ret = _pan_start;
     _state = STATE.NONE;
     _rotate_start.copy(_rotate_end);
     _pinch_start = _pinch_end;
     _pan_start.copy(_pan_end);
-    if (atom !== null) { // center on atom
-      this.go_to(atom.xyz);
-    }
+    return ret;
   };
 
   this.slab_width = function () { return _slab_width; };
@@ -2507,13 +2496,6 @@ function ModelBag(model, config, win_size) {
   this.atomic_objects = null; // list of three.js objects
 }
 
-ModelBag.prototype.pick_atom = function (raycaster) {
-  var intersects = raycaster.intersectObjects(this.atomic_objects);
-  if (intersects.length < 1) return null;
-  var p = intersects[0].point;
-  return this.model.get_nearest_atom(p.x, p.y, p.z);
-};
-
 ModelBag.prototype.get_visible_atoms = function () {
   var atoms = this.model.atoms;
   if (this.conf.hydrogens || !this.model.has_hydrogens) {
@@ -2544,7 +2526,6 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
       add_isolated_atom(geometry, atom, color);
     } else { // bonded, draw lines
       for (var j = 0; j < atom.bonds.length; j++) {
-        // TODO: one line per bond (with two colors per vertex)?
         var other = this.model.atoms[atom.bonds[j]];
         if (!opt.hydrogens && other.element === 'H') continue;
         // Coot show X-H bonds as thinner lines in a single color.
@@ -2671,6 +2652,7 @@ function Viewer(options /*: {[key: string]: any}*/) {
     this.camera = new THREE.OrthographicCamera();
     this.controls = new Controls(this.camera, this.target);
   }
+  this.raycaster = new THREE.Raycaster();
   if (typeof document === 'undefined') return;  // for testing on node
 
   try {
@@ -2697,7 +2679,7 @@ function Viewer(options /*: {[key: string]: any}*/) {
   this.renderer.setClearColor(this.config.colors.bg, 1);
   this.renderer.setPixelRatio(window.devicePixelRatio);
   this.resize();
-  this.camera.zoom = this.camera.right / 35.0;
+  this.camera.zoom = this.camera.right / 35.0;  // arbitrary choice
   this.container.appendChild(this.renderer.domElement);
   if (options.focusable) {
     this.renderer.domElement.tabIndex = 0;
@@ -2737,13 +2719,35 @@ function Viewer(options /*: {[key: string]: any}*/) {
     document.removeEventListener('mousemove', self.mousemove);
     document.removeEventListener('mouseup', self.mouseup);
     self.decor.zoom_grid.visible = false;
-    self.controls.stop(self.active_model_bag);
+    var not_panned = self.controls.stop();
+    // special case - centering on atoms after action 'pan' with no shift
+    if (not_panned) {
+      var atom = self.pick_atom(not_panned, self.camera);
+      if (atom !== null) {
+        self.select_atom(atom, {steps: 60 / auto_speed});
+      }
+    }
     self.redraw_maps();
   };
 
   this.scheduled = false;
   this.request_render();
 }
+
+Viewer.prototype.pick_atom = function (coords, camera) {
+  var bag = this.active_model_bag;
+  if (bag === null) return;
+  this.raycaster.setFromCamera(coords, camera);
+  this.raycaster.near = camera.near;
+  // '0.15' b/c the furthest 15% is hardly visible in the fog
+  this.raycaster.far = camera.far - 0.15 * (camera.far - camera.near);
+  this.raycaster.linePrecision = 0.3;
+  var intersects = this.raycaster.intersectObjects(bag.atomic_objects);
+  if (intersects.length < 1) return null;
+  intersects.sort(function (x) { return x.line_dist || Infinity; });
+  var p = intersects[0].point;
+  return bag.model.get_nearest_atom(p.x, p.y, p.z);
+};
 
 Viewer.prototype.set_colors = function (scheme) {
   if (scheme == null) {
@@ -3312,10 +3316,7 @@ Viewer.prototype.dblclick = function (event) {
     this.decor.selection = null;
   }
   var mouse = new THREE.Vector2(this.relX(event), this.relY(event));
-  var atom;
-  if (this.active_model_bag !== null) {
-    atom = this.active_model_bag.pick_atom(get_raycaster(mouse, this.camera));
-  }
+  var atom = this.pick_atom(mouse, this.camera);
   if (atom) {
     this.hud(atom.long_label());
     this.toggle_label(atom);
@@ -3460,9 +3461,11 @@ Viewer.prototype.center_next_residue = function (back) {
   if (a) this.select_atom(a);
 };
 
-Viewer.prototype.select_atom = function (atom) {
+Viewer.prototype.select_atom = function (atom, options) {
+  options = options || {};
   this.hud('-> ' + atom.long_label());
-  this.controls.go_to(atom.xyz, null, null, 30 / auto_speed);
+  var steps = options.steps || 30. / auto_speed;
+  this.controls.go_to(atom.xyz, null, null, steps);
   this.toggle_label(this.selected_atom);
   this.selected_atom = atom;
   this.toggle_label(atom);
