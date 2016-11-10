@@ -987,6 +987,10 @@ Viewer.prototype.toggle_cell_box = function () {
   }
 };
 
+function vec3_to_fixed(vec, n) {
+  return [vec.x.toFixed(n), vec.y.toFixed(n), vec.z.toFixed(n)];
+}
+
 Viewer.prototype.shift_clip = function (away) {
   var eye = this.camera.position.clone().sub(this.target).setLength(1);
   if (!away) {
@@ -996,7 +1000,7 @@ Viewer.prototype.shift_clip = function (away) {
   this.camera.position.add(eye);
   this.update_camera();
   this.redraw_maps();
-  this.hud('clip shifted by [' + vec3_to_str(eye, 2, ' ') + ']');
+  this.hud('clip shifted by [' + vec3_to_fixed(eye, 2).join(' ') + ']');
 };
 
 Viewer.prototype.go_to_nearest_Ca = function () {
@@ -1008,6 +1012,14 @@ Viewer.prototype.go_to_nearest_Ca = function () {
   } else {
     this.hud('no nearby CA');
   }
+};
+
+Viewer.prototype.permalink = function () {
+  if (typeof window === 'undefined') return;
+  window.location.hash = '#xyz=' + vec3_to_fixed(this.target, 1).join(',') +
+    '&eye=' + vec3_to_fixed(this.camera.position, 1).join(',') +
+    '&zoom=' + this.camera.zoom.toFixed(0);
+  this.hud('copy URL from the location bar');
 };
 
 Viewer.prototype.redraw_all = function () {
@@ -1060,10 +1072,6 @@ Viewer.toggle_help = function (el) {
       '\n<a href="https://uglymol.github.io">about uglymol</a>'].join('\n');
   }
 };
-
-function vec3_to_str(vec, n, sep) {
-  return vec.x.toFixed(n) + sep + vec.y.toFixed(n) + sep + vec.z.toFixed(n);
-}
 
 Viewer.prototype.select_next = function (info, key, options, back) {
   var old_idx = options.indexOf(this.config[key]);
@@ -1142,14 +1150,7 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       this.change_zoom_by_factor(1 / (evt.shiftKey ? 1.2 : 1.03));
       break;
     case 80:  // p
-      if (evt.shiftKey) {
-        window.location.hash = '#xyz=' + vec3_to_str(this.target, 1, ',') +
-          '&eye=' + vec3_to_str(this.camera.position, 1, ',') +
-          '&zoom=' + this.camera.zoom.toFixed(0);
-        this.hud('copy URL from the location bar');
-      } else {
-        this.go_to_nearest_Ca();
-      }
+      evt.shiftKey ? this.permalink() : this.go_to_nearest_Ca();
       break;
     case 51:  // 3
     case 99:  // numpad 3
