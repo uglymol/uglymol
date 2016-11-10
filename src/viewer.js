@@ -1210,6 +1210,10 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
     case 32: // Space
       this.center_next_residue(evt.shiftKey);
       break;
+    case 191: // slash
+    case 222: // single quote
+      evt.preventDefault();  // disable search bar in Firefox
+      // fallthrough
     default:
       if (this.help_el) this.hud('Nothing here. Press H for help.');
       break;
