@@ -3016,7 +3016,7 @@ Viewer.prototype.change_map_radius = function (delta) {
 Viewer.prototype.change_slab_width_by = function (delta) {
   this.controls.change_slab_width(delta);
   this.update_camera();
-  this.hud('clip width: ' + (this.camera.far-this.camera.near).toFixed(1));
+  this.hud('clip width: ' + (this.camera.far - this.camera.near).toFixed(1));
 };
 
 Viewer.prototype.change_zoom_by_factor = function (mult) {
@@ -3063,6 +3063,10 @@ Viewer.prototype.toggle_cell_box = function () {
   }
 };
 
+function vec3_to_fixed(vec, n) {
+  return [vec.x.toFixed(n), vec.y.toFixed(n), vec.z.toFixed(n)];
+}
+
 Viewer.prototype.shift_clip = function (away) {
   var eye = this.camera.position.clone().sub(this.target).setLength(1);
   if (!away) {
@@ -3072,7 +3076,7 @@ Viewer.prototype.shift_clip = function (away) {
   this.camera.position.add(eye);
   this.update_camera();
   this.redraw_maps();
-  this.hud('clip shifted by [' + vec3_to_str(eye, 2, ' ') + ']');
+  this.hud('clip shifted by [' + vec3_to_fixed(eye, 2).join(' ') + ']');
 };
 
 Viewer.prototype.go_to_nearest_Ca = function () {
@@ -3084,6 +3088,14 @@ Viewer.prototype.go_to_nearest_Ca = function () {
   } else {
     this.hud('no nearby CA');
   }
+};
+
+Viewer.prototype.permalink = function () {
+  if (typeof window === 'undefined') return;
+  window.location.hash = '#xyz=' + vec3_to_fixed(this.target, 1).join(',') +
+    '&eye=' + vec3_to_fixed(this.camera.position, 1).join(',') +
+    '&zoom=' + this.camera.zoom.toFixed(0);
+  this.hud('copy URL from the location bar');
 };
 
 Viewer.prototype.redraw_all = function () {
@@ -3136,10 +3148,6 @@ Viewer.toggle_help = function (el) {
       '\n<a href="https://uglymol.github.io">about uglymol</a>'].join('\n');
   }
 };
-
-function vec3_to_str(vec, n, sep) {
-  return vec.x.toFixed(n) + sep + vec.y.toFixed(n) + sep + vec.z.toFixed(n);
-}
 
 Viewer.prototype.select_next = function (info, key, options, back) {
   var old_idx = options.indexOf(this.config[key]);
@@ -3218,14 +3226,7 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       this.change_zoom_by_factor(1 / (evt.shiftKey ? 1.2 : 1.03));
       break;
     case 80:  // p
-      if (evt.shiftKey) {
-        window.location.hash = '#xyz=' + vec3_to_str(this.target, 1, ',') +
-          '&eye=' + vec3_to_str(this.camera.position, 1, ',') +
-          '&zoom=' + this.camera.zoom.toFixed(0);
-        this.hud('copy URL from the location bar');
-      } else {
-        this.go_to_nearest_Ca();
-      }
+      evt.shiftKey ? this.permalink() : this.go_to_nearest_Ca();
       break;
     case 51:  // 3
     case 99:  // numpad 3
@@ -3286,6 +3287,10 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
     case 32: // Space
       this.center_next_residue(evt.shiftKey);
       break;
+    case 191: // slash
+    case 222: // single quote
+      evt.preventDefault();  // disable search bar in Firefox
+      // fallthrough
     default:
       if (this.help_el) this.hud('Nothing here. Press H for help.');
       break;
@@ -3430,39 +3435,30 @@ function parse_url_fragment() {
 
 // If xyz set recenter on it looking toward the model center.
 // Otherwise recenter on the model center looking along the z axis.
-Viewer.prototype.recenter = function (xyz, eye, steps) {
-  var new_up = null;
-  var ctr;
-  if (eye) {
-    eye = new THREE.Vector3(eye[0], eye[1], eye[2]);
-  }
-  if (xyz == null) { // center on the molecule
-    if (this.active_model_bag === null) return;
-    ctr = this.active_model_bag.model.get_center();
-    xyz = new THREE.Vector3(ctr[0], ctr[1], ctr[2]);
-    if (!eye) {
-      eye = xyz.clone();
-      eye.z += 100;
+Viewer.prototype.recenter = function (xyz, cam, steps) {
+  var bag = this.active_model_bag;
+  var new_up;
+  if (xyz != null && cam == null && bag !== null) {
+    // look from specified point toward the center of the molecule,
+    // i.e. shift camera away from the molecule center.
+    xyz = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
+    var mc = bag.model.get_center();
+    var d = new THREE.Vector3(xyz[0] - mc[0], xyz[1] - mc[1], xyz[2] - mc[2]);
+    d.setLength(100);
+    new_up = d.y < 90 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+    new_up.projectOnPlane(d).normalize();
+    cam = d.add(xyz);
+  } else {
+    xyz = xyz || (bag ? bag.model.get_center() : [0, 0, 0]);
+    if (cam != null) {
+      cam = new THREE.Vector3(cam[0], cam[1], cam[2]);
+      new_up = null; // preserve the up direction
+    } else {
+      cam = new THREE.Vector3(xyz[0], xyz[1], xyz[2] + 100);
       new_up = THREE.Object3D.DefaultUp; // Vector3(0, 1, 0)
     }
-  } else {
-    xyz = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
-    if (eye == null && this.active_model_bag !== null) {
-      // look toward the center of the molecule
-      ctr = this.active_model_bag.model.get_center();
-      eye = new THREE.Vector3(ctr[0], ctr[1], ctr[2]);
-      eye.sub(xyz).negate().setLength(100); // we store now (eye - xyz)
-      new_up = new THREE.Vector3(0, 1, 0).projectOnPlane(eye);
-      var len = new_up.length();
-      if (len < 0.1) { // the center is in [0,1,0] direction
-        new_up.set(1, 0, 0).projectOnPlane(eye);
-        len = new_up.length();
-      }
-      new_up.divideScalar(len); // normalizes
-      eye.add(xyz);
-    }
   }
-  this.controls.go_to(xyz, eye, new_up, steps);
+  this.controls.go_to(xyz, cam, new_up, steps);
 };
 
 Viewer.prototype.center_next_residue = function (back) {
@@ -3669,19 +3665,6 @@ Viewer.prototype.show_nav = function (inset_id) {
 
 Viewer.ColorSchemes = ColorSchemes;
 Viewer.auto_speed = auto_speed;
-
-/* Dependencies between files (ES6 modules):
- *
- *  isosurface.js <--,
- *                    \
- *              v-- elmap.js <-.
- *    unitcell.js               \
- *              ^-  model.js <- viewer.js
- * THREE.js <--------------------' /
- *        ^----- lines.js <-------'
- */
-
-// UnitCell class with methods to fractionalize/orthogonalize coords
 
 exports.UnitCell = UnitCell;
 exports.Model = Model;
