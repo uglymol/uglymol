@@ -1102,6 +1102,11 @@ Viewer.prototype.select_next = function (info, key, options, back) {
 
 Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
   var key = evt.keyCode;
+  if (this.custom_keydown && key in this.custom_keydown) {
+    (this.custom_keydown[key])(evt);
+    this.request_render();
+    return;
+  }
   switch (key) {
     case 84:  // t
       this.select_next('rendering as', 'render_style', RENDER_STYLES,

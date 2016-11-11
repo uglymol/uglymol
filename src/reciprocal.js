@@ -3,10 +3,22 @@
 //import * as THREE from 'three';
 var Viewer = UM.Viewer;
 
+var SPOT_SEL = ['all', 'indexed', 'not indexed'];
+var sel_map = { all: -2, indexed: 0, 'not indexed': -1 };
+
 //export
 function ReciprocalViewer(options /*: {[key: string]: any}*/) {
   Viewer.call(this, options);
   this.points = null;
+  this.config.show_only = SPOT_SEL[0];
+  var self = this;
+  this.custom_keydown = {
+    86/*v*/: function (evt) {
+      self.select_next('show', 'show_only', SPOT_SEL, evt.shiftKey);
+      var show_only = self.points.material.uniforms.show_only;
+      show_only.value = sel_map[self.config.show_only];
+    }
+  };
 }
 
 ReciprocalViewer.prototype = Object.create(Viewer.prototype);
@@ -61,8 +73,10 @@ var point_vert = [
   '}'].join('\n');
 
 var point_frag = [
+  'uniform int show_only;',
   'varying vec3 vcolor;',
   'void main() {',
+  '  if (show_only == -1 && vcolor.r != 1.0 || show_only == 0 && vcolor.g != 1.0) discard;',
   // not sure how portable it is
   '  vec2 diff = gl_PointCoord - vec2(0.5, 0.5);',
   '  float dist_sq = 4.0 * dot(diff, diff);',
@@ -85,6 +99,7 @@ ReciprocalViewer.prototype.add_points = function (pos, experiment_ids) {
   geometry.addAttribute('color', new THREE.BufferAttribute(colors, 3));
   var uniforms = {
     size: { value: 3 },
+    show_only: { value: -2 },
   };
   var material = new THREE.ShaderMaterial({
     uniforms: uniforms,

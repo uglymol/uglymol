@@ -3025,6 +3025,19 @@ Viewer.prototype.change_zoom_by_factor = function (mult) {
   this.hud('zoom: ' + this.camera.zoom.toFixed(2));
 };
 
+Viewer.prototype.change_bond_line = function (delta) {
+  this.config.bond_line = Math.max(this.config.bond_line + delta, 0.1);
+  this.redraw_models();
+  this.hud('bond width: ' + scale_by_height(this.config.bond_line,
+                                            this.window_size).toFixed(1));
+};
+
+Viewer.prototype.change_map_line = function (delta) {
+  this.config.map_line = Math.max(this.config.map_line + delta, 0.1);
+  this.redraw_maps(true);
+  this.hud('wireframe width: ' + this.config.map_line.toFixed(1));
+};
+
 Viewer.prototype.toggle_full_screen = function () {
   var d = document;
   if (d.fullscreenElement || d.mozFullScreenElement ||
@@ -3165,6 +3178,11 @@ Viewer.prototype.select_next = function (info, key, options, back) {
 
 Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
   var key = evt.keyCode;
+  if (this.custom_keydown && key in this.custom_keydown) {
+    (this.custom_keydown[key])(evt);
+    this.request_render();
+    return;
+  }
   switch (key) {
     case 84:  // t
       this.select_next('rendering as', 'render_style', RENDER_STYLES,
@@ -3265,19 +3283,10 @@ Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
       Viewer.toggle_help(this.help_el);
       break;
     case 36: // Home
+      evt.ctrlKey ? this.change_map_line(0.1) : this.change_bond_line(0.2);
+      break;
     case 35: // End
-      if (evt.ctrlKey) {
-        this.config.map_line += (key === 36 ? 0.1 : -0.1);
-        this.config.map_line = Math.max(this.config.map_line, 0.1);
-        this.redraw_maps(true);
-        this.hud('wireframe width: ' + this.config.map_line.toFixed(1));
-      } else {
-        this.config.bond_line += (key === 36 ? 0.2 : -0.2);
-        this.config.bond_line = Math.max(this.config.bond_line, 0.1);
-        this.redraw_models();
-        this.hud('bond width: ' + scale_by_height(this.config.bond_line,
-                                                  this.window_size).toFixed(1));
-      }
+      evt.ctrlKey ? this.change_map_line(-0.1) : this.change_bond_line(-0.2);
       break;
     case 16: // shift
     case 17: // ctrl
@@ -3593,6 +3602,12 @@ Viewer.prototype.load_file = function (url, binary, callback, show_progress) {
   }
 };
 
+Viewer.prototype.set_view = function (options) {
+  var frag = parse_url_fragment();
+  if (frag.zoom) this.camera.zoom = frag.zoom;
+  this.recenter(options.center || frag.xyz, frag.eye, 1);
+};
+
 // Load molecular model from PDB file and centers the view
 Viewer.prototype.load_pdb = function (url, options) {
   options = options || {};
@@ -3601,9 +3616,7 @@ Viewer.prototype.load_pdb = function (url, options) {
     var model = new Model();
     model.from_pdb(req.responseText);
     self.set_model(model);
-    var frag = parse_url_fragment();
-    if (frag.zoom) self.camera.zoom = frag.zoom;
-    self.recenter(options.center || frag.xyz, frag.eye, 1);
+    self.set_view(options);
     if (options.callback) options.callback();
   });
 };
