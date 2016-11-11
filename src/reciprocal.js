@@ -6,6 +6,7 @@ var Viewer = UM.Viewer;
 //export
 function ReciprocalViewer(options /*: {[key: string]: any}*/) {
   Viewer.call(this, options);
+  this.points = null;
 }
 
 ReciprocalViewer.prototype = Object.create(Viewer.prototype);
@@ -43,9 +44,7 @@ ReciprocalViewer.prototype.load_data = function (url, options) {
     self.add_points(pos, experiment_ids);
     self.camera.zoom = 0.5 * (self.camera.top - self.camera.bottom);
 
-    var frag = {};//parse_url_fragment();
-    if (frag.zoom) self.camera.zoom = frag.zoom;
-    self.recenter(frag.xyz || [0, 0, 0], frag.eye, 1);
+    self.set_view(options);
     if (options.callback) options.callback();
     //self.redraw_center();
   });
@@ -58,23 +57,24 @@ var point_vert = [
   'void main() {',
   '  vcolor = color;',
   '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
-  //'  gl_PointSize = size;',
+  '  gl_PointSize = size;',
   '}'].join('\n');
 
 var point_frag = [
   'varying vec3 vcolor;',
   'void main() {',
   // not sure how portable it is
-  //'  vec2 diff = gl_PointCoord - vec2(0.5, 0.5);',
-  //'  if (dot(diff, diff) >= 0.25) discard;',
-  '  gl_FragColor = vec4(vcolor, 1.0);',
+  '  vec2 diff = gl_PointCoord - vec2(0.5, 0.5);',
+  '  float dist_sq = 4.0 * dot(diff, diff);',
+  '  if (dist_sq >= 1.0) discard;',
+  '  gl_FragColor = vec4(vcolor, 1.0 - dist_sq * dist_sq * dist_sq);',
   '}'].join('\n');
 
 
 ReciprocalViewer.prototype.add_points = function (pos, experiment_ids) {
   var colors = new Float32Array(3 * experiment_ids.length);
   for (var i = 0; i < experiment_ids.length; i++) {
-    var col = experiment_ids[i] === -1 ? [0.9, 0.1, 0.1] : [0.2, 0.8, 0.2];
+    var col = experiment_ids[i] === -1 ? [1, 0, 0] : [0, 1, 0];
     colors[3*i] = col[0];
     colors[3*i+1] = col[1];
     colors[3*i+2] = col[2];
@@ -84,7 +84,7 @@ ReciprocalViewer.prototype.add_points = function (pos, experiment_ids) {
   geometry.addAttribute('position', new THREE.BufferAttribute(pos, 3));
   geometry.addAttribute('color', new THREE.BufferAttribute(colors, 3));
   var uniforms = {
-    size: { value: 2 },
+    size: { value: 3 },
   };
   var material = new THREE.ShaderMaterial({
     uniforms: uniforms,
@@ -92,8 +92,9 @@ ReciprocalViewer.prototype.add_points = function (pos, experiment_ids) {
     fragmentShader: point_frag,
     vertexColors: THREE.VertexColors,
   });
-  var obj = new THREE.Points(geometry, material);
-  this.scene.add(obj);
+  material.transparent = true;
+  this.points = new THREE.Points(geometry, material);
+  this.scene.add(this.points);
   this.request_render();
 };
 
@@ -103,3 +104,10 @@ ReciprocalViewer.prototype.change_isolevel_by = function (map_idx, delta) {
 };
 
 ReciprocalViewer.prototype.redraw_center = function () {};
+
+ReciprocalViewer.prototype.change_bond_line = function (delta) {
+  if (this.points === null) return;
+  var size = this.points.material.uniforms.size;
+  size.value = Math.max(size.value + (delta > 0 ? 0.5 : -0.5), 0.5);
+  this.hud('point size: ' + size.value.toFixed(1));
+};
