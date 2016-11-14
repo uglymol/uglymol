@@ -2729,7 +2729,7 @@ function Viewer(options /*: {[key: string]: any}*/) {
     // special case - centering on atoms after action 'pan' with no shift
     if (not_panned) {
       var atom = self.pick_atom(not_panned, self.camera);
-      if (atom !== null) {
+      if (atom != null) {
         self.select_atom(atom, {steps: 60 / auto_speed});
       }
     }
