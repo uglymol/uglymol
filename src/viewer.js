@@ -960,7 +960,7 @@ Viewer.prototype.change_map_line = function (delta) {
   this.config.map_line = Math.max(this.config.map_line + delta, 0.1);
   this.redraw_maps(true);
   this.hud('wireframe width: ' + this.config.map_line.toFixed(1));
-}
+};
 
 Viewer.prototype.toggle_full_screen = function () {
   var d = document;
@@ -1572,8 +1572,7 @@ Viewer.prototype.load_ccp4_maps = function (url1, url2, callback) {
   }, true);
 };
 
-// Load a model (PDB), normal map and a difference map. One after anotk
-// To show the first map ASAP we do not download both maps in parallel.
+// Load a model (PDB), normal map and a difference map - in this order.
 Viewer.prototype.load_pdb_and_ccp4_maps = function (pdb, map1, map2, callback) {
   var self = this;
   this.load_pdb(pdb, {callback: function () {

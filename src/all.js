@@ -30,3 +30,5 @@ export * from './lines.js';
 // Viewer
 export * from './viewer.js';
 
+// ReciprocalViewer - small extra code that shows reciprocal lattice
+export * from './reciprocal.js';

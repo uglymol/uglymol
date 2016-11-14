@@ -1,13 +1,11 @@
 // @flow
-//import { Viewer } from './viewer.js';
-//import * as THREE from 'three';
-var Viewer = UM.Viewer;
+import { Viewer } from './viewer.js';
+import * as THREE from 'three';
+
 
 var SPOT_SEL = ['all', 'indexed', 'not indexed'];
-var sel_map = { all: -2, indexed: 0, 'not indexed': -1 };
 
-//export
-function ReciprocalViewer(options /*: {[key: string]: any}*/) {
+export function ReciprocalViewer(options /*: {[key: string]: any}*/) {
   Viewer.call(this, options);
   this.points = null;
   this.config.show_only = SPOT_SEL[0];
@@ -16,8 +14,9 @@ function ReciprocalViewer(options /*: {[key: string]: any}*/) {
     86/*v*/: function (evt) {
       self.select_next('show', 'show_only', SPOT_SEL, evt.shiftKey);
       var show_only = self.points.material.uniforms.show_only;
+      var sel_map = { 'all': -2, 'indexed': 0, 'not indexed': -1 };
       show_only.value = sel_map[self.config.show_only];
-    }
+    },
   };
 }
 
@@ -76,7 +75,8 @@ var point_frag = [
   'uniform int show_only;',
   'varying vec3 vcolor;',
   'void main() {',
-  '  if (show_only == -1 && vcolor.r != 1.0 || show_only == 0 && vcolor.g != 1.0) discard;',
+  '  if (show_only == -1 && vcolor.r != 1.0 || ',
+  '      show_only == 0 && vcolor.g != 1.0) discard;',
   // not sure how portable it is
   '  vec2 diff = gl_PointCoord - vec2(0.5, 0.5);',
   '  float dist_sq = 4.0 * dot(diff, diff);',
