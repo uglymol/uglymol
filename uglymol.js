@@ -1488,7 +1488,7 @@ var CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
 
 function makeCentralCube(size /*:number*/,
                                 ctr /*:{x:number, y:number, z:number}*/,
-                                color /*:THREE.Color*/) {
+                                color /*:Color*/) {
   var geometry = new THREE.Geometry();
   for (var i = 0; i < CUBE_EDGES.length; i++) {
     var a = CUBE_EDGES[i];
@@ -1502,8 +1502,8 @@ function makeCentralCube(size /*:number*/,
 }
 
 // A cube with 3 edges (for x, y, z axes) colored in red, green and blue.
-function makeRgbBox(transform_func /*: number[] => number[]*/,
-                           color /*:THREE.Color*/) {
+function makeRgbBox(transform_func /*:number[] => number[]*/,
+                           color /*:Color*/) {
   var geometry = new THREE.Geometry();
   for (var i = 0; i < CUBE_EDGES.length; i++) {
     var xyz = transform_func(CUBE_EDGES[i]);
@@ -1522,20 +1522,50 @@ function makeRgbBox(transform_func /*: number[] => number[]*/,
   return new THREE.LineSegments(geometry, material);
 }
 
+function double_pos(vertex_arr /*:Vector3[] | Atom[]*/) {
+  var pos = [];
+  var i;
+  if (vertex_arr && vertex_arr[0].xyz) {
+    for (i = 0; i < vertex_arr.length; i++) {
+      // flow-ignore-line - disjoint unions not smart enough
+      var xyz /*:[number,number,number]*/ = vertex_arr[i].xyz;
+      pos.push(xyz[0], xyz[1], xyz[2]);
+      pos.push(xyz[0], xyz[1], xyz[2]);
+    }
+  } else {
+    for (i = 0; i < vertex_arr.length; i++) {
+      // flow-ignore-line
+      var v /*:Vector3*/ = vertex_arr[i];
+      pos.push(v.x, v.y, v.z);
+      pos.push(v.x, v.y, v.z);
+    }
+  }
+  return pos;
+}
+
+function double_color(color_arr /*:Color[]*/) {
+  var len = color_arr.length;
+  var color = new Float32Array(6*len);
+  for (var i = 0; i < len; i++) {
+    var col = color_arr[i];
+    color[6*i] = col.r;
+    color[6*i+1] = col.g;
+    color[6*i+2] = col.b;
+    color[6*i+3] = col.r;
+    color[6*i+4] = col.g;
+    color[6*i+5] = col.b;
+  }
+  return color;
+}
 
 // input arrays must be of the same length
 function wide_line_geometry(vertex_arr, color_arr) {
   var len = vertex_arr.length;
-  var i;
-  var pos = [];
-  for (i = 0; i < len; i++) {
-    var v = vertex_arr[i];
-    pos.push(v.x, v.y, v.z);
-    pos.push(v.x, v.y, v.z);
-  }
+  var pos = double_pos(vertex_arr);
   var position = new Float32Array(pos);
   // could we use three overlapping views of the same buffer?
   var previous = new Float32Array(6*len);
+  var i;
   for (i = 0; i < 6; i++) previous[i] = pos[i];
   for (; i < 6 * len; i++) previous[i] = pos[i-6];
   var next = new Float32Array(6*len);
@@ -1546,16 +1576,7 @@ function wide_line_geometry(vertex_arr, color_arr) {
     side[2*i] = 1;
     side[2*i+1] = -1;
   }
-  var color = new Float32Array(6*len);
-  for (i = 0; i < len; i++) {
-    var col = color_arr[i];
-    color[6*i] = col.r;
-    color[6*i+1] = col.g;
-    color[6*i+2] = col.b;
-    color[6*i+3] = col.r;
-    color[6*i+4] = col.g;
-    color[6*i+5] = col.b;
-  }
+  var color = double_color(color_arr);
   var geometry = new THREE.BufferGeometry();
   geometry.addAttribute('position', new THREE.BufferAttribute(position, 3));
   geometry.addAttribute('previous', new THREE.BufferAttribute(previous, 3));
@@ -1571,12 +1592,7 @@ function wide_segments_geometry(vertex_arr, color_arr) {
   var len = vertex_arr.length;
   var i;
   var j;
-  var pos = [];
-  for (i = 0; i < len; i++) {
-    var v = vertex_arr[i];
-    pos.push(v.x, v.y, v.z);
-    pos.push(v.x, v.y, v.z);
-  }
+  var pos = double_pos(vertex_arr);
   var position = new Float32Array(pos);
   var other_vert = new Float32Array(6*len);
   for (i = 0; i < 6 * len; i += 12) {
@@ -1588,16 +1604,7 @@ function wide_segments_geometry(vertex_arr, color_arr) {
     side[2*i] = -1;
     side[2*i+1] = 1;
   }
-  var color = new Float32Array(6*len);
-  for (i = 0; i < len; i++) {
-    var col = color_arr[i];
-    color[6*i] = col.r;
-    color[6*i+1] = col.g;
-    color[6*i+2] = col.b;
-    color[6*i+3] = col.r;
-    color[6*i+4] = col.g;
-    color[6*i+5] = col.b;
-  }
+  var color = double_color(color_arr);
   var index = (2*len < 65536 ? new Uint16Array(3*len)
                              : new Uint32Array(3*len));
   var vert_order = [0, 1, 2, 0, 2, 3];
@@ -1620,17 +1627,17 @@ var wide_line_vert = [
   'attribute vec3 previous;',
   'attribute vec3 next;',
   'attribute float side;',
-  'uniform vec2 size;',
+  'uniform vec2 win_size;',
   'uniform float linewidth;',
   'varying vec3 vcolor;',
 
   'void main() {',
   '  vcolor = color;',
   '  mat4 mat = projectionMatrix * modelViewMatrix;',
-  '  vec2 dir1 = (mat * vec4(next - position, 0.0)).xy * size;',
+  '  vec2 dir1 = (mat * vec4(next - position, 0.0)).xy * win_size;',
   '  float len = length(dir1);',
   '  if (len > 0.0) dir1 /= len;',
-  '  vec2 dir2 = (mat * vec4(position - previous, 0.0)).xy * size;',
+  '  vec2 dir2 = (mat * vec4(position - previous, 0.0)).xy * win_size;',
   '  len = length(dir2);',
   '  dir2 = len > 0.0 ? dir2 / len : dir1;',
   '  vec2 tang = normalize(dir1 + dir2);',
@@ -1642,13 +1649,13 @@ var wide_line_vert = [
   '  float outer = side * dot(dir2, normal);',
   '  float angle_factor = max(dot(tang, dir2), outer > 0.0 ? 0.5 : 0.1);',
   '  gl_Position = mat * vec4(position, 1.0);',
-  '  gl_Position.xy += side * linewidth / angle_factor * normal / size;',
+  '  gl_Position.xy += side * linewidth / angle_factor * normal / win_size;',
   '}'].join('\n');
 
 var wide_segments_vert = [
   'attribute vec3 other;',
   'attribute float side;',
-  'uniform vec2 size;',
+  'uniform vec2 win_size;',
   'uniform float linewidth;',
   'varying vec3 vcolor;',
 
@@ -1658,7 +1665,7 @@ var wide_segments_vert = [
   '  vec2 dir = normalize((mat * vec4(position - other, 0.0)).xy);',
   '  vec2 normal = vec2(-dir.y, dir.x);',
   '  gl_Position = mat * vec4(position, 1.0);',
-  '  gl_Position.xy += side * linewidth * normal / size;',
+  '  gl_Position.xy += side * linewidth * normal / win_size;',
   '}'].join('\n');
 
 var wide_line_frag = [
@@ -1670,7 +1677,7 @@ var wide_line_frag = [
   '}'].join('\n');
 
 
-function interpolate_vertices(segment, smooth) {
+function interpolate_vertices(segment, smooth) /*:Vector3[]*/{
   var vertices = [];
   for (var i = 0; i < segment.length; i++) {
     var xyz = segment[i].xyz;
@@ -1724,40 +1731,6 @@ function make_uniforms(params) {
   return uniforms;
 }
 
-function rgb_to_buf(colors) {
-  var arr = new Float32Array(colors.length * 3);
-  for (var i = 0; i < colors.length; i++) {
-    var c = colors[i];
-    arr[3*i] = c.r;
-    arr[3*i+1] = c.g;
-    arr[3*i+2] = c.b;
-  }
-  return arr;
-}
-
-function xyz_to_buf(vectors) {
-  var arr = new Float32Array(vectors.length * 3);
-  for (var i = 0; i < vectors.length; i++) {
-    var v = vectors[i];
-    arr[3*i] = v.x;
-    arr[3*i+1] = v.y;
-    arr[3*i+2] = v.z;
-  }
-  return arr;
-}
-
-function atoms_to_buf(atoms) {
-  var arr = new Float32Array(atoms.length * 3);
-  for (var i = 0; i < atoms.length; i++) {
-    var xyz = atoms[i].xyz;
-    arr[3*i] = xyz[0];
-    arr[3*i+1] = xyz[1];
-    arr[3*i+2] = xyz[2];
-  }
-  return arr;
-}
-
-
 var ribbon_vert = [
   //'attribute vec3 normal;' is added by default for ShaderMaterial
   'uniform float shift;',
@@ -1777,19 +1750,15 @@ var ribbon_frag = [
   '}'].join('\n');
 
 // 9-line ribbon
-function makeRibbon(vertices /*: Array<{xyz: [number,number,number]}>*/,
-                           colors /*: Array<THREE.Color>*/,
-                           tangents /*: Array<[number,number,number]>*/,
-                           smoothness /*: number*/) {
+function makeRibbon(vertices /*:Atom[]*/,
+                           colors /*:Color[]*/,
+                           tangents /*:Array<[number,number,number]>*/,
+                           smoothness /*:number*/) {
   var vertex_arr = interpolate_vertices(vertices, smoothness);
   var color_arr = interpolate_colors(colors, smoothness);
   var tang_arr = interpolate_directions(tangents, smoothness);
   var obj = new THREE.Object3D();
-  var geometry = new THREE.BufferGeometry();
-  var pos = xyz_to_buf(vertex_arr);
-  geometry.addAttribute('position', new THREE.BufferAttribute(pos, 3));
-  var col = rgb_to_buf(color_arr);
-  geometry.addAttribute('color', new THREE.BufferAttribute(col, 3));
+  var geometry = makeSimpleGeometry(vertex_arr, color_arr);
   var tan = new Float32Array(tang_arr);
   // it's not 'normal', but it doesn't matter
   geometry.addAttribute('normal', new THREE.BufferAttribute(tan, 3));
@@ -1809,8 +1778,8 @@ function makeRibbon(vertices /*: Array<{xyz: [number,number,number]}>*/,
 }
 
 
-function makeChickenWire(data /*: {vertices: number[], segments: number[]}*/,
-                         parameters /*: {[key: string]: any}*/) {
+function makeChickenWire(data /*:{vertices: number[], segments: number[]}*/,
+                         parameters /*:{[key: string]: any}*/) {
   var geom = new THREE.BufferGeometry();
   var position = new Float32Array(data.vertices);
   geom.addAttribute('position', new THREE.BufferAttribute(position, 3));
@@ -1881,58 +1850,103 @@ function makeGrid() {
 }
 
 
-function LineFactory(options /*: {[key: string]: mixed}*/) {
+function makeSimpleLineMaterial(options) {
   var mparams = {};
   mparams.linewidth = options.linewidth;
-  this.use_gl_lines = options.gl_lines;
-  if (this.use_gl_lines) {
-    if (options.color === undefined) {
-      mparams.vertexColors = THREE.VertexColors;
-    } else {
-      mparams.color = options.color;
-    }
-    this.material = new THREE.LineBasicMaterial(mparams);
+  if (options.color === undefined) {
+    mparams.vertexColors = THREE.VertexColors;
   } else {
-    mparams.size = options.size;
-    this.material = new THREE.ShaderMaterial({
-      uniforms: make_uniforms(mparams),
-      vertexShader: options.as_segments ? wide_segments_vert : wide_line_vert,
-      fragmentShader: wide_line_frag,
-      fog: true,
-      vertexColors: THREE.VertexColors,
-    });
+    mparams.color = options.color;
   }
+  return new THREE.LineBasicMaterial(mparams);
 }
 
-LineFactory.prototype.make_line = function (vertices, colors, smoothness) {
-  var vertex_arr = interpolate_vertices(vertices, smoothness);
-  var color_arr = interpolate_colors(colors, smoothness);
-  if (this.use_gl_lines) {
-    var geometry = new THREE.BufferGeometry();
-    var pos = xyz_to_buf(vertex_arr);
-    geometry.addAttribute('position', new THREE.BufferAttribute(pos, 3));
-    var col = rgb_to_buf(color_arr);
-    geometry.addAttribute('color', new THREE.BufferAttribute(col, 3));
-    return new THREE.Line(geometry, this.material);
+function makeThickLineMaterial(options) {
+  var uniforms = make_uniforms({
+    linewidth: options.linewidth,
+    win_size: options.win_size,
+  });
+  return new THREE.ShaderMaterial({
+    uniforms: uniforms,
+    vertexShader: options.segments ? wide_segments_vert : wide_line_vert,
+    fragmentShader: wide_line_frag,
+    fog: true,
+    vertexColors: THREE.VertexColors,
+  });
+}
+
+function makeLineMaterial(options /*:{[key: string]: mixed}*/) {
+  return options.gl_lines ? makeSimpleLineMaterial(options)
+                          : makeThickLineMaterial(options);
+}
+
+function makeSimpleGeometry(vertices /*:Vector3[] | Atom[]*/,
+                            colors /*:Color[]*/) {
+  var geometry = new THREE.BufferGeometry();
+  var pos = new Float32Array(vertices.length * 3);
+  var i;
+  if (vertices && vertices[0].xyz) {
+    for (i = 0; i < vertices.length; i++) {
+      // flow-ignore-line - disjoint unions not smart enough
+      var xyz /*:[number,number,number]*/ = vertices[i].xyz;
+      pos[3*i] = xyz[0];
+      pos[3*i+1] = xyz[1];
+      pos[3*i+2] = xyz[2];
+    }
+  } else {
+    for (i = 0; i < vertices.length; i++) {
+      // flow-ignore-line
+      var v /*:Vector3*/ = vertices[i];
+      pos[3*i] = v.x;
+      pos[3*i+1] = v.y;
+      pos[3*i+2] = v.z;
+    }
   }
-  var mesh = new THREE.Mesh(wide_line_geometry(vertex_arr, color_arr),
-                            this.material);
+  var col = new Float32Array(colors.length * 3);
+  for (i = 0; i < colors.length; i++) {
+    var c = colors[i];
+    col[3*i] = c.r;
+    col[3*i+1] = c.g;
+    col[3*i+2] = c.b;
+  }
+  geometry.addAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geometry.addAttribute('color', new THREE.BufferAttribute(col, 3));
+  return geometry;
+}
+
+function makeThickLine(material, vertices, colors) {
+  var mesh = new THREE.Mesh(wide_line_geometry(vertices, colors), material);
   mesh.drawMode = THREE.TriangleStripDrawMode;
   mesh.raycast = line_raycast;
   return mesh;
-};
+}
 
-LineFactory.prototype.make_line_segments = function (geometry) {
-  if (this.use_gl_lines) {
-    return new THREE.LineSegments(geometry, this.material);
+function makeLine(material /*:THREE.Material*/,
+                         vertices /*:Vector3[]*/,
+                         colors /*:Color[]*/) {
+  if (material.isShaderMaterial) {
+    return makeThickLine(material, vertices, colors);
+  } else {
+    return new THREE.Line(makeSimpleGeometry(vertices, colors), material);
   }
-  var vertex_arr = geometry.vertices;
-  var color_arr = geometry.colors;
-  var mesh = new THREE.Mesh(wide_segments_geometry(vertex_arr, color_arr),
-                            this.material);
+}
+
+function makeThickLineSegments(material, vertices, colors) {
+  var mesh = new THREE.Mesh(wide_segments_geometry(vertices, colors), material);
   mesh.raycast = line_raycast;
   return mesh;
-};
+}
+
+function makeLineSegments(material /*:THREE.Material*/,
+                                 vertices /*:Vector3[]*/,
+                                 colors /*:Color[]*/) {
+  if (material.isShaderMaterial) {
+    return makeThickLineSegments(material, vertices, colors);
+  } else {
+    return new THREE.LineSegments(makeSimpleGeometry(vertices, colors),
+                                  material);
+  }
+}
 
 var wheel_vert = [
   'uniform float size;',
@@ -1954,14 +1968,10 @@ var wheel_frag = [
   '#include <fog_fragment>',
   '}'].join('\n');
 
-function makeWheels(atom_arr /*:{xyz: [number,number,number]}[]*/,
-                           color_arr /*:THREE.Color[]*/,
+function makeWheels(atom_arr /*:Atom[]*/,
+                           color_arr /*:Color[]*/,
                            size /*:number*/) {
-  var positions = atoms_to_buf(atom_arr);
-  var colors = rgb_to_buf(color_arr);
-  var geometry = new THREE.BufferGeometry();
-  geometry.addAttribute('position', new THREE.BufferAttribute(positions, 3));
-  geometry.addAttribute('color', new THREE.BufferAttribute(colors, 3));
+  var geometry = makeSimpleGeometry(atom_arr, color_arr);
   var material = new THREE.ShaderMaterial({
     uniforms: make_uniforms({size: size}),
     vertexShader: wheel_vert,
@@ -2467,18 +2477,13 @@ function color_by(style, atoms, elem_colors) {
 }
 
 // Add a representation of an unbonded atom as a cross to geometry
-function add_isolated_atom(geometry, atom, color) {
-  var c = atom.xyz;
-  var R = 0.7;
-  geometry.vertices.push(new THREE.Vector3(c[0]-R, c[1], c[2]));
-  geometry.vertices.push(new THREE.Vector3(c[0]+R, c[1], c[2]));
-  geometry.vertices.push(new THREE.Vector3(c[0], c[1]-R, c[2]));
-  geometry.vertices.push(new THREE.Vector3(c[0], c[1]+R, c[2]));
-  geometry.vertices.push(new THREE.Vector3(c[0], c[1], c[2]-R));
-  geometry.vertices.push(new THREE.Vector3(c[0], c[1], c[2]+R));
-  for (var i = 0; i < 6; i++) {
-    geometry.colors.push(color);
-  }
+function add_xyz_cross(vertices, xyz, r) {
+  vertices.push(new THREE.Vector3(xyz[0]-r, xyz[1], xyz[2]));
+  vertices.push(new THREE.Vector3(xyz[0]+r, xyz[1], xyz[2]));
+  vertices.push(new THREE.Vector3(xyz[0], xyz[1]-r, xyz[2]));
+  vertices.push(new THREE.Vector3(xyz[0], xyz[1]+r, xyz[2]));
+  vertices.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]-r));
+  vertices.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]+r));
 }
 
 
@@ -2520,7 +2525,8 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
   var visible_atoms = this.get_visible_atoms();
   var color_style = ligands_only ? 'element' : this.conf.color_aim;
   var colors = color_by(color_style, visible_atoms, this.conf.colors);
-  var geometry = new THREE.Geometry();
+  var vertex_arr = [];
+  var color_arr = [];
   var opt = { hydrogens: this.conf.hydrogens,
               ligands_only: ligands_only,
               balls: this.conf.render_style === 'ball&stick' };
@@ -2529,7 +2535,10 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
     var color = colors[i];
     if (ligands_only && !atom.is_ligand) continue;
     if (atom.bonds.length === 0 && !opt.balls) { // nonbonded, draw star
-      add_isolated_atom(geometry, atom, color);
+      add_xyz_cross(vertex_arr, atom.xyz, 0.7);
+      for (var n = 0; n < 6; n++) {
+        color_arr.push(color);
+      }
     } else { // bonded, draw lines
       for (var j = 0; j < atom.bonds.length; j++) {
         var other = this.model.atoms[atom.bonds[j]];
@@ -2542,24 +2551,23 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
         var vatom = new THREE.Vector3(atom.xyz[0], atom.xyz[1], atom.xyz[2]);
         if (opt.balls) {
           var lerp_factor = vatom.distanceTo(vmid) / ball_size;
-          //color = this.conf.colors.def; // for debugging only
           vatom.lerp(vmid, lerp_factor);
         }
-        geometry.vertices.push(vatom, vmid);
-        geometry.colors.push(color, color);
+        vertex_arr.push(vatom, vmid);
+        color_arr.push(color, color);
       }
     }
   }
+  //console.log('add_bonds() vertex count: ' + vertex_arr.length);
   var linewidth = scale_by_height(this.conf.bond_line, this.win_size);
   var use_gl_lines = this.conf.line_style === 'simplistic';
-  var line_factory = new LineFactory({
+  var material = makeLineMaterial({
     gl_lines: use_gl_lines,
     linewidth: linewidth,
-    size: this.win_size,
-    as_segments: true,
+    win_size: this.win_size,
+    segments: true,
   });
-  //console.log('make_bonds() vertex count: ' + geometry.vertices.length);
-  this.atomic_objects.push(line_factory.make_line_segments(geometry));
+  this.atomic_objects.push(makeLineSegments(material, vertex_arr, color_arr));
   if (opt.balls) {
     this.atomic_objects.push(makeWheels(visible_atoms, colors, ball_size));
   } else if (!use_gl_lines && !ligands_only) {
@@ -2568,21 +2576,21 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
   }
 };
 
-ModelBag.prototype.add_trace = function (smoothness) {
+ModelBag.prototype.add_trace = function () {
   var segments = this.model.extract_trace();
   var visible_atoms = [].concat.apply([], segments);
   var colors = color_by(this.conf.color_aim, visible_atoms, this.conf.colors);
-  var line_factory = new LineFactory({
+  var material = makeLineMaterial({
     gl_lines: this.conf.line_style === 'simplistic',
     linewidth: scale_by_height(this.conf.bond_line, this.win_size),
-    size: this.win_size,
+    win_size: this.win_size,
   });
   var k = 0;
   for (var i = 0; i < segments.length; i++) {
     var seg = segments[i];
     var color_slice = colors.slice(k, k + seg.length);
     k += seg.length;
-    var line = line_factory.make_line(seg, color_slice, smoothness);
+    var line = makeLine(material, seg, color_slice);
     this.atomic_objects.push(line);
   }
 };
@@ -3843,6 +3851,19 @@ ReciprocalViewer.prototype.change_point_size = function (delta) {
   this.hud('point size: ' + size.value.toFixed(1));
 };
 
+/* Dependencies between files (ES6 modules):
+ *
+ *  isosurface.js <--,
+ *                    \
+ *              v-- elmap.js <-.
+ *    unitcell.js               \
+ *              ^-  model.js <- viewer.js
+ * THREE.js <--------------------' /
+ *        ^----- lines.js <-------'
+ */
+
+// UnitCell class with methods to fractionalize/orthogonalize coords
+
 exports.UnitCell = UnitCell;
 exports.Model = Model;
 exports.isosurface = isosurface;
@@ -3852,7 +3873,9 @@ exports.makeRgbBox = makeRgbBox;
 exports.makeRibbon = makeRibbon;
 exports.makeChickenWire = makeChickenWire;
 exports.makeGrid = makeGrid;
-exports.LineFactory = LineFactory;
+exports.makeLineMaterial = makeLineMaterial;
+exports.makeLine = makeLine;
+exports.makeLineSegments = makeLineSegments;
 exports.makeWheels = makeWheels;
 exports.makeLabel = makeLabel;
 exports.Viewer = Viewer;

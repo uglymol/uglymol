@@ -1,8 +1,9 @@
 // @flow
 
 import * as THREE from 'three';
-import { LineFactory, makeRibbon, makeChickenWire, makeGrid, makeWheels,
-         makeCentralCube, makeRgbBox, makeLabel } from './lines.js';
+import { makeLineMaterial, makeLineSegments, makeLine, makeRibbon,
+         makeChickenWire, makeGrid, makeWheels, makeCentralCube,
+         makeRgbBox, makeLabel } from './lines.js';
 import { ElMap } from './elmap.js';
 import { Model } from './model.js';
 
@@ -391,18 +392,13 @@ function color_by(style, atoms, elem_colors) {
 }
 
 // Add a representation of an unbonded atom as a cross to geometry
-function add_isolated_atom(geometry, atom, color) {
-  var c = atom.xyz;
-  var R = 0.7;
-  geometry.vertices.push(new THREE.Vector3(c[0]-R, c[1], c[2]));
-  geometry.vertices.push(new THREE.Vector3(c[0]+R, c[1], c[2]));
-  geometry.vertices.push(new THREE.Vector3(c[0], c[1]-R, c[2]));
-  geometry.vertices.push(new THREE.Vector3(c[0], c[1]+R, c[2]));
-  geometry.vertices.push(new THREE.Vector3(c[0], c[1], c[2]-R));
-  geometry.vertices.push(new THREE.Vector3(c[0], c[1], c[2]+R));
-  for (var i = 0; i < 6; i++) {
-    geometry.colors.push(color);
-  }
+function add_xyz_cross(vertices, xyz, r) {
+  vertices.push(new THREE.Vector3(xyz[0]-r, xyz[1], xyz[2]));
+  vertices.push(new THREE.Vector3(xyz[0]+r, xyz[1], xyz[2]));
+  vertices.push(new THREE.Vector3(xyz[0], xyz[1]-r, xyz[2]));
+  vertices.push(new THREE.Vector3(xyz[0], xyz[1]+r, xyz[2]));
+  vertices.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]-r));
+  vertices.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]+r));
 }
 
 
@@ -444,7 +440,8 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
   var visible_atoms = this.get_visible_atoms();
   var color_style = ligands_only ? 'element' : this.conf.color_aim;
   var colors = color_by(color_style, visible_atoms, this.conf.colors);
-  var geometry = new THREE.Geometry();
+  var vertex_arr = [];
+  var color_arr = [];
   var opt = { hydrogens: this.conf.hydrogens,
               ligands_only: ligands_only,
               balls: this.conf.render_style === 'ball&stick' };
@@ -453,7 +450,10 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
     var color = colors[i];
     if (ligands_only && !atom.is_ligand) continue;
     if (atom.bonds.length === 0 && !opt.balls) { // nonbonded, draw star
-      add_isolated_atom(geometry, atom, color);
+      add_xyz_cross(vertex_arr, atom.xyz, 0.7);
+      for (var n = 0; n < 6; n++) {
+        color_arr.push(color);
+      }
     } else { // bonded, draw lines
       for (var j = 0; j < atom.bonds.length; j++) {
         var other = this.model.atoms[atom.bonds[j]];
@@ -466,24 +466,23 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
         var vatom = new THREE.Vector3(atom.xyz[0], atom.xyz[1], atom.xyz[2]);
         if (opt.balls) {
           var lerp_factor = vatom.distanceTo(vmid) / ball_size;
-          //color = this.conf.colors.def; // for debugging only
           vatom.lerp(vmid, lerp_factor);
         }
-        geometry.vertices.push(vatom, vmid);
-        geometry.colors.push(color, color);
+        vertex_arr.push(vatom, vmid);
+        color_arr.push(color, color);
       }
     }
   }
+  //console.log('add_bonds() vertex count: ' + vertex_arr.length);
   var linewidth = scale_by_height(this.conf.bond_line, this.win_size);
   var use_gl_lines = this.conf.line_style === 'simplistic';
-  var line_factory = new LineFactory({
+  var material = makeLineMaterial({
     gl_lines: use_gl_lines,
     linewidth: linewidth,
-    size: this.win_size,
-    as_segments: true,
+    win_size: this.win_size,
+    segments: true,
   });
-  //console.log('make_bonds() vertex count: ' + geometry.vertices.length);
-  this.atomic_objects.push(line_factory.make_line_segments(geometry));
+  this.atomic_objects.push(makeLineSegments(material, vertex_arr, color_arr));
   if (opt.balls) {
     this.atomic_objects.push(makeWheels(visible_atoms, colors, ball_size));
   } else if (!use_gl_lines && !ligands_only) {
@@ -492,21 +491,21 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
   }
 };
 
-ModelBag.prototype.add_trace = function (smoothness) {
+ModelBag.prototype.add_trace = function () {
   var segments = this.model.extract_trace();
   var visible_atoms = [].concat.apply([], segments);
   var colors = color_by(this.conf.color_aim, visible_atoms, this.conf.colors);
-  var line_factory = new LineFactory({
+  var material = makeLineMaterial({
     gl_lines: this.conf.line_style === 'simplistic',
     linewidth: scale_by_height(this.conf.bond_line, this.win_size),
-    size: this.win_size,
+    win_size: this.win_size,
   });
   var k = 0;
   for (var i = 0; i < segments.length; i++) {
     var seg = segments[i];
     var color_slice = colors.slice(k, k + seg.length);
     k += seg.length;
-    var line = line_factory.make_line(seg, color_slice, smoothness);
+    var line = makeLine(material, seg, color_slice);
     this.atomic_objects.push(line);
   }
 };
