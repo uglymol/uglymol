@@ -1473,6 +1473,11 @@ ElMap.prototype.isomesh_in_block = function (sigma, method) {
 
 // @flow
 
+/*:: type Num3 = [number, number, number] */
+/*:: type Atom = {xyz: Num3} */
+/*:: type Color = {r: number, g: number, b: number} */
+/*:: type Vector3 = {x: number, y: number, z: number} */
+
 var CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
                   [0, 0, 0], [0, 1, 0],
                   [0, 0, 0], [0, 0, 1],
@@ -1486,40 +1491,46 @@ var CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
                   [1, 1, 0], [1, 1, 1],
                   [0, 1, 1], [1, 1, 1]];
 
-function makeCentralCube(size /*:number*/,
-                                ctr /*:{x:number, y:number, z:number}*/,
-                                color /*:Color*/) {
-  var geometry = new THREE.Geometry();
-  for (var i = 0; i < CUBE_EDGES.length; i++) {
-    var a = CUBE_EDGES[i];
-    var x = ctr.x + size * (a[0] - 0.5);
-    var y = ctr.y + size * (a[1] - 0.5);
-    var z = ctr.z + size * (a[2] - 0.5);
-    geometry.vertices.push(new THREE.Vector3(x, y, z));
-  }
-  var material = new THREE.LineBasicMaterial({color: color, linewidth: 2});
-  return new THREE.LineSegments(geometry, material);
+function makeCube(size /*:number*/,
+                         ctr /*:Vector3*/,
+                         options /*:{[key:string]: any}*/) {
+  var vertices = CUBE_EDGES.map(function (a) {
+    return {
+      x: ctr.x + size * (a[0] - 0.5),
+      y: ctr.y + size * (a[1] - 0.5),
+      z: ctr.z + size * (a[2] - 0.5)};
+  });
+  var material = makeLineMaterial({
+    gl_lines: true,
+    color: options.color,
+    linewidth: options.linewidth,
+    win_size: options.win_size,
+    segments: true,
+  });
+  return makeLineSegments(material, vertices);
 }
 
 // A cube with 3 edges (for x, y, z axes) colored in red, green and blue.
-function makeRgbBox(transform_func /*:number[] => number[]*/,
-                           color /*:Color*/) {
-  var geometry = new THREE.Geometry();
-  for (var i = 0; i < CUBE_EDGES.length; i++) {
-    var xyz = transform_func(CUBE_EDGES[i]);
-    geometry.vertices.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]));
-  }
-  geometry.colors.push(
+function makeRgbBox(transform_func /*:Num3 => Num3*/,
+                           options /*:{[key:string]: any}*/) {
+  // flow-ignore-line - union in makeLineMaterial() confuses flow
+  var vertices = CUBE_EDGES.map(function (a) {
+    return { xyz: transform_func(a) };
+  });
+  var colors = [
     new THREE.Color(0xff0000), new THREE.Color(0xffaa00),
     new THREE.Color(0x00ff00), new THREE.Color(0xaaff00),
-    new THREE.Color(0x0000ff), new THREE.Color(0x00aaff)
-  );
+    new THREE.Color(0x0000ff), new THREE.Color(0x00aaff),
+  ];
   for (var j = 6; j < CUBE_EDGES.length; j++) {
-    geometry.colors.push(color);
+    colors.push(options.color);
   }
-  var material = new THREE.LineBasicMaterial({vertexColors:
-                                                THREE.VertexColors});
-  return new THREE.LineSegments(geometry, material);
+  var material = makeLineMaterial({
+    gl_lines: true,
+    linewidth: 1,
+    segments: true,
+  });
+  return makeLineSegments(material, vertices, colors);
 }
 
 function double_pos(vertex_arr /*:Vector3[] | Atom[]*/) {
@@ -1528,7 +1539,7 @@ function double_pos(vertex_arr /*:Vector3[] | Atom[]*/) {
   if (vertex_arr && vertex_arr[0].xyz) {
     for (i = 0; i < vertex_arr.length; i++) {
       // flow-ignore-line - disjoint unions not smart enough
-      var xyz /*:[number,number,number]*/ = vertex_arr[i].xyz;
+      var xyz /*:Num3*/ = vertex_arr[i].xyz;
       pos.push(xyz[0], xyz[1], xyz[2]);
       pos.push(xyz[0], xyz[1], xyz[2]);
     }
@@ -1604,7 +1615,6 @@ function wide_segments_geometry(vertex_arr, color_arr) {
     side[2*i] = -1;
     side[2*i+1] = 1;
   }
-  var color = double_color(color_arr);
   var index = (2*len < 65536 ? new Uint16Array(3*len)
                              : new Uint32Array(3*len));
   var vert_order = [0, 1, 2, 0, 2, 3];
@@ -1617,7 +1627,10 @@ function wide_segments_geometry(vertex_arr, color_arr) {
   geometry.addAttribute('position', new THREE.BufferAttribute(position, 3));
   geometry.addAttribute('other', new THREE.BufferAttribute(other_vert, 3));
   geometry.addAttribute('side', new THREE.BufferAttribute(side, 1));
-  geometry.addAttribute('color', new THREE.BufferAttribute(color, 3));
+  if (color_arr != null) {
+    var color = double_color(color_arr);
+    geometry.addAttribute('color', new THREE.BufferAttribute(color, 3));
+  }
   geometry.setIndex(new THREE.BufferAttribute(index, 1));
   return geometry;
 }
@@ -1752,7 +1765,7 @@ var ribbon_frag = [
 // 9-line ribbon
 function makeRibbon(vertices /*:Atom[]*/,
                            colors /*:Color[]*/,
-                           tangents /*:Array<[number,number,number]>*/,
+                           tangents /*:Num3[]*/,
                            smoothness /*:number*/) {
   var vertex_arr = interpolate_vertices(vertices, smoothness);
   var color_arr = interpolate_colors(colors, smoothness);
@@ -1881,14 +1894,14 @@ function makeLineMaterial(options /*:{[key: string]: mixed}*/) {
 }
 
 function makeSimpleGeometry(vertices /*:Vector3[] | Atom[]*/,
-                            colors /*:Color[]*/) {
+                            colors /*:?Color[]*/) {
   var geometry = new THREE.BufferGeometry();
   var pos = new Float32Array(vertices.length * 3);
   var i;
   if (vertices && vertices[0].xyz) {
     for (i = 0; i < vertices.length; i++) {
       // flow-ignore-line - disjoint unions not smart enough
-      var xyz /*:[number,number,number]*/ = vertices[i].xyz;
+      var xyz /*:Num3*/ = vertices[i].xyz;
       pos[3*i] = xyz[0];
       pos[3*i+1] = xyz[1];
       pos[3*i+2] = xyz[2];
@@ -1902,15 +1915,17 @@ function makeSimpleGeometry(vertices /*:Vector3[] | Atom[]*/,
       pos[3*i+2] = v.z;
     }
   }
-  var col = new Float32Array(colors.length * 3);
-  for (i = 0; i < colors.length; i++) {
-    var c = colors[i];
-    col[3*i] = c.r;
-    col[3*i+1] = c.g;
-    col[3*i+2] = c.b;
-  }
   geometry.addAttribute('position', new THREE.BufferAttribute(pos, 3));
-  geometry.addAttribute('color', new THREE.BufferAttribute(col, 3));
+  if (colors != null) {
+    var col = new Float32Array(colors.length * 3);
+    for (i = 0; i < colors.length; i++) {
+      var c = colors[i];
+      col[3*i] = c.r;
+      col[3*i+1] = c.g;
+      col[3*i+2] = c.b;
+    }
+    geometry.addAttribute('color', new THREE.BufferAttribute(col, 3));
+  }
   return geometry;
 }
 
@@ -1938,8 +1953,8 @@ function makeThickLineSegments(material, vertices, colors) {
 }
 
 function makeLineSegments(material /*:THREE.Material*/,
-                                 vertices /*:Vector3[]*/,
-                                 colors /*:Color[]*/) {
+                                 vertices /*:Vector3[] | Atom[]*/,
+                                 colors /*:?Color[]*/) {
   if (material.isShaderMaterial) {
     return makeThickLineSegments(material, vertices, colors);
   } else {
@@ -2525,7 +2540,7 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
   var visible_atoms = this.get_visible_atoms();
   var color_style = ligands_only ? 'element' : this.conf.color_aim;
   var colors = color_by(color_style, visible_atoms, this.conf.colors);
-  var vertex_arr = [];
+  var vertex_arr /*:THREE.Vector3[]*/ = [];
   var color_arr = [];
   var opt = { hydrogens: this.conf.hydrogens,
               ligands_only: ligands_only,
@@ -2826,7 +2841,11 @@ Viewer.prototype.redraw_center = function () {
     if (this.mark) {
       this.scene.remove(this.mark);
     }
-    this.mark = makeCentralCube(0.1, this.target, this.config.colors.center);
+    this.mark = makeCube(0.1, this.target, {
+      color: this.config.colors.center,
+      linewidth: 2,
+      win_size: this.window_size,
+    });
     this.scene.add(this.mark);
   }
 };
@@ -3079,8 +3098,9 @@ Viewer.prototype.toggle_cell_box = function () {
       uc = this.map_bags[0].map.unit_cell;
     }
     if (uc) {
-      this.decor.cell_box = makeRgbBox(uc.orthogonalize,
-                                       this.config.colors.cell_box);
+      this.decor.cell_box = makeRgbBox(uc.orthogonalize, {
+        color: this.config.colors.cell_box,
+      });
       this.scene.add(this.decor.cell_box);
     }
   }
@@ -3868,7 +3888,7 @@ exports.UnitCell = UnitCell;
 exports.Model = Model;
 exports.isosurface = isosurface;
 exports.ElMap = ElMap;
-exports.makeCentralCube = makeCentralCube;
+exports.makeCube = makeCube;
 exports.makeRgbBox = makeRgbBox;
 exports.makeRibbon = makeRibbon;
 exports.makeChickenWire = makeChickenWire;

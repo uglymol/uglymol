@@ -2,7 +2,7 @@
 
 import * as THREE from 'three';
 import { makeLineMaterial, makeLineSegments, makeLine, makeRibbon,
-         makeChickenWire, makeGrid, makeWheels, makeCentralCube,
+         makeChickenWire, makeGrid, makeWheels, makeCube,
          makeRgbBox, makeLabel } from './lines.js';
 import { ElMap } from './elmap.js';
 import { Model } from './model.js';
@@ -440,7 +440,7 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
   var visible_atoms = this.get_visible_atoms();
   var color_style = ligands_only ? 'element' : this.conf.color_aim;
   var colors = color_by(color_style, visible_atoms, this.conf.colors);
-  var vertex_arr = [];
+  var vertex_arr /*:THREE.Vector3[]*/ = [];
   var color_arr = [];
   var opt = { hydrogens: this.conf.hydrogens,
               ligands_only: ligands_only,
@@ -741,7 +741,11 @@ Viewer.prototype.redraw_center = function () {
     if (this.mark) {
       this.scene.remove(this.mark);
     }
-    this.mark = makeCentralCube(0.1, this.target, this.config.colors.center);
+    this.mark = makeCube(0.1, this.target, {
+      color: this.config.colors.center,
+      linewidth: 2,
+      win_size: this.window_size,
+    });
     this.scene.add(this.mark);
   }
 };
@@ -994,8 +998,9 @@ Viewer.prototype.toggle_cell_box = function () {
       uc = this.map_bags[0].map.unit_cell;
     }
     if (uc) {
-      this.decor.cell_box = makeRgbBox(uc.orthogonalize,
-                                       this.config.colors.cell_box);
+      this.decor.cell_box = makeRgbBox(uc.orthogonalize, {
+        color: this.config.colors.cell_box,
+      });
       this.scene.add(this.decor.cell_box);
     }
   }
