@@ -2659,6 +2659,8 @@ function Viewer(options /*: {[key: string]: any}*/) {
     this.controls = new Controls(this.camera, this.target);
   }
   this.raycaster = new THREE.Raycaster();
+  this.set_common_key_bindings();
+  if (this.constructor === Viewer) this.set_real_space_key_bindings();
   if (typeof document === 'undefined') return;  // for testing on node
 
   try {
@@ -3120,47 +3122,54 @@ Viewer.prototype.redraw_all = function () {
   this.redraw_labels();
 };
 
-Viewer.toggle_help = function (el) {
+Viewer.prototype.toggle_help = function (el) {
   if (!el) return;
   el.style.display = el.style.display === 'block' ? 'none' : 'block';
   if (el.innerHTML === '') {
-    el.innerHTML = [
-      '<b>mouse:</b>',
-      'Left = rotate',
-      'Middle or Ctrl+Left = pan',
-      'Right = zoom',
-      'Ctrl+Right = clipping',
-      'Ctrl+Shift+Right = roll',
-      'Wheel = σ level',
-      'Shift+Wheel = diff map σ',
-
-      '\n<b>keyboard:</b>',
-      'H = toggle help',
-      'T = representation',
-      'C = coloring',
-      'B = bg color',
-      'Q = label font',
-      '+/- = sigma level',
-      ']/[ = map radius',
-      'D/F = clip width',
-      'numpad 3/. = move clip',
-      'M/N = zoom',
-      'U = unitcell box',
-      'Y = hydrogens',
-      'R = center view',
-      'W = wireframe style',
-      'I = spin',
-      'K = rock',
-      'Home/End = bond width',
-      '\\ = bond caps',
-      'P = nearest Cα',
-      'Shift+P = permalink',
-      '(Shift+)space = next res.',
-      'Shift+F = full screen',
-
-      '\n<a href="https://uglymol.github.io">about uglymol</a>'].join('\n');
+    el.innerHTML = [this.MOUSE_HELP, this.KEYBOARD_HELP,
+                    this.ABOUT_HELP].join('\n\n');
   }
 };
+
+Viewer.prototype.MOUSE_HELP = [
+  '<b>mouse:</b>',
+  'Left = rotate',
+  'Middle or Ctrl+Left = pan',
+  'Right = zoom',
+  'Ctrl+Right = clipping',
+  'Ctrl+Shift+Right = roll',
+  'Wheel = σ level',
+  'Shift+Wheel = diff map σ',
+].join('\n');
+
+Viewer.prototype.KEYBOARD_HELP = [
+  '<b>keyboard:</b>',
+  'H = toggle help',
+  'T = representation',
+  'C = coloring',
+  'B = bg color',
+  'Q = label font',
+  '+/- = sigma level',
+  ']/[ = map radius',
+  'D/F = clip width',
+  'numpad 3/. = move clip',
+  'M/N = zoom',
+  'U = unitcell box',
+  'Y = hydrogens',
+  'R = center view',
+  'W = wireframe style',
+  'I = spin',
+  'K = rock',
+  'Home/End = bond width',
+  '\\ = bond caps',
+  'P = nearest Cα',
+  'Shift+P = permalink',
+  '(Shift+)space = next res.',
+  'Shift+F = full screen',
+].join('\n');
+
+Viewer.prototype.ABOUT_HELP =
+  '<a href="https://uglymol.github.io">about uglymol</a>';
 
 Viewer.prototype.select_next = function (info, key, options, back) {
   var old_idx = options.indexOf(this.config[key]);
@@ -3176,135 +3185,140 @@ Viewer.prototype.select_next = function (info, key, options, back) {
   this.hud(html, 'HTML');
 };
 
-Viewer.prototype.keydown = function (evt) {  // eslint-disable-line complexity
-  var key = evt.keyCode;
-  if (this.custom_keydown && key in this.custom_keydown) {
-    (this.custom_keydown[key])(evt);
-    this.request_render();
-    return;
-  }
-  switch (key) {
-    case 84:  // t
-      this.select_next('rendering as', 'render_style', RENDER_STYLES,
-                       evt.shiftKey);
-      this.redraw_models();
-      break;
-    case 66:  // b
-      this.select_next('color scheme', 'colors', ColorSchemes, evt.shiftKey);
-      this.set_colors(this.config.colors);
-      break;
-    case 67:  // c
-      this.select_next('coloring by', 'color_aim', COLOR_AIMS, evt.shiftKey);
-      this.redraw_models();
-      break;
-    case 87:  // w
-      this.select_next('map style', 'map_style', MAP_STYLES, evt.shiftKey);
-      this.redraw_maps(true);
-      break;
-    case 89:  // y
-      this.config.hydrogens = !this.config.hydrogens;
-      this.hud((this.config.hydrogens ? 'show' : 'hide') +
-               ' hydrogens (if any)');
-      this.redraw_models();
-      break;
-    case 220:  // \ (backslash)
-      this.select_next('bond lines', 'line_style', LINE_STYLES, evt.shiftKey);
-      this.redraw_models();
-      break;
-    case 107:  // add
-    case 61:  // equals/firefox
-    case 187:  // equal sign
-      this.change_isolevel_by(evt.shiftKey ? 1 : 0, 0.1);
-      break;
-    case 109:  // subtract
-    case 173:  // minus/firefox
-    case 189:  // dash
-      this.change_isolevel_by(evt.shiftKey ? 1 : 0, -0.1);
-      break;
-    case 219:  // [
-      this.change_map_radius(-2);
-      break;
-    case 221:  // ]
-      this.change_map_radius(2);
-      break;
-    case 68:  // d
-      this.change_slab_width_by(-0.1);
-      break;
-    case 70:  // f
-      if (evt.shiftKey) {
-        this.toggle_full_screen();
-      } else {
-        this.change_slab_width_by(0.1);
-      }
-      break;
-    case 77:  // m
-      this.change_zoom_by_factor(evt.shiftKey ? 1.2 : 1.03);
-      break;
-    case 78:  // n
-      this.change_zoom_by_factor(1 / (evt.shiftKey ? 1.2 : 1.03));
-      break;
-    case 80:  // p
-      evt.shiftKey ? this.permalink() : this.go_to_nearest_Ca();
-      break;
-    case 51:  // 3
-    case 99:  // numpad 3
-      this.shift_clip(true);
-      break;
-    case 108:  // numpad period (Linux)
-    case 110:  // decimal point (Mac)
-      this.shift_clip(false);
-      break;
-    case 85:  // u
-      this.hud('toggled unit cell box');
-      this.toggle_cell_box();
-      break;
-    case 73:  // i
-      this.hud('toggled spinning');
-      this.controls.toggle_auto(evt.shiftKey);
-      break;
-    case 75:  // k
-      this.hud('toggled rocking');
-      this.controls.toggle_auto(0.0);
-      break;
-    case 81:  // q
-      this.select_next('label font', 'label_font', LABEL_FONTS, evt.shiftKey);
-      this.redraw_labels();
-      break;
-    case 82:  // r
-      if (evt.shiftKey) {
-        this.hud('redraw!');
-        this.redraw_all();
-      } else {
-        this.hud('model recentered');
-        this.recenter();
-      }
-      break;
-    case 72:  // h
-      Viewer.toggle_help(this.help_el);
-      break;
-    case 36: // Home
-      evt.ctrlKey ? this.change_map_line(0.1) : this.change_bond_line(0.2);
-      break;
-    case 35: // End
-      evt.ctrlKey ? this.change_map_line(-0.1) : this.change_bond_line(-0.2);
-      break;
-    case 16: // shift
-    case 17: // ctrl
-    case 18: // alt
-    case 225: // altgr
-      break;
-    case 32: // Space
-      this.center_next_residue(evt.shiftKey);
-      break;
-    case 191: // slash
-    case 222: // single quote
-      evt.preventDefault();  // disable search bar in Firefox
-      // fallthrough
-    default:
-      if (this.help_el) this.hud('Nothing here. Press H for help.');
-      break;
+Viewer.prototype.keydown = function (evt) {
+  var action = this.key_bindings[evt.keyCode];
+  if (action) {
+    (action.bind(this))(evt);
+  } else {
+    if (action === false) evt.preventDefault();
+    if (this.help_el) this.hud('Nothing here. Press H for help.');
   }
   this.request_render();
+};
+
+Viewer.prototype.set_common_key_bindings = function () {
+  var kb = new Array(256);
+  // Home
+  kb[36] = function (evt) {
+    evt.ctrlKey ? this.change_map_line(0.1) : this.change_bond_line(0.2);
+  };
+  // End
+  kb[35] = function (evt) {
+    evt.ctrlKey ? this.change_map_line(-0.1) : this.change_bond_line(-0.2);
+  };
+  // b
+  kb[66] = function (evt) {
+    this.select_next('color scheme', 'colors', ColorSchemes, evt.shiftKey);
+    this.set_colors(this.config.colors);
+  };
+  // c
+  kb[67] = function (evt) {
+    this.select_next('coloring by', 'color_aim', COLOR_AIMS, evt.shiftKey);
+    this.redraw_models();
+  };
+  // d
+  kb[68] = function () { this.change_slab_width_by(-0.1); };
+  // f
+  kb[70] = function (evt) {
+    evt.shiftKey ? this.toggle_full_screen() : this.change_slab_width_by(0.1);
+  };
+  // h
+  kb[72] = function () {
+    this.toggle_help(this.help_el);
+  };
+  // i
+  kb[73] = function (evt) {
+    this.hud('toggled spinning');
+    this.controls.toggle_auto(evt.shiftKey);
+  };
+  // k
+  kb[75] = function () {
+    this.hud('toggled rocking');
+    this.controls.toggle_auto(0.0);
+  };
+  // m
+  kb[77] = function (evt) {
+    this.change_zoom_by_factor(evt.shiftKey ? 1.2 : 1.03);
+  };
+  // n
+  kb[78] = function (evt) {
+    this.change_zoom_by_factor(1 / (evt.shiftKey ? 1.2 : 1.03));
+  };
+  // q
+  kb[81] = function (evt) {
+    this.select_next('label font', 'label_font', LABEL_FONTS, evt.shiftKey);
+    this.redraw_labels();
+  };
+  // r
+  kb[82] = function (evt) {
+    if (evt.shiftKey) {
+      this.hud('redraw!');
+      this.redraw_all();
+    } else {
+      this.hud('recentered');
+      this.recenter();
+    }
+  };
+  // u
+  kb[85] = function () {
+    this.hud('toggled unit cell box');
+    this.toggle_cell_box();
+  };
+  // w
+  kb[87] = function (evt) {
+    this.select_next('map style', 'map_style', MAP_STYLES, evt.shiftKey);
+    this.redraw_maps(true);
+  };
+  // add, equals/firefox, equal sign
+  kb[107] = kb[61] = kb[187] = function (evt) {
+    this.change_isolevel_by(evt.shiftKey ? 1 : 0, 0.1);
+  };
+  // subtract, minus/firefox, dash
+  kb[109] = kb[173] = kb[189] = function (evt) {
+    this.change_isolevel_by(evt.shiftKey ? 1 : 0, -0.1);
+  };
+  // [
+  kb[219] = function () { this.change_map_radius(-2); };
+  // ]
+  kb[221] = function () { this.change_map_radius(2); };
+  // \ (backslash)
+  kb[220] = function (evt) {
+    this.select_next('bond lines', 'line_style', LINE_STYLES, evt.shiftKey);
+    this.redraw_models();
+  };
+  // 3, numpad 3
+  kb[51] = kb[99] = function () { this.shift_clip(true); };
+  // numpad period (Linux), decimal point (Mac)
+  kb[108] = kb[110] = function (evt) { this.shift_clip(false); };
+  // shift, ctrl, alt, altgr
+  kb[16] = kb[17] = kb[18] = kb[225] = function () {};
+  // slash, single quote
+  kb[191] = kb[222] = false;  // -> preventDefault()
+
+  this.key_bindings = kb;
+};
+
+Viewer.prototype.set_real_space_key_bindings = function () {
+  var kb = this.key_bindings;
+  // Space
+  kb[32] = function (evt) { this.center_next_residue(evt.shiftKey); };
+  // p
+  kb[80] = function (evt) {
+    evt.shiftKey ? this.permalink() : this.go_to_nearest_Ca();
+  };
+  // t
+  kb[84] = function (evt) {
+    this.select_next('rendering as', 'render_style', RENDER_STYLES,
+                     evt.shiftKey);
+    this.redraw_models();
+  };
+  // y
+  kb[89] = function (evt) {
+    this.config.hydrogens = !this.config.hydrogens;
+    this.hud((this.config.hydrogens ? 'show' : 'hide') +
+             ' hydrogens (if any)');
+    this.redraw_models();
+  };
 };
 
 Viewer.prototype.mousedown = function (event) {
@@ -3685,19 +3699,45 @@ function ReciprocalViewer(options /*: {[key: string]: any}*/) {
   Viewer.call(this, options);
   this.points = null;
   this.config.show_only = SPOT_SEL[0];
-  var self = this;
-  this.custom_keydown = {
-    86/*v*/: function (evt) {
-      self.select_next('show', 'show_only', SPOT_SEL, evt.shiftKey);
-      var show_only = self.points.material.uniforms.show_only;
-      var sel_map = { 'all': -2, 'indexed': 0, 'not indexed': -1 };
-      show_only.value = sel_map[self.config.show_only];
-    },
-  };
+  this.set_reciprocal_key_bindings();
 }
 
 ReciprocalViewer.prototype = Object.create(Viewer.prototype);
 ReciprocalViewer.prototype.constructor = ReciprocalViewer;
+
+ReciprocalViewer.prototype.KEYBOARD_HELP = [
+  '<b>keyboard:</b>',
+  'H = toggle help',
+  'V = show (un)indexed',
+  //'A = toggle axes',
+  'B = bg color',
+  'M/N = zoom',
+  'R = center view',
+  'Home/End = point size',
+  'Shift+P = permalink',
+  'Shift+F = full screen',
+].join('\n');
+
+ReciprocalViewer.prototype.set_reciprocal_key_bindings = function () {
+  var kb = this.key_bindings;
+  // p
+  kb[80] = function (evt) { this.permalink(); };
+  // v
+  kb[86] = function (evt) {
+    this.select_next('show', 'show_only', SPOT_SEL, evt.shiftKey);
+    var show_only = this.points.material.uniforms.show_only;
+    var sel_map = { 'all': -2, 'indexed': 0, 'not indexed': -1 };
+    show_only.value = sel_map[this.config.show_only];
+  };
+  // Home
+  kb[36] = function (evt) {
+    evt.ctrlKey ? this.change_map_line(0.1) : this.change_point_size(0.5);
+  };
+  // End
+  kb[35] = function (evt) {
+    evt.ctrlKey ? this.change_map_line(-0.1) : this.change_point_size(-0.5);
+  };
+};
 
 ReciprocalViewer.prototype.load_data = function (url, options) {
   options = options || {};
@@ -3789,17 +3829,17 @@ ReciprocalViewer.prototype.add_points = function (pos, experiment_ids) {
   this.request_render();
 };
 
+ReciprocalViewer.prototype.redraw_center = function () {};
+
 // temporary hack
 ReciprocalViewer.prototype.change_isolevel_by = function (map_idx, delta) {
   this.change_zoom_by_factor(1 + delta);
 };
 
-ReciprocalViewer.prototype.redraw_center = function () {};
-
-ReciprocalViewer.prototype.change_bond_line = function (delta) {
+ReciprocalViewer.prototype.change_point_size = function (delta) {
   if (this.points === null) return;
   var size = this.points.material.uniforms.size;
-  size.value = Math.max(size.value + (delta > 0 ? 0.5 : -0.5), 0.5);
+  size.value = Math.max(size.value + delta, 0.5);
   this.hud('point size: ' + size.value.toFixed(1));
 };
 

@@ -9,19 +9,45 @@ export function ReciprocalViewer(options /*: {[key: string]: any}*/) {
   Viewer.call(this, options);
   this.points = null;
   this.config.show_only = SPOT_SEL[0];
-  var self = this;
-  this.custom_keydown = {
-    86/*v*/: function (evt) {
-      self.select_next('show', 'show_only', SPOT_SEL, evt.shiftKey);
-      var show_only = self.points.material.uniforms.show_only;
-      var sel_map = { 'all': -2, 'indexed': 0, 'not indexed': -1 };
-      show_only.value = sel_map[self.config.show_only];
-    },
-  };
+  this.set_reciprocal_key_bindings();
 }
 
 ReciprocalViewer.prototype = Object.create(Viewer.prototype);
 ReciprocalViewer.prototype.constructor = ReciprocalViewer;
+
+ReciprocalViewer.prototype.KEYBOARD_HELP = [
+  '<b>keyboard:</b>',
+  'H = toggle help',
+  'V = show (un)indexed',
+  //'A = toggle axes',
+  'B = bg color',
+  'M/N = zoom',
+  'R = center view',
+  'Home/End = point size',
+  'Shift+P = permalink',
+  'Shift+F = full screen',
+].join('\n');
+
+ReciprocalViewer.prototype.set_reciprocal_key_bindings = function () {
+  var kb = this.key_bindings;
+  // p
+  kb[80] = function (evt) { this.permalink(); };
+  // v
+  kb[86] = function (evt) {
+    this.select_next('show', 'show_only', SPOT_SEL, evt.shiftKey);
+    var show_only = this.points.material.uniforms.show_only;
+    var sel_map = { 'all': -2, 'indexed': 0, 'not indexed': -1 };
+    show_only.value = sel_map[this.config.show_only];
+  };
+  // Home
+  kb[36] = function (evt) {
+    evt.ctrlKey ? this.change_map_line(0.1) : this.change_point_size(0.5);
+  };
+  // End
+  kb[35] = function (evt) {
+    evt.ctrlKey ? this.change_map_line(-0.1) : this.change_point_size(-0.5);
+  };
+};
 
 ReciprocalViewer.prototype.load_data = function (url, options) {
   options = options || {};
@@ -113,16 +139,16 @@ ReciprocalViewer.prototype.add_points = function (pos, experiment_ids) {
   this.request_render();
 };
 
+ReciprocalViewer.prototype.redraw_center = function () {};
+
 // temporary hack
 ReciprocalViewer.prototype.change_isolevel_by = function (map_idx, delta) {
   this.change_zoom_by_factor(1 + delta);
 };
 
-ReciprocalViewer.prototype.redraw_center = function () {};
-
-ReciprocalViewer.prototype.change_bond_line = function (delta) {
+ReciprocalViewer.prototype.change_point_size = function (delta) {
   if (this.points === null) return;
   var size = this.points.material.uniforms.size;
-  size.value = Math.max(size.value + (delta > 0 ? 0.5 : -0.5), 0.5);
+  size.value = Math.max(size.value + delta, 0.5);
   this.hud('point size: ' + size.value.toFixed(1));
 };
