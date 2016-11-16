@@ -8,15 +8,15 @@ import { ElMap } from './elmap.js';
 import { Model } from './model.js';
 
 
-var ColorSchemes = [ // accessible as Viewer.ColorSchemes
+var ColorSchemes = [ // Viewer.prototype.ColorSchemes
   { // generally mimicks Coot
     name: 'coot dark',
     bg: 0x000000,
+    fg: 0xFFFFFF,
     map_den: 0x3362B2,
     map_pos: 0x298029,
     map_neg: 0x8B2E2E,
     center: 0xC997B0,
-    cell_box: 0xFFFFFF,
     // atoms
     H: 0x858585, // H is normally invisible
     // C, N and O are taken approximately (by color-picker) from coot
@@ -42,11 +42,11 @@ var ColorSchemes = [ // accessible as Viewer.ColorSchemes
   {
     name: 'solarized dark',
     bg: 0x002b36,
+    fg: 0xfdf6e3,
     map_den: 0x268bd2,
     map_pos: 0x859900,
     map_neg: 0xd33682,
     center: 0xfdf6e3,
-    cell_box: 0xfdf6e3,
     H: 0x586e75,
     C: 0x93a1a1,
     N: 0x6c71c4,
@@ -57,11 +57,11 @@ var ColorSchemes = [ // accessible as Viewer.ColorSchemes
   {
     name: 'solarized light',
     bg: 0xfdf6e3,
+    fg: 0x002b36,
     map_den: 0x268bd2,
     map_pos: 0x859900,
     map_neg: 0xd33682,
     center: 0x002b36,
-    cell_box: 0x002b36,
     H: 0x93a1a1,
     C: 0x586e75,
     N: 0x6c71c4,
@@ -72,11 +72,11 @@ var ColorSchemes = [ // accessible as Viewer.ColorSchemes
   { // like in Coot after Edit > Background Color > White
     name: 'coot light',
     bg: 0xFFFFFF,
+    fg: 0x000000,
     map_den: 0x3362B2,
     map_pos: 0x298029,
     map_neg: 0x8B2E2E,
     center: 0xC7C769,
-    cell_box: 0x000000,
     H: 0x999999,
     C: 0xA96464,
     N: 0x1C51B3,
@@ -545,7 +545,7 @@ export function Viewer(options /*: {[key: string]: any}*/) {
     color_aim: COLOR_AIMS[0],
     line_style: LINE_STYLES[0],
     label_font: LABEL_FONTS[0],
-    colors: ColorSchemes[0],
+    colors: this.ColorSchemes[0],
     hydrogens: false,
   };
   this.set_colors();
@@ -670,14 +670,15 @@ Viewer.prototype.pick_atom = function (coords, camera) {
 };
 
 Viewer.prototype.set_colors = function (scheme) {
+  function to_col(x) { return new THREE.Color(x); }
   if (scheme == null) {
-    scheme = ColorSchemes[0];
+    scheme = this.ColorSchemes[0];
   } else if (typeof scheme === 'number') {
-    scheme = ColorSchemes[scheme % ColorSchemes.length];
+    scheme = this.ColorSchemes[scheme % this.ColorSchemes.length];
   } else if (typeof scheme === 'string') {
-    for (var i = 0; i !== ColorSchemes.length; i++) {
-      if (ColorSchemes[i].name === scheme) {
-        scheme = ColorSchemes[i];
+    for (var i = 0; i !== this.ColorSchemes.length; i++) {
+      if (this.ColorSchemes[i].name === scheme) {
+        scheme = this.ColorSchemes[i];
         break;
       }
     }
@@ -686,11 +687,12 @@ Viewer.prototype.set_colors = function (scheme) {
   if (typeof scheme.bg === 'number') {
     for (var key in scheme) {
       if (key !== 'name') {
-        scheme[key] = new THREE.Color(scheme[key]);
+        scheme[key] = scheme[key] instanceof Array ? scheme[key].map(to_col)
+                                                   : to_col(scheme[key]);
       }
     }
   }
-  this.decor.zoom_grid.color_value.set(scheme.cell_box);
+  this.decor.zoom_grid.color_value.set(scheme.fg);
   this.redraw_all();
 };
 
@@ -816,7 +818,7 @@ Viewer.prototype.toggle_label = function (atom, show) {
     var label = makeLabel(text, {
       pos: atom.xyz,
       font: this.config.label_font,
-      color: '#' + this.config.colors.cell_box.getHexString(),
+      color: '#' + this.config.colors.fg.getHexString(),
       win_size: this.window_size,
     });
     if (!label) return;
@@ -834,7 +836,7 @@ Viewer.prototype.redraw_labels = function () {
     var text = uid;
     this.labels[uid].remake(text, {
       font: this.config.label_font,
-      color: '#' + this.config.colors.cell_box.getHexString(),
+      color: '#' + this.config.colors.fg.getHexString(),
     });
   }
 };
@@ -988,7 +990,7 @@ Viewer.prototype.toggle_cell_box = function () {
     }
     if (uc) {
       this.decor.cell_box = makeRgbBox(uc.orthogonalize, {
-        color: this.config.colors.cell_box,
+        color: this.config.colors.fg,
       });
       this.scene.add(this.decor.cell_box);
     }
@@ -1125,7 +1127,7 @@ Viewer.prototype.set_common_key_bindings = function () {
   };
   // b
   kb[66] = function (evt) {
-    this.select_next('color scheme', 'colors', ColorSchemes, evt.shiftKey);
+    this.select_next('color scheme', 'colors', this.ColorSchemes, evt.shiftKey);
     this.set_colors(this.config.colors);
   };
   // c
@@ -1329,10 +1331,13 @@ Viewer.prototype.mousewheel = function (evt) {
   evt.preventDefault();
   evt.stopPropagation();
   // evt.wheelDelta for WebKit, evt.detail for Firefox
-  var delta = evt.wheelDelta ? evt.wheelDelta / 2000
-                             : (evt.detail || 0) / -1000;
-  this.change_isolevel_by(evt.shiftKey ? 1 : 0, delta);
+  var delta = evt.wheelDelta || -2 * (evt.detail || 0);
+  this.mousewheel_action(delta, evt);
   this.request_render();
+};
+
+Viewer.prototype.mousewheel_action = function (delta, evt) {
+  this.change_isolevel_by(evt.shiftKey ? 1 : 0, 0.0005 * delta);
 };
 
 Viewer.prototype.resize = function (/*evt*/) {
@@ -1606,6 +1611,6 @@ Viewer.prototype.show_nav = function (inset_id) {
 };
 */
 
-Viewer.ColorSchemes = ColorSchemes;
+Viewer.prototype.ColorSchemes = ColorSchemes;
 Viewer.auto_speed = auto_speed;
 

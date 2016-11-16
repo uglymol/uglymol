@@ -5,11 +5,16 @@ import * as THREE from 'three';
 
 
 var SPOT_SEL = ['all', 'indexed', 'not indexed'];
+var SHOW_AXES = ['three', 'two', 'none'];
 
 export function ReciprocalViewer(options /*: {[key: string]: any}*/) {
   Viewer.call(this, options);
+  this.axes = null;
   this.points = null;
+  this.max_dist = null;
+  this.data = null;
   this.config.show_only = SPOT_SEL[0];
+  this.config.show_axes = SHOW_AXES[0];
   this.set_reciprocal_key_bindings();
 }
 
@@ -20,7 +25,7 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
   '<b>keyboard:</b>',
   'H = toggle help',
   'V = show (un)indexed',
-  //'A = toggle axes',
+  'A = toggle axes',
   'B = bg color',
   'M/N = zoom',
   'R = center view',
@@ -31,6 +36,11 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
 
 ReciprocalViewer.prototype.set_reciprocal_key_bindings = function () {
   var kb = this.key_bindings;
+  // a
+  kb[65] = function (evt) {
+    this.select_next('axes', 'show_axes', SHOW_AXES, evt.shiftKey);
+    this.set_axes();
+  };
   // p
   kb[80] = function (evt) { this.permalink(); };
   // v
@@ -52,53 +62,52 @@ ReciprocalViewer.prototype.set_reciprocal_key_bindings = function () {
 
 ReciprocalViewer.prototype.load_data = function (url, options) {
   options = options || {};
-
   var self = this;
   this.load_file(url, false, function (req) {
-    var lines = req.responseText.split('\n').filter(function (line) {
-      return line.length > 0 && line[0] !== '#';
-    });
-    var pos = new Float32Array(lines.length * 3);
-    var experiment_ids = [];
-    var n_col = 5;
-    var bounds = [];
-    var i;
-    for (i = 0; i < n_col; i++) {
-      bounds.push([Infinity, -Infinity]);
-    }
-    for (i = 0; i < lines.length; i++) {
-      var line = lines[i];
-      var nums = line.split(',').map(Number);
-      var j;
-      for (j = 0; j < 3; j++) {
-        pos[3*i+j] = nums[j];
-      }
-      for (j = 0; j < n_col; j++) {
-        if (nums[j] < bounds[j][0]) bounds[j][0] = nums[j];
-        if (nums[j] > bounds[j][1]) bounds[j][1] = nums[j];
-      }
-      experiment_ids.push(nums[3]);
-    }
-    var xyz_bounds = [].concat.apply([], bounds.slice(0, 3));
-    var axis_length = Math.max.apply(null, xyz_bounds.map(Math.abs));
-    self.add_axes(1.2 * axis_length);
-    self.add_points(pos, experiment_ids);
+    self.parse_data(req.responseText);
+    self.set_axes();
+    self.set_points();
     self.camera.zoom = 0.5 * (self.camera.top - self.camera.bottom);
-
     self.set_view(options);
     if (options.callback) options.callback();
-    //self.redraw_center();
   });
 };
 
-ReciprocalViewer.prototype.add_axes = function (r) {
+ReciprocalViewer.prototype.parse_data = function (text) {
+  var lines = text.split('\n').filter(function (line) {
+    return line.length > 0 && line[0] !== '#';
+  });
+  var pos = new Float32Array(lines.length * 3);
+  var lattice_ids = [];
+  var max_sq = 0;
+  for (var i = 0; i < lines.length; i++) {
+    var nums = lines[i].split(',').map(Number);
+    var sq = nums[0]*nums[0] + nums[1]*nums[1] + nums[2]*nums[2];
+    if (sq > max_sq) max_sq = sq;
+    for (var j = 0; j < 3; j++) {
+      pos[3*i+j] = nums[j];
+    }
+    lattice_ids.push(nums[3]);
+  }
+  this.max_dist = Math.sqrt(max_sq);
+  this.data = { pos: pos, lattice_ids: lattice_ids };
+};
+
+ReciprocalViewer.prototype.set_axes = function () {
+  if (this.axes != null) {
+    this.remove_and_dispose(this.axes);
+    this.axes = null;
+  }
+  if (this.config.show_axes === 'none') return;
+  var axis_length = 1.2 * this.max_dist;
   var vertices = [];
-  addXyzCross(vertices, [0, 0, 0], r);
-  var colors = [
-    new THREE.Color(0xff0000), new THREE.Color(0xffaa00),
-    new THREE.Color(0x00ff00), new THREE.Color(0xaaff00),
-    new THREE.Color(0x0000ff), new THREE.Color(0x00aaff),
-  ];
+  addXyzCross(vertices, [0, 0, 0], axis_length);
+  var ca = this.config.colors.axes;
+  var colors = [ca[0], ca[0], ca[1], ca[1], ca[2], ca[2]];
+  if (this.config.show_axes === 'two') {
+    vertices.splice(4);
+    colors.splice(4);
+  }
   var material = makeLineMaterial({
     win_size: this.window_size,
     linewidth: 3,
@@ -109,47 +118,46 @@ ReciprocalViewer.prototype.add_axes = function (r) {
 };
 
 var point_vert = [
+  'attribute float group;',
+  'uniform float show_only;',
   'uniform float size;',
   'varying vec3 vcolor;',
+  'varying float vsel;',
   'void main() {',
   '  vcolor = color;',
+  '  vsel = show_only == -2.0 || show_only == group ? 1.0 : 0.0;',
   '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
   '  gl_PointSize = size;',
   '}'].join('\n');
 
 var point_frag = [
-  'uniform int show_only;',
   'varying vec3 vcolor;',
+  'varying float vsel;',
   'void main() {',
-    // FIXME
-  '  if (show_only == -1 && vcolor.r != 1.0 || ',
-  '      show_only == 0 && vcolor.g != 1.0) discard;',
-  // not sure how portable it is
+  // not sure how reliable is such rounding of points
   '  vec2 diff = gl_PointCoord - vec2(0.5, 0.5);',
   '  float dist_sq = 4.0 * dot(diff, diff);',
-  '  if (dist_sq >= 1.0) discard;',
+  '  if (vsel == 0.0 || dist_sq >= 1.0) discard;',
   '  gl_FragColor = vec4(vcolor, 1.0 - dist_sq * dist_sq * dist_sq);',
   '}'].join('\n');
 
 
-ReciprocalViewer.prototype.add_points = function (pos, experiment_ids) {
-  var colors = new Float32Array(3 * experiment_ids.length);
-  for (var i = 0; i < experiment_ids.length; i++) {
-    var col = experiment_ids[i] === -1 ? [1, 0, 0] : [0, 1, 0];
-    colors[3*i] = col[0];
-    colors[3*i+1] = col[1];
-    colors[3*i+2] = col[2];
-  }
-
+ReciprocalViewer.prototype.set_points = function () {
+  if (this.data == null) return;
+  var pos = this.data.pos;
+  var lattice_ids = this.data.lattice_ids;
+  var color_arr = new Float32Array(3 * lattice_ids.length);
+  this.colorize_by_id(color_arr, lattice_ids);
   var geometry = new THREE.BufferGeometry();
   geometry.addAttribute('position', new THREE.BufferAttribute(pos, 3));
-  geometry.addAttribute('color', new THREE.BufferAttribute(colors, 3));
-  var uniforms = {
-    size: { value: 3 },
-    show_only: { value: -2 },
-  };
+  geometry.addAttribute('color', new THREE.BufferAttribute(color_arr, 3));
+  var groups = new Float32Array(lattice_ids);
+  geometry.addAttribute('group', new THREE.BufferAttribute(groups, 1));
   var material = new THREE.ShaderMaterial({
-    uniforms: uniforms,
+    uniforms: {
+      size: { value: 3 },
+      show_only: { value: -2 },
+    },
     vertexShader: point_vert,
     fragmentShader: point_frag,
     vertexColors: THREE.VertexColors,
@@ -160,11 +168,20 @@ ReciprocalViewer.prototype.add_points = function (pos, experiment_ids) {
   this.request_render();
 };
 
+ReciprocalViewer.prototype.colorize_by_id = function (color_arr, group_id) {
+  var palette = this.config.colors.lattices;
+  for (var i = 0; i < group_id.length; i++) {
+    var c = palette[(group_id[i] + 1) % 4];
+    color_arr[3*i] = c.r;
+    color_arr[3*i+1] = c.g;
+    color_arr[3*i+2] = c.b;
+  }
+};
+
 ReciprocalViewer.prototype.redraw_center = function () {};
 
-// temporary hack
-ReciprocalViewer.prototype.change_isolevel_by = function (map_idx, delta) {
-  this.change_zoom_by_factor(1 + delta);
+ReciprocalViewer.prototype.mousewheel_action = function (delta, evt) {
+  this.change_zoom_by_factor(1 + 0.0005 * delta);
 };
 
 ReciprocalViewer.prototype.change_point_size = function (delta) {
@@ -173,3 +190,27 @@ ReciprocalViewer.prototype.change_point_size = function (delta) {
   size.value = Math.max(size.value + delta, 0.5);
   this.hud('point size: ' + size.value.toFixed(1));
 };
+
+ReciprocalViewer.prototype.redraw_models = function () {
+  if (this.points) this.remove_and_dispose(this.points);
+  this.set_points();
+};
+
+ReciprocalViewer.prototype.ColorSchemes = [
+  {
+    name: 'solarized dark',
+    bg: 0x002b36,
+    fg: 0xfdf6e3,
+    lattices: [0xdc322f, 0x2aa198, 0x268bd2, 0x859900,
+               0xd33682, 0xb58900, 0x6c71c4, 0xcb4b16],
+    axes: [0xffaaaa, 0xaaffaa, 0xaaaaff],
+  },
+  {
+    name: 'solarized light',
+    bg: 0xfdf6e3,
+    fg: 0x002b36,
+    lattices: [0xdc322f, 0x2aa198, 0x268bd2, 0x859900,
+               0xd33682, 0xb58900, 0x6c71c4, 0xcb4b16],
+    axes: [0xffaaaa, 0xaaffaa, 0xaaaaff],
+  },
+];
