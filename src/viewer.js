@@ -945,13 +945,13 @@ Viewer.prototype.change_map_radius = function (delta) {
 Viewer.prototype.change_slab_width_by = function (delta) {
   this.controls.change_slab_width(delta);
   this.update_camera();
-  this.hud('clip width: ' + (this.camera.far - this.camera.near).toFixed(1));
+  this.hud('clip width: ' + (this.camera.far-this.camera.near).toPrecision(3));
 };
 
 Viewer.prototype.change_zoom_by_factor = function (mult) {
   this.camera.zoom *= mult;
   this.update_camera();
-  this.hud('zoom: ' + this.camera.zoom.toFixed(2));
+  this.hud('zoom: ' + this.camera.zoom.toPrecision(3));
 };
 
 Viewer.prototype.change_bond_line = function (delta) {
