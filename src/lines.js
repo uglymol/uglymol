@@ -635,3 +635,14 @@ export function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
   };
   return mesh;
 }
+
+// Add vertices of a 3d cross (representation of an unbonded atom)
+export
+function addXyzCross(vertices /*:Vector3[]*/, xyz /*:Num3*/, r /*:number*/) {
+  vertices.push(new THREE.Vector3(xyz[0]-r, xyz[1], xyz[2]));
+  vertices.push(new THREE.Vector3(xyz[0]+r, xyz[1], xyz[2]));
+  vertices.push(new THREE.Vector3(xyz[0], xyz[1]-r, xyz[2]));
+  vertices.push(new THREE.Vector3(xyz[0], xyz[1]+r, xyz[2]));
+  vertices.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]-r));
+  vertices.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]+r));
+}

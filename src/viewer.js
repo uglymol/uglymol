@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { makeLineMaterial, makeLineSegments, makeLine, makeRibbon,
          makeChickenWire, makeGrid, makeWheels, makeCube,
-         makeRgbBox, makeLabel } from './lines.js';
+         makeRgbBox, makeLabel, addXyzCross } from './lines.js';
 import { ElMap } from './elmap.js';
 import { Model } from './model.js';
 
@@ -391,17 +391,6 @@ function color_by(style, atoms, elem_colors) {
   return colors;
 }
 
-// Add a representation of an unbonded atom as a cross to geometry
-function add_xyz_cross(vertices, xyz, r) {
-  vertices.push(new THREE.Vector3(xyz[0]-r, xyz[1], xyz[2]));
-  vertices.push(new THREE.Vector3(xyz[0]+r, xyz[1], xyz[2]));
-  vertices.push(new THREE.Vector3(xyz[0], xyz[1]-r, xyz[2]));
-  vertices.push(new THREE.Vector3(xyz[0], xyz[1]+r, xyz[2]));
-  vertices.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]-r));
-  vertices.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]+r));
-}
-
-
 function MapBag(map, is_diff_map) {
   this.map = map;
   this.name = '';
@@ -450,7 +439,7 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
     var color = colors[i];
     if (ligands_only && !atom.is_ligand) continue;
     if (atom.bonds.length === 0 && !opt.balls) { // nonbonded, draw star
-      add_xyz_cross(vertex_arr, atom.xyz, 0.7);
+      addXyzCross(vertex_arr, atom.xyz, 0.7);
       for (var n = 0; n < 6; n++) {
         color_arr.push(color);
       }

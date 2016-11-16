@@ -2106,6 +2106,16 @@ function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
   return mesh;
 }
 
+// Add vertices of a 3d cross (representation of an unbonded atom)
+function addXyzCross(vertices /*:Vector3[]*/, xyz /*:Num3*/, r /*:number*/) {
+  vertices.push(new THREE.Vector3(xyz[0]-r, xyz[1], xyz[2]));
+  vertices.push(new THREE.Vector3(xyz[0]+r, xyz[1], xyz[2]));
+  vertices.push(new THREE.Vector3(xyz[0], xyz[1]-r, xyz[2]));
+  vertices.push(new THREE.Vector3(xyz[0], xyz[1]+r, xyz[2]));
+  vertices.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]-r));
+  vertices.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]+r));
+}
+
 // @flow
 
 var ColorSchemes = [ // accessible as Viewer.ColorSchemes
@@ -2491,17 +2501,6 @@ function color_by(style, atoms, elem_colors) {
   return colors;
 }
 
-// Add a representation of an unbonded atom as a cross to geometry
-function add_xyz_cross(vertices, xyz, r) {
-  vertices.push(new THREE.Vector3(xyz[0]-r, xyz[1], xyz[2]));
-  vertices.push(new THREE.Vector3(xyz[0]+r, xyz[1], xyz[2]));
-  vertices.push(new THREE.Vector3(xyz[0], xyz[1]-r, xyz[2]));
-  vertices.push(new THREE.Vector3(xyz[0], xyz[1]+r, xyz[2]));
-  vertices.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]-r));
-  vertices.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]+r));
-}
-
-
 function MapBag(map, is_diff_map) {
   this.map = map;
   this.name = '';
@@ -2550,7 +2549,7 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
     var color = colors[i];
     if (ligands_only && !atom.is_ligand) continue;
     if (atom.bonds.length === 0 && !opt.balls) { // nonbonded, draw star
-      add_xyz_cross(vertex_arr, atom.xyz, 0.7);
+      addXyzCross(vertex_arr, atom.xyz, 0.7);
       for (var n = 0; n < 6; n++) {
         color_arr.push(color);
       }
@@ -3045,13 +3044,13 @@ Viewer.prototype.change_map_radius = function (delta) {
 Viewer.prototype.change_slab_width_by = function (delta) {
   this.controls.change_slab_width(delta);
   this.update_camera();
-  this.hud('clip width: ' + (this.camera.far - this.camera.near).toFixed(1));
+  this.hud('clip width: ' + (this.camera.far-this.camera.near).toPrecision(3));
 };
 
 Viewer.prototype.change_zoom_by_factor = function (mult) {
   this.camera.zoom *= mult;
   this.update_camera();
-  this.hud('zoom: ' + this.camera.zoom.toFixed(2));
+  this.hud('zoom: ' + this.camera.zoom.toPrecision(3));
 };
 
 Viewer.prototype.change_bond_line = function (delta) {
@@ -3796,6 +3795,9 @@ ReciprocalViewer.prototype.load_data = function (url, options) {
       }
       experiment_ids.push(nums[3]);
     }
+    var xyz_bounds = [].concat.apply([], bounds.slice(0, 3));
+    var axis_length = Math.max.apply(null, xyz_bounds.map(Math.abs));
+    self.add_axes(1.2 * axis_length);
     self.add_points(pos, experiment_ids);
     self.camera.zoom = 0.5 * (self.camera.top - self.camera.bottom);
 
@@ -3805,6 +3807,22 @@ ReciprocalViewer.prototype.load_data = function (url, options) {
   });
 };
 
+ReciprocalViewer.prototype.add_axes = function (r) {
+  var vertices = [];
+  addXyzCross(vertices, [0, 0, 0], r);
+  var colors = [
+    new THREE.Color(0xff0000), new THREE.Color(0xffaa00),
+    new THREE.Color(0x00ff00), new THREE.Color(0xaaff00),
+    new THREE.Color(0x0000ff), new THREE.Color(0x00aaff),
+  ];
+  var material = makeLineMaterial({
+    win_size: this.window_size,
+    linewidth: 3,
+    segments: true,
+  });
+  this.axes = makeLineSegments(material, vertices, colors);
+  this.scene.add(this.axes);
+};
 
 var point_vert = [
   'uniform float size;',
@@ -3819,6 +3837,7 @@ var point_frag = [
   'uniform int show_only;',
   'varying vec3 vcolor;',
   'void main() {',
+    // FIXME
   '  if (show_only == -1 && vcolor.r != 1.0 || ',
   '      show_only == 0 && vcolor.g != 1.0) discard;',
   // not sure how portable it is
@@ -3898,6 +3917,7 @@ exports.makeLine = makeLine;
 exports.makeLineSegments = makeLineSegments;
 exports.makeWheels = makeWheels;
 exports.makeLabel = makeLabel;
+exports.addXyzCross = addXyzCross;
 exports.Viewer = Viewer;
 exports.ReciprocalViewer = ReciprocalViewer;
 

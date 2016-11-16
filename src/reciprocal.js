@@ -1,5 +1,6 @@
 // @flow
 import { Viewer } from './viewer.js';
+import { addXyzCross, makeLineMaterial, makeLineSegments } from './lines.js';
 import * as THREE from 'three';
 
 
@@ -78,6 +79,9 @@ ReciprocalViewer.prototype.load_data = function (url, options) {
       }
       experiment_ids.push(nums[3]);
     }
+    var xyz_bounds = [].concat.apply([], bounds.slice(0, 3));
+    var axis_length = Math.max.apply(null, xyz_bounds.map(Math.abs));
+    self.add_axes(1.2 * axis_length);
     self.add_points(pos, experiment_ids);
     self.camera.zoom = 0.5 * (self.camera.top - self.camera.bottom);
 
@@ -87,6 +91,22 @@ ReciprocalViewer.prototype.load_data = function (url, options) {
   });
 };
 
+ReciprocalViewer.prototype.add_axes = function (r) {
+  var vertices = [];
+  addXyzCross(vertices, [0, 0, 0], r);
+  var colors = [
+    new THREE.Color(0xff0000), new THREE.Color(0xffaa00),
+    new THREE.Color(0x00ff00), new THREE.Color(0xaaff00),
+    new THREE.Color(0x0000ff), new THREE.Color(0x00aaff),
+  ];
+  var material = makeLineMaterial({
+    win_size: this.window_size,
+    linewidth: 3,
+    segments: true,
+  });
+  this.axes = makeLineSegments(material, vertices, colors);
+  this.scene.add(this.axes);
+};
 
 var point_vert = [
   'uniform float size;',
@@ -101,6 +121,7 @@ var point_frag = [
   'uniform int show_only;',
   'varying vec3 vcolor;',
   'void main() {',
+    // FIXME
   '  if (show_only == -1 && vcolor.r != 1.0 || ',
   '      show_only == 0 && vcolor.g != 1.0) discard;',
   // not sure how portable it is
