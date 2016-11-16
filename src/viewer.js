@@ -122,14 +122,12 @@ var Controls = function (camera, target) {
   var _pan_start = new THREE.Vector2();
   var _pan_end = new THREE.Vector2();
   var _panned = true;
-  var _slab_width = 10.0;
   var _rotating = null;
   var _auto_stamp = null;
   var _go_func = null;
 
-  function change_slab_width(delta) {
-    _slab_width = Math.max(_slab_width + delta, 0.01);
-  }
+  // the far plane is more distant from the target than the near plane (3:1)
+  this.slab_width = [2.5, 7.5];
 
   function rotate_camera(eye) {
     var quat = new THREE.Quaternion();
@@ -146,12 +144,12 @@ var Controls = function (camera, target) {
     if (_state === STATE.ZOOM) {
       camera.zoom /= (1 - dx + dy);
     } else if (_state === STATE.SLAB) {
-      change_slab_width(10.0 * dx);
       target.addScaledVector(eye, -5.0 / eye.length() * dy);
     } else if (_state === STATE.ROLL) {
       camera.up.applyAxisAngle(eye, 0.05 * (dx - dy));
     }
     _zoom_start.copy(_zoom_end);
+    return _state === STATE.SLAB ? 10*dx : null;
   }
 
   function pan_camera(eye) {
@@ -212,7 +210,11 @@ var Controls = function (camera, target) {
       changed = true;
     }
     if (!_zoom_end.equals(_zoom_start)) {
-      zoom_camera(eye);
+      var dslab = zoom_camera(eye);
+      if (dslab) {
+        this.slab_width[0] = Math.max(this.slab_width[0] + dslab, 0.01);
+        this.slab_width[1] = Math.max(this.slab_width[1] + dslab, 0.01);
+      }
       changed = true;
     }
     if (!_pan_end.equals(_pan_start)) {
@@ -290,9 +292,6 @@ var Controls = function (camera, target) {
     _pan_start.copy(_pan_end);
     return ret;
   };
-
-  this.slab_width = function () { return _slab_width; };
-  this.change_slab_width = change_slab_width;
 
   this.go_to = function (targ, cam_pos, cam_up, steps) {
     if (targ instanceof Array) {
@@ -571,6 +570,7 @@ export function Viewer(options /*: {[key: string]: any}*/) {
     this.controls = new Controls(this.camera, this.target);
   }
   this.raycaster = new THREE.Raycaster();
+  this.default_camera_pos = [0, 0, 100];
   this.set_common_key_bindings();
   if (this.constructor === Viewer) this.set_real_space_key_bindings();
   if (typeof document === 'undefined') return;  // for testing on node
@@ -934,7 +934,9 @@ Viewer.prototype.change_map_radius = function (delta) {
 };
 
 Viewer.prototype.change_slab_width_by = function (delta) {
-  this.controls.change_slab_width(delta);
+  var slab_width = this.controls.slab_width;
+  slab_width[0] = Math.max(slab_width[0] + delta, 0.01);
+  slab_width[1] = Math.max(slab_width[1] + delta, 0.01);
   this.update_camera();
   this.hud('clip width: ' + (this.camera.far-this.camera.near).toPrecision(3));
 };
@@ -1399,7 +1401,8 @@ Viewer.prototype.recenter = function (xyz, cam, steps) {
       cam = new THREE.Vector3(cam[0], cam[1], cam[2]);
       new_up = null; // preserve the up direction
     } else {
-      cam = new THREE.Vector3(xyz[0], xyz[1], xyz[2] + 100);
+      var dc = this.default_camera_pos;
+      cam = new THREE.Vector3(xyz[0] + dc[0], xyz[1] + dc[1], xyz[2] + dc[2]);
       new_up = THREE.Object3D.DefaultUp; // Vector3(0, 1, 0)
     }
   }
@@ -1424,25 +1427,12 @@ Viewer.prototype.select_atom = function (atom, options) {
 
 Viewer.prototype.update_camera = function () {
   var dxyz = this.camera.position.distanceTo(this.target);
-  // the far plane is more distant from the target than the near plane (3:1)
-  var w = 0.25 * this.controls.slab_width() / this.camera.zoom;
-  this.camera.near = dxyz * (1 - w);
-  this.camera.far = dxyz * (1 + 3 * w);
+  var w = this.controls.slab_width;
+  var scale = w.length === 3 ? w[2] : this.camera.zoom;
+  this.camera.near = dxyz * (1 - w[0] / scale);
+  this.camera.far = dxyz * (1 + w[1] / scale);
   //this.light.position.copy(this.camera.position);
-  //var h_scale = this.camera.projectionMatrix.elements[5];
   this.camera.updateProjectionMatrix();
-  // temporary hack - scaling balls
-  /*
-  if (h_scale !== this.camera.projectionMatrix.elements[5]) {
-    var ball_size = Math.max(1, 80 * this.camera.projectionMatrix.elements[5]);
-    for (var i = 0; i < this.model_bags.length; i++) {
-      var obj = this.model_bags[i].atomic_objects;
-      if (obj.length === 2 && obj[1].material.size) {
-        obj[1].material.size = ball_size;
-      }
-    }
-  }
-  */
 };
 
 // The main loop. Running when a mouse button is pressed or when the view
@@ -1541,7 +1531,7 @@ Viewer.prototype.load_file = function (url, binary, callback, show_progress) {
 Viewer.prototype.set_view = function (options) {
   var frag = parse_url_fragment();
   if (frag.zoom) this.camera.zoom = frag.zoom;
-  this.recenter(options.center || frag.xyz, frag.eye, 1);
+  this.recenter(frag.xyz || options.center, frag.eye, 1);
 };
 
 // Load molecular model from PDB file and centers the view

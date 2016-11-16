@@ -2118,15 +2118,15 @@ function addXyzCross(vertices /*:Vector3[]*/, xyz /*:Num3*/, r /*:number*/) {
 
 // @flow
 
-var ColorSchemes = [ // accessible as Viewer.ColorSchemes
+var ColorSchemes = [ // Viewer.prototype.ColorSchemes
   { // generally mimicks Coot
     name: 'coot dark',
     bg: 0x000000,
+    fg: 0xFFFFFF,
     map_den: 0x3362B2,
     map_pos: 0x298029,
     map_neg: 0x8B2E2E,
     center: 0xC997B0,
-    cell_box: 0xFFFFFF,
     // atoms
     H: 0x858585, // H is normally invisible
     // C, N and O are taken approximately (by color-picker) from coot
@@ -2152,11 +2152,11 @@ var ColorSchemes = [ // accessible as Viewer.ColorSchemes
   {
     name: 'solarized dark',
     bg: 0x002b36,
+    fg: 0xfdf6e3,
     map_den: 0x268bd2,
     map_pos: 0x859900,
     map_neg: 0xd33682,
     center: 0xfdf6e3,
-    cell_box: 0xfdf6e3,
     H: 0x586e75,
     C: 0x93a1a1,
     N: 0x6c71c4,
@@ -2167,11 +2167,11 @@ var ColorSchemes = [ // accessible as Viewer.ColorSchemes
   {
     name: 'solarized light',
     bg: 0xfdf6e3,
+    fg: 0x002b36,
     map_den: 0x268bd2,
     map_pos: 0x859900,
     map_neg: 0xd33682,
     center: 0x002b36,
-    cell_box: 0x002b36,
     H: 0x93a1a1,
     C: 0x586e75,
     N: 0x6c71c4,
@@ -2182,11 +2182,11 @@ var ColorSchemes = [ // accessible as Viewer.ColorSchemes
   { // like in Coot after Edit > Background Color > White
     name: 'coot light',
     bg: 0xFFFFFF,
+    fg: 0x000000,
     map_den: 0x3362B2,
     map_pos: 0x298029,
     map_neg: 0x8B2E2E,
     center: 0xC7C769,
-    cell_box: 0x000000,
     H: 0x999999,
     C: 0xA96464,
     N: 0x1C51B3,
@@ -2232,14 +2232,12 @@ var Controls = function (camera, target) {
   var _pan_start = new THREE.Vector2();
   var _pan_end = new THREE.Vector2();
   var _panned = true;
-  var _slab_width = 10.0;
   var _rotating = null;
   var _auto_stamp = null;
   var _go_func = null;
 
-  function change_slab_width(delta) {
-    _slab_width = Math.max(_slab_width + delta, 0.01);
-  }
+  // the far plane is more distant from the target than the near plane (3:1)
+  this.slab_width = [2.5, 7.5];
 
   function rotate_camera(eye) {
     var quat = new THREE.Quaternion();
@@ -2256,12 +2254,12 @@ var Controls = function (camera, target) {
     if (_state === STATE.ZOOM) {
       camera.zoom /= (1 - dx + dy);
     } else if (_state === STATE.SLAB) {
-      change_slab_width(10.0 * dx);
       target.addScaledVector(eye, -5.0 / eye.length() * dy);
     } else if (_state === STATE.ROLL) {
       camera.up.applyAxisAngle(eye, 0.05 * (dx - dy));
     }
     _zoom_start.copy(_zoom_end);
+    return _state === STATE.SLAB ? 10*dx : null;
   }
 
   function pan_camera(eye) {
@@ -2322,7 +2320,11 @@ var Controls = function (camera, target) {
       changed = true;
     }
     if (!_zoom_end.equals(_zoom_start)) {
-      zoom_camera(eye);
+      var dslab = zoom_camera(eye);
+      if (dslab) {
+        this.slab_width[0] = Math.max(this.slab_width[0] + dslab, 0.01);
+        this.slab_width[1] = Math.max(this.slab_width[1] + dslab, 0.01);
+      }
       changed = true;
     }
     if (!_pan_end.equals(_pan_start)) {
@@ -2400,9 +2402,6 @@ var Controls = function (camera, target) {
     _pan_start.copy(_pan_end);
     return ret;
   };
-
-  this.slab_width = function () { return _slab_width; };
-  this.change_slab_width = change_slab_width;
 
   this.go_to = function (targ, cam_pos, cam_up, steps) {
     if (targ instanceof Array) {
@@ -2655,7 +2654,7 @@ function Viewer(options /*: {[key: string]: any}*/) {
     color_aim: COLOR_AIMS[0],
     line_style: LINE_STYLES[0],
     label_font: LABEL_FONTS[0],
-    colors: ColorSchemes[0],
+    colors: this.ColorSchemes[0],
     hydrogens: false,
   };
   this.set_colors();
@@ -2681,6 +2680,7 @@ function Viewer(options /*: {[key: string]: any}*/) {
     this.controls = new Controls(this.camera, this.target);
   }
   this.raycaster = new THREE.Raycaster();
+  this.default_camera_pos = [0, 0, 100];
   this.set_common_key_bindings();
   if (this.constructor === Viewer) this.set_real_space_key_bindings();
   if (typeof document === 'undefined') return;  // for testing on node
@@ -2780,14 +2780,15 @@ Viewer.prototype.pick_atom = function (coords, camera) {
 };
 
 Viewer.prototype.set_colors = function (scheme) {
+  function to_col(x) { return new THREE.Color(x); }
   if (scheme == null) {
-    scheme = ColorSchemes[0];
+    scheme = this.ColorSchemes[0];
   } else if (typeof scheme === 'number') {
-    scheme = ColorSchemes[scheme % ColorSchemes.length];
+    scheme = this.ColorSchemes[scheme % this.ColorSchemes.length];
   } else if (typeof scheme === 'string') {
-    for (var i = 0; i !== ColorSchemes.length; i++) {
-      if (ColorSchemes[i].name === scheme) {
-        scheme = ColorSchemes[i];
+    for (var i = 0; i !== this.ColorSchemes.length; i++) {
+      if (this.ColorSchemes[i].name === scheme) {
+        scheme = this.ColorSchemes[i];
         break;
       }
     }
@@ -2796,11 +2797,12 @@ Viewer.prototype.set_colors = function (scheme) {
   if (typeof scheme.bg === 'number') {
     for (var key in scheme) {
       if (key !== 'name') {
-        scheme[key] = new THREE.Color(scheme[key]);
+        scheme[key] = scheme[key] instanceof Array ? scheme[key].map(to_col)
+                                                   : to_col(scheme[key]);
       }
     }
   }
-  this.decor.zoom_grid.color_value.set(scheme.cell_box);
+  this.decor.zoom_grid.color_value.set(scheme.fg);
   this.redraw_all();
 };
 
@@ -2926,7 +2928,7 @@ Viewer.prototype.toggle_label = function (atom, show) {
     var label = makeLabel(text, {
       pos: atom.xyz,
       font: this.config.label_font,
-      color: '#' + this.config.colors.cell_box.getHexString(),
+      color: '#' + this.config.colors.fg.getHexString(),
       win_size: this.window_size,
     });
     if (!label) return;
@@ -2944,7 +2946,7 @@ Viewer.prototype.redraw_labels = function () {
     var text = uid;
     this.labels[uid].remake(text, {
       font: this.config.label_font,
-      color: '#' + this.config.colors.cell_box.getHexString(),
+      color: '#' + this.config.colors.fg.getHexString(),
     });
   }
 };
@@ -3042,7 +3044,9 @@ Viewer.prototype.change_map_radius = function (delta) {
 };
 
 Viewer.prototype.change_slab_width_by = function (delta) {
-  this.controls.change_slab_width(delta);
+  var slab_width = this.controls.slab_width;
+  slab_width[0] = Math.max(slab_width[0] + delta, 0.01);
+  slab_width[1] = Math.max(slab_width[1] + delta, 0.01);
   this.update_camera();
   this.hud('clip width: ' + (this.camera.far-this.camera.near).toPrecision(3));
 };
@@ -3098,7 +3102,7 @@ Viewer.prototype.toggle_cell_box = function () {
     }
     if (uc) {
       this.decor.cell_box = makeRgbBox(uc.orthogonalize, {
-        color: this.config.colors.cell_box,
+        color: this.config.colors.fg,
       });
       this.scene.add(this.decor.cell_box);
     }
@@ -3235,7 +3239,7 @@ Viewer.prototype.set_common_key_bindings = function () {
   };
   // b
   kb[66] = function (evt) {
-    this.select_next('color scheme', 'colors', ColorSchemes, evt.shiftKey);
+    this.select_next('color scheme', 'colors', this.ColorSchemes, evt.shiftKey);
     this.set_colors(this.config.colors);
   };
   // c
@@ -3439,10 +3443,13 @@ Viewer.prototype.mousewheel = function (evt) {
   evt.preventDefault();
   evt.stopPropagation();
   // evt.wheelDelta for WebKit, evt.detail for Firefox
-  var delta = evt.wheelDelta ? evt.wheelDelta / 2000
-                             : (evt.detail || 0) / -1000;
-  this.change_isolevel_by(evt.shiftKey ? 1 : 0, delta);
+  var delta = evt.wheelDelta || -2 * (evt.detail || 0);
+  this.mousewheel_action(delta, evt);
   this.request_render();
+};
+
+Viewer.prototype.mousewheel_action = function (delta, evt) {
+  this.change_isolevel_by(evt.shiftKey ? 1 : 0, 0.0005 * delta);
 };
 
 Viewer.prototype.resize = function (/*evt*/) {
@@ -3504,7 +3511,8 @@ Viewer.prototype.recenter = function (xyz, cam, steps) {
       cam = new THREE.Vector3(cam[0], cam[1], cam[2]);
       new_up = null; // preserve the up direction
     } else {
-      cam = new THREE.Vector3(xyz[0], xyz[1], xyz[2] + 100);
+      var dc = this.default_camera_pos;
+      cam = new THREE.Vector3(xyz[0] + dc[0], xyz[1] + dc[1], xyz[2] + dc[2]);
       new_up = THREE.Object3D.DefaultUp; // Vector3(0, 1, 0)
     }
   }
@@ -3529,25 +3537,12 @@ Viewer.prototype.select_atom = function (atom, options) {
 
 Viewer.prototype.update_camera = function () {
   var dxyz = this.camera.position.distanceTo(this.target);
-  // the far plane is more distant from the target than the near plane (3:1)
-  var w = 0.25 * this.controls.slab_width() / this.camera.zoom;
-  this.camera.near = dxyz * (1 - w);
-  this.camera.far = dxyz * (1 + 3 * w);
+  var w = this.controls.slab_width;
+  var scale = w.length === 3 ? w[2] : this.camera.zoom;
+  this.camera.near = dxyz * (1 - w[0] / scale);
+  this.camera.far = dxyz * (1 + w[1] / scale);
   //this.light.position.copy(this.camera.position);
-  //var h_scale = this.camera.projectionMatrix.elements[5];
   this.camera.updateProjectionMatrix();
-  // temporary hack - scaling balls
-  /*
-  if (h_scale !== this.camera.projectionMatrix.elements[5]) {
-    var ball_size = Math.max(1, 80 * this.camera.projectionMatrix.elements[5]);
-    for (var i = 0; i < this.model_bags.length; i++) {
-      var obj = this.model_bags[i].atomic_objects;
-      if (obj.length === 2 && obj[1].material.size) {
-        obj[1].material.size = ball_size;
-      }
-    }
-  }
-  */
 };
 
 // The main loop. Running when a mouse button is pressed or when the view
@@ -3646,7 +3641,7 @@ Viewer.prototype.load_file = function (url, binary, callback, show_progress) {
 Viewer.prototype.set_view = function (options) {
   var frag = parse_url_fragment();
   if (frag.zoom) this.camera.zoom = frag.zoom;
-  this.recenter(options.center || frag.xyz, frag.eye, 1);
+  this.recenter(frag.xyz || options.center, frag.eye, 1);
 };
 
 // Load molecular model from PDB file and centers the view
@@ -3716,16 +3711,22 @@ Viewer.prototype.show_nav = function (inset_id) {
 };
 */
 
-Viewer.ColorSchemes = ColorSchemes;
+Viewer.prototype.ColorSchemes = ColorSchemes;
 Viewer.auto_speed = auto_speed;
 
 // @flow
 var SPOT_SEL = ['all', 'indexed', 'not indexed'];
+var SHOW_AXES = ['three', 'two', 'none'];
 
 function ReciprocalViewer(options /*: {[key: string]: any}*/) {
   Viewer.call(this, options);
+  this.default_camera_pos = [100, 0, 0];
+  this.axes = null;
   this.points = null;
+  this.max_dist = null;
+  this.data = null;
   this.config.show_only = SPOT_SEL[0];
+  this.config.show_axes = SHOW_AXES[0];
   this.set_reciprocal_key_bindings();
 }
 
@@ -3736,9 +3737,10 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
   '<b>keyboard:</b>',
   'H = toggle help',
   'V = show (un)indexed',
-  //'A = toggle axes',
+  'A = toggle axes',
   'B = bg color',
   'M/N = zoom',
+  'D/F = clip width',
   'R = center view',
   'Home/End = point size',
   'Shift+P = permalink',
@@ -3747,6 +3749,11 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
 
 ReciprocalViewer.prototype.set_reciprocal_key_bindings = function () {
   var kb = this.key_bindings;
+  // a
+  kb[65] = function (evt) {
+    this.select_next('axes', 'show_axes', SHOW_AXES, evt.shiftKey);
+    this.set_axes();
+  };
   // p
   kb[80] = function (evt) { this.permalink(); };
   // v
@@ -3768,53 +3775,54 @@ ReciprocalViewer.prototype.set_reciprocal_key_bindings = function () {
 
 ReciprocalViewer.prototype.load_data = function (url, options) {
   options = options || {};
-
   var self = this;
   this.load_file(url, false, function (req) {
-    var lines = req.responseText.split('\n').filter(function (line) {
-      return line.length > 0 && line[0] !== '#';
-    });
-    var pos = new Float32Array(lines.length * 3);
-    var experiment_ids = [];
-    var n_col = 5;
-    var bounds = [];
-    var i;
-    for (i = 0; i < n_col; i++) {
-      bounds.push([Infinity, -Infinity]);
-    }
-    for (i = 0; i < lines.length; i++) {
-      var line = lines[i];
-      var nums = line.split(',').map(Number);
-      var j;
-      for (j = 0; j < 3; j++) {
-        pos[3*i+j] = nums[j];
-      }
-      for (j = 0; j < n_col; j++) {
-        if (nums[j] < bounds[j][0]) bounds[j][0] = nums[j];
-        if (nums[j] > bounds[j][1]) bounds[j][1] = nums[j];
-      }
-      experiment_ids.push(nums[3]);
-    }
-    var xyz_bounds = [].concat.apply([], bounds.slice(0, 3));
-    var axis_length = Math.max.apply(null, xyz_bounds.map(Math.abs));
-    self.add_axes(1.2 * axis_length);
-    self.add_points(pos, experiment_ids);
+    self.parse_data(req.responseText);
+    self.set_axes();
+    self.set_points();
     self.camera.zoom = 0.5 * (self.camera.top - self.camera.bottom);
-
+    // default scale is set to 100 - same as default_camera_pos
+    self.controls.slab_width = [self.max_dist, self.max_dist, 100.0];
     self.set_view(options);
     if (options.callback) options.callback();
-    //self.redraw_center();
   });
 };
 
-ReciprocalViewer.prototype.add_axes = function (r) {
+ReciprocalViewer.prototype.parse_data = function (text) {
+  var lines = text.split('\n').filter(function (line) {
+    return line.length > 0 && line[0] !== '#';
+  });
+  var pos = new Float32Array(lines.length * 3);
+  var lattice_ids = [];
+  var max_sq = 0;
+  for (var i = 0; i < lines.length; i++) {
+    var nums = lines[i].split(',').map(Number);
+    var sq = nums[0]*nums[0] + nums[1]*nums[1] + nums[2]*nums[2];
+    if (sq > max_sq) max_sq = sq;
+    for (var j = 0; j < 3; j++) {
+      pos[3*i+j] = nums[j];
+    }
+    lattice_ids.push(nums[3]);
+  }
+  this.max_dist = Math.sqrt(max_sq);
+  this.data = { pos: pos, lattice_ids: lattice_ids };
+};
+
+ReciprocalViewer.prototype.set_axes = function () {
+  if (this.axes != null) {
+    this.remove_and_dispose(this.axes);
+    this.axes = null;
+  }
+  if (this.config.show_axes === 'none') return;
+  var axis_length = 1.2 * this.max_dist;
   var vertices = [];
-  addXyzCross(vertices, [0, 0, 0], r);
-  var colors = [
-    new THREE.Color(0xff0000), new THREE.Color(0xffaa00),
-    new THREE.Color(0x00ff00), new THREE.Color(0xaaff00),
-    new THREE.Color(0x0000ff), new THREE.Color(0x00aaff),
-  ];
+  addXyzCross(vertices, [0, 0, 0], axis_length);
+  var ca = this.config.colors.axes;
+  var colors = [ca[0], ca[0], ca[1], ca[1], ca[2], ca[2]];
+  if (this.config.show_axes === 'two') {
+    vertices.splice(4);
+    colors.splice(4);
+  }
   var material = makeLineMaterial({
     win_size: this.window_size,
     linewidth: 3,
@@ -3825,47 +3833,46 @@ ReciprocalViewer.prototype.add_axes = function (r) {
 };
 
 var point_vert = [
+  'attribute float group;',
+  'uniform float show_only;',
   'uniform float size;',
   'varying vec3 vcolor;',
+  'varying float vsel;',
   'void main() {',
   '  vcolor = color;',
+  '  vsel = show_only == -2.0 || show_only == group ? 1.0 : 0.0;',
   '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
   '  gl_PointSize = size;',
   '}'].join('\n');
 
 var point_frag = [
-  'uniform int show_only;',
   'varying vec3 vcolor;',
+  'varying float vsel;',
   'void main() {',
-    // FIXME
-  '  if (show_only == -1 && vcolor.r != 1.0 || ',
-  '      show_only == 0 && vcolor.g != 1.0) discard;',
-  // not sure how portable it is
+  // not sure how reliable is such rounding of points
   '  vec2 diff = gl_PointCoord - vec2(0.5, 0.5);',
   '  float dist_sq = 4.0 * dot(diff, diff);',
-  '  if (dist_sq >= 1.0) discard;',
+  '  if (vsel == 0.0 || dist_sq >= 1.0) discard;',
   '  gl_FragColor = vec4(vcolor, 1.0 - dist_sq * dist_sq * dist_sq);',
   '}'].join('\n');
 
 
-ReciprocalViewer.prototype.add_points = function (pos, experiment_ids) {
-  var colors = new Float32Array(3 * experiment_ids.length);
-  for (var i = 0; i < experiment_ids.length; i++) {
-    var col = experiment_ids[i] === -1 ? [1, 0, 0] : [0, 1, 0];
-    colors[3*i] = col[0];
-    colors[3*i+1] = col[1];
-    colors[3*i+2] = col[2];
-  }
-
+ReciprocalViewer.prototype.set_points = function () {
+  if (this.data == null) return;
+  var pos = this.data.pos;
+  var lattice_ids = this.data.lattice_ids;
+  var color_arr = new Float32Array(3 * lattice_ids.length);
+  this.colorize_by_id(color_arr, lattice_ids);
   var geometry = new THREE.BufferGeometry();
   geometry.addAttribute('position', new THREE.BufferAttribute(pos, 3));
-  geometry.addAttribute('color', new THREE.BufferAttribute(colors, 3));
-  var uniforms = {
-    size: { value: 3 },
-    show_only: { value: -2 },
-  };
+  geometry.addAttribute('color', new THREE.BufferAttribute(color_arr, 3));
+  var groups = new Float32Array(lattice_ids);
+  geometry.addAttribute('group', new THREE.BufferAttribute(groups, 1));
   var material = new THREE.ShaderMaterial({
-    uniforms: uniforms,
+    uniforms: {
+      size: { value: 3 },
+      show_only: { value: -2 },
+    },
     vertexShader: point_vert,
     fragmentShader: point_frag,
     vertexColors: THREE.VertexColors,
@@ -3876,11 +3883,20 @@ ReciprocalViewer.prototype.add_points = function (pos, experiment_ids) {
   this.request_render();
 };
 
+ReciprocalViewer.prototype.colorize_by_id = function (color_arr, group_id) {
+  var palette = this.config.colors.lattices;
+  for (var i = 0; i < group_id.length; i++) {
+    var c = palette[(group_id[i] + 1) % 4];
+    color_arr[3*i] = c.r;
+    color_arr[3*i+1] = c.g;
+    color_arr[3*i+2] = c.b;
+  }
+};
+
 ReciprocalViewer.prototype.redraw_center = function () {};
 
-// temporary hack
-ReciprocalViewer.prototype.change_isolevel_by = function (map_idx, delta) {
-  this.change_zoom_by_factor(1 + delta);
+ReciprocalViewer.prototype.mousewheel_action = function (delta, evt) {
+  this.change_zoom_by_factor(1 + 0.0005 * delta);
 };
 
 ReciprocalViewer.prototype.change_point_size = function (delta) {
@@ -3890,18 +3906,29 @@ ReciprocalViewer.prototype.change_point_size = function (delta) {
   this.hud('point size: ' + size.value.toFixed(1));
 };
 
-/* Dependencies between files (ES6 modules):
- *
- *  isosurface.js <--,
- *                    \
- *              v-- elmap.js <-.
- *    unitcell.js               \
- *              ^-  model.js <- viewer.js
- * THREE.js <--------------------' /
- *        ^----- lines.js <-------'
- */
+ReciprocalViewer.prototype.redraw_models = function () {
+  if (this.points) this.remove_and_dispose(this.points);
+  this.set_points();
+};
 
-// UnitCell class with methods to fractionalize/orthogonalize coords
+ReciprocalViewer.prototype.ColorSchemes = [
+  {
+    name: 'solarized dark',
+    bg: 0x002b36,
+    fg: 0xfdf6e3,
+    lattices: [0xdc322f, 0x2aa198, 0x268bd2, 0x859900,
+               0xd33682, 0xb58900, 0x6c71c4, 0xcb4b16],
+    axes: [0xffaaaa, 0xaaffaa, 0xaaaaff],
+  },
+  {
+    name: 'solarized light',
+    bg: 0xfdf6e3,
+    fg: 0x002b36,
+    lattices: [0xdc322f, 0x2aa198, 0x268bd2, 0x859900,
+               0xd33682, 0xb58900, 0x6c71c4, 0xcb4b16],
+    axes: [0xffaaaa, 0xaaffaa, 0xaaaaff],
+  },
+];
 
 exports.UnitCell = UnitCell;
 exports.Model = Model;

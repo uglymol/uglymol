@@ -9,6 +9,7 @@ var SHOW_AXES = ['three', 'two', 'none'];
 
 export function ReciprocalViewer(options /*: {[key: string]: any}*/) {
   Viewer.call(this, options);
+  this.default_camera_pos = [100, 0, 0];
   this.axes = null;
   this.points = null;
   this.max_dist = null;
@@ -28,6 +29,7 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
   'A = toggle axes',
   'B = bg color',
   'M/N = zoom',
+  'D/F = clip width',
   'R = center view',
   'Home/End = point size',
   'Shift+P = permalink',
@@ -68,6 +70,8 @@ ReciprocalViewer.prototype.load_data = function (url, options) {
     self.set_axes();
     self.set_points();
     self.camera.zoom = 0.5 * (self.camera.top - self.camera.bottom);
+    // default scale is set to 100 - same as default_camera_pos
+    self.controls.slab_width = [self.max_dist, self.max_dist, 100.0];
     self.set_view(options);
     if (options.callback) options.callback();
   });
