@@ -1004,7 +1004,7 @@ function vec3_to_fixed(vec, n) {
 }
 
 Viewer.prototype.shift_clip = function (delta) {
-  var eye = this.camera.position.clone().sub(this.target)
+  var eye = this.camera.position.clone().sub(this.target);
   eye.multiplyScalar(delta / eye.length());
   this.target.add(eye);
   this.camera.position.add(eye);
@@ -1208,7 +1208,7 @@ Viewer.prototype.set_common_key_bindings = function () {
   // 3, numpad 3
   kb[51] = kb[99] = function () { this.shift_clip(1); };
   // numpad period (Linux), decimal point (Mac)
-  kb[108] = kb[110] = function (evt) { this.shift_clip(-1); };
+  kb[108] = kb[110] = function () { this.shift_clip(-1); };
   // shift, ctrl, alt, altgr
   kb[16] = kb[17] = kb[18] = kb[225] = function () {};
   // slash, single quote
