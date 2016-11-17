@@ -60,6 +60,10 @@ ReciprocalViewer.prototype.set_reciprocal_key_bindings = function () {
   kb[35] = function (evt) {
     evt.ctrlKey ? this.change_map_line(-0.1) : this.change_point_size(-0.5);
   };
+  // 3, numpad 3
+  kb[51] = kb[99] = function () { this.shift_clip(0.1); };
+  // numpad period (Linux), decimal point (Mac)
+  kb[108] = kb[110] = function (evt) { this.shift_clip(-0.1); };
 };
 
 ReciprocalViewer.prototype.load_data = function (url, options) {
@@ -71,7 +75,8 @@ ReciprocalViewer.prototype.load_data = function (url, options) {
     self.set_points();
     self.camera.zoom = 0.5 * (self.camera.top - self.camera.bottom);
     // default scale is set to 100 - same as default_camera_pos
-    self.controls.slab_width = [self.max_dist, self.max_dist, 100.0];
+    var d = 1.01 * self.max_dist;
+    self.controls.slab_width = [d, d, 100];
     self.set_view(options);
     if (options.callback) options.callback();
   });

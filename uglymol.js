@@ -1473,11 +1473,6 @@ ElMap.prototype.isomesh_in_block = function (sigma, method) {
 
 // @flow
 
-/*:: type Num3 = [number, number, number] */
-/*:: type Atom = {xyz: Num3} */
-/*:: type Color = {r: number, g: number, b: number} */
-/*:: type Vector3 = {x: number, y: number, z: number} */
-
 var CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
                   [0, 0, 0], [0, 1, 0],
                   [0, 0, 0], [0, 0, 1],
@@ -3113,11 +3108,9 @@ function vec3_to_fixed(vec, n) {
   return [vec.x.toFixed(n), vec.y.toFixed(n), vec.z.toFixed(n)];
 }
 
-Viewer.prototype.shift_clip = function (away) {
-  var eye = this.camera.position.clone().sub(this.target).setLength(1);
-  if (!away) {
-    eye.negate();
-  }
+Viewer.prototype.shift_clip = function (delta) {
+  var eye = this.camera.position.clone().sub(this.target);
+  eye.multiplyScalar(delta / eye.length());
   this.target.add(eye);
   this.camera.position.add(eye);
   this.update_camera();
@@ -3318,9 +3311,9 @@ Viewer.prototype.set_common_key_bindings = function () {
     this.redraw_models();
   };
   // 3, numpad 3
-  kb[51] = kb[99] = function () { this.shift_clip(true); };
+  kb[51] = kb[99] = function () { this.shift_clip(1); };
   // numpad period (Linux), decimal point (Mac)
-  kb[108] = kb[110] = function (evt) { this.shift_clip(false); };
+  kb[108] = kb[110] = function (evt) { this.shift_clip(-1); };
   // shift, ctrl, alt, altgr
   kb[16] = kb[17] = kb[18] = kb[225] = function () {};
   // slash, single quote
@@ -3771,6 +3764,10 @@ ReciprocalViewer.prototype.set_reciprocal_key_bindings = function () {
   kb[35] = function (evt) {
     evt.ctrlKey ? this.change_map_line(-0.1) : this.change_point_size(-0.5);
   };
+  // 3, numpad 3
+  kb[51] = kb[99] = function () { this.shift_clip(0.1); };
+  // numpad period (Linux), decimal point (Mac)
+  kb[108] = kb[110] = function (evt) { this.shift_clip(-0.1); };
 };
 
 ReciprocalViewer.prototype.load_data = function (url, options) {
@@ -3782,7 +3779,8 @@ ReciprocalViewer.prototype.load_data = function (url, options) {
     self.set_points();
     self.camera.zoom = 0.5 * (self.camera.top - self.camera.bottom);
     // default scale is set to 100 - same as default_camera_pos
-    self.controls.slab_width = [self.max_dist, self.max_dist, 100.0];
+    var d = 1.01 * self.max_dist;
+    self.controls.slab_width = [d, d, 100];
     self.set_view(options);
     if (options.callback) options.callback();
   });
@@ -3929,6 +3927,19 @@ ReciprocalViewer.prototype.ColorSchemes = [
     axes: [0xffaaaa, 0xaaffaa, 0xaaaaff],
   },
 ];
+
+/* Dependencies between files (ES6 modules):
+ *
+ *  isosurface.js <--,
+ *                    \
+ *              v-- elmap.js <-.
+ *    unitcell.js               \
+ *              ^-  model.js <- viewer.js
+ * THREE.js <--------------------' /
+ *        ^----- lines.js <-------'
+ */
+
+// UnitCell class with methods to fractionalize/orthogonalize coords
 
 exports.UnitCell = UnitCell;
 exports.Model = Model;
