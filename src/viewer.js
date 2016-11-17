@@ -1484,11 +1484,11 @@ Viewer.prototype.add_map = function (map, is_diff_map) {
   this.request_render();
 };
 
-Viewer.prototype.load_file = function (url, binary, callback, show_progress) {
+Viewer.prototype.load_file = function (url, options, callback) {
   if (this.renderer === null) return;  // no WebGL detected
   var req = new XMLHttpRequest();
   req.open('GET', url, true);
-  if (binary) {
+  if (options.binary) {
     req.responseType = 'arraybuffer';
   } else {
     // http://stackoverflow.com/questions/7374911/
@@ -1509,13 +1509,14 @@ Viewer.prototype.load_file = function (url, binary, callback, show_progress) {
       }
     }
   };
-  if (show_progress) {
-    req.addEventListener('progress', function (evt) {
+  if (options.progress) {
+    // flow-ignore-line  dom.js in flow is incomplete
+    req.addEventListener('progress', function (evt /*:ProgressEvent*/) {
       if (evt.lengthComputable && evt.loaded && evt.total) {
         var fn = url.split('/').pop();
         self.hud('loading ' + fn + ' ... ' +
-                 // flow-ignore-line  Property `loaded` not found in Event
                  (evt.loaded >> 10) + ' / ' + (evt.total >> 10) + ' kB');
+        if (evt.loaded === evt.total) self.hud(); // clear progress message
       }
     });
   }
@@ -1536,7 +1537,7 @@ Viewer.prototype.set_view = function (options) {
 Viewer.prototype.load_pdb = function (url, options) {
   options = options || {};
   var self = this;
-  this.load_file(url, false, function (req) {
+  this.load_file(url, {binary: false}, function (req) {
     var model = new Model();
     model.from_pdb(req.responseText);
     self.set_model(model);
@@ -1546,18 +1547,18 @@ Viewer.prototype.load_pdb = function (url, options) {
 };
 
 Viewer.prototype.load_map = function (url, is_diff_map, filetype, callback,
-                                      show_progress) {
+                                      progress) {
   if (filetype !== 'ccp4' && filetype !== 'dsn6') {
     throw Error('Unknown map filetype.');
   }
   var self = this;
-  this.load_file(url, true, function (req) {
+  this.load_file(url, {binary: true, progress: progress}, function (req) {
     var map = new ElMap();
     if (filetype === 'ccp4') map.from_ccp4(req.response, true);
     else /* === 'dsn6'*/ map.from_dsn6(req.response);
     self.add_map(map, is_diff_map);
     if (callback) callback();
-  }, show_progress);
+  });
 };
 
 // Load a normal map and a difference map.
@@ -1565,10 +1566,7 @@ Viewer.prototype.load_map = function (url, is_diff_map, filetype, callback,
 Viewer.prototype.load_ccp4_maps = function (url1, url2, callback) {
   var self = this;
   this.load_map(url1, false, 'ccp4', function () {
-    self.load_map(url2, true, 'ccp4', function () {
-      self.hud(); // clear progress message
-      if (callback) callback();
-    }, true);
+    self.load_map(url2, true, 'ccp4', callback, true);
   }, true);
 };
 

@@ -84,7 +84,7 @@ ReciprocalViewer.prototype.set_reciprocal_key_bindings = function () {
 ReciprocalViewer.prototype.load_data = function (url, options) {
   options = options || {};
   var self = this;
-  this.load_file(url, false, function (req) {
+  this.load_file(url, {binary: false, progress: true}, function (req) {
     self.parse_data(req.responseText);
     self.set_axes();
     self.set_points();
