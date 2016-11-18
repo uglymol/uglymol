@@ -2196,7 +2196,7 @@ var ColorSchemes = [ // Viewer.prototype.ColorSchemes
   },
 ];
 
-var auto_speed = 1.0;  // accessible as Viewer.auto_speed
+var auto_speed = 1.0;
 
 // map 2d position to sphere with radius 1.
 function project_on_ball(x, y) {
@@ -3594,11 +3594,13 @@ Viewer.prototype.add_map = function (map, is_diff_map) {
   this.request_render();
 };
 
-Viewer.prototype.load_file = function (url, binary, callback, show_progress) {
+Viewer.prototype.load_file = function (url/*:string*/,
+                                       options/*:{[id:string]: mixed}*/,
+                                       callback/*:Function*/) {
   if (this.renderer === null) return;  // no WebGL detected
   var req = new XMLHttpRequest();
   req.open('GET', url, true);
-  if (binary) {
+  if (options.binary) {
     req.responseType = 'arraybuffer';
   } else {
     // http://stackoverflow.com/questions/7374911/
@@ -3619,13 +3621,14 @@ Viewer.prototype.load_file = function (url, binary, callback, show_progress) {
       }
     }
   };
-  if (show_progress) {
-    req.addEventListener('progress', function (evt) {
+  if (options.progress) {
+    // flow-ignore-line  dom.js in flow is incomplete
+    req.addEventListener('progress', function (evt /*:ProgressEvent*/) {
       if (evt.lengthComputable && evt.loaded && evt.total) {
         var fn = url.split('/').pop();
         self.hud('loading ' + fn + ' ... ' +
-                 // flow-ignore-line  Property `loaded` not found in Event
                  (evt.loaded >> 10) + ' / ' + (evt.total >> 10) + ' kB');
+        if (evt.loaded === evt.total) self.hud(); // clear progress message
       }
     });
   }
@@ -3639,55 +3642,50 @@ Viewer.prototype.load_file = function (url, binary, callback, show_progress) {
 Viewer.prototype.set_view = function (options) {
   var frag = parse_url_fragment();
   if (frag.zoom) this.camera.zoom = frag.zoom;
-  this.recenter(frag.xyz || options.center, frag.eye, 1);
+  this.recenter(frag.xyz || (options && options.center), frag.eye, 1);
 };
 
 // Load molecular model from PDB file and centers the view
-Viewer.prototype.load_pdb = function (url, options) {
-  options = options || {};
+Viewer.prototype.load_pdb = function (url, options, callback) {
   var self = this;
-  this.load_file(url, false, function (req) {
+  this.load_file(url, {binary: false}, function (req) {
     var model = new Model();
     model.from_pdb(req.responseText);
     self.set_model(model);
     self.set_view(options);
-    if (options.callback) options.callback();
+    if (callback) callback();
   });
 };
 
-Viewer.prototype.load_map = function (url, is_diff_map, filetype, callback,
-                                      show_progress) {
-  if (filetype !== 'ccp4' && filetype !== 'dsn6') {
-    throw Error('Unknown map filetype.');
+Viewer.prototype.load_map = function (url, options, callback) {
+  if (options.format !== 'ccp4' && options.format !== 'dsn6') {
+    throw Error('Unknown map format.');
   }
   var self = this;
-  this.load_file(url, true, function (req) {
+  this.load_file(url, {binary: true, progress: true}, function (req) {
     var map = new ElMap();
-    if (filetype === 'ccp4') map.from_ccp4(req.response, true);
+    if (options.format === 'ccp4') map.from_ccp4(req.response, true);
     else /* === 'dsn6'*/ map.from_dsn6(req.response);
-    self.add_map(map, is_diff_map);
+    self.add_map(map, options.diff_map);
     if (callback) callback();
-  }, show_progress);
+  });
 };
 
 // Load a normal map and a difference map.
 // To show the first map ASAP we do not download both maps in parallel.
 Viewer.prototype.load_ccp4_maps = function (url1, url2, callback) {
   var self = this;
-  this.load_map(url1, false, 'ccp4', function () {
-    self.load_map(url2, true, 'ccp4', function () {
-      self.hud(); // clear progress message
-      if (callback) callback();
-    }, true);
-  }, true);
+  this.load_map(url1, {diff_map: false, format: 'ccp4'}, function () {
+    self.load_map(url2, {diff_map: true, format: 'ccp4'}, callback);
+  });
 };
 
 // Load a model (PDB), normal map and a difference map - in this order.
 Viewer.prototype.load_pdb_and_ccp4_maps = function (pdb, map1, map2, callback) {
   var self = this;
-  this.load_pdb(pdb, {callback: function () {
+  this.load_pdb(pdb, {}, function () {
     self.load_ccp4_maps(map1, map2, callback);
-  }});
+  });
 };
 
 // TODO: navigation window like in gimp and mifit
@@ -3710,7 +3708,6 @@ Viewer.prototype.show_nav = function (inset_id) {
 */
 
 Viewer.prototype.ColorSchemes = ColorSchemes;
-Viewer.auto_speed = auto_speed;
 
 // @flow
 var SPOT_SEL = ['all', 'indexed', 'not indexed'];
@@ -3793,7 +3790,7 @@ ReciprocalViewer.prototype.set_reciprocal_key_bindings = function () {
 ReciprocalViewer.prototype.load_data = function (url, options) {
   options = options || {};
   var self = this;
-  this.load_file(url, false, function (req) {
+  this.load_file(url, {binary: false, progress: true}, function (req) {
     self.parse_data(req.responseText);
     self.set_axes();
     self.set_points();
