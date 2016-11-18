@@ -3151,7 +3151,8 @@ Viewer.prototype.redraw_all = function () {
   this.redraw_labels();
 };
 
-Viewer.prototype.toggle_help = function (el) {
+Viewer.prototype.toggle_help = function () {
+  var el = this.help_el;
   if (!el) return;
   el.style.display = el.style.display === 'block' ? 'none' : 'block';
   if (el.innerHTML === '') {
@@ -3252,9 +3253,7 @@ Viewer.prototype.set_common_key_bindings = function () {
     evt.shiftKey ? this.toggle_full_screen() : this.change_slab_width_by(0.1);
   };
   // h
-  kb[72] = function () {
-    this.toggle_help(this.help_el);
-  };
+  kb[72] = this.toggle_help;
   // i
   kb[73] = function (evt) {
     this.hud('toggled spinning');
