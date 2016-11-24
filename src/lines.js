@@ -42,7 +42,6 @@ export function makeCube(size /*:number*/,
 // A cube with 3 edges (for x, y, z axes) colored in red, green and blue.
 export function makeRgbBox(transform_func /*:Num3 => Num3*/,
                            options /*:{[key:string]: any}*/) {
-  // flow-ignore-line - union in makeLineMaterial() confuses flow
   var vertices = CUBE_EDGES.map(function (a) {
     return { xyz: transform_func(a) };
   });
@@ -59,6 +58,7 @@ export function makeRgbBox(transform_func /*:Num3 => Num3*/,
     linewidth: 1,
     segments: true,
   });
+  // flow-ignore-line - the type of vertices confuses flow
   return makeLineSegments(material, vertices, colors);
 }
 
