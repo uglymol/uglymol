@@ -24,7 +24,7 @@ describe('ElMap', function () {
   it('#from_ccp4', function () {
     cmap.from_ccp4(cmap_buf);
   });
-  it('should have same the unit cell', function () {
+  it('compare unit cells', function () {
     for (var i = 0; i < 6; i++) {
       assert.closeTo(dmap.unit_cell.parameters[i],
                      cmap.unit_cell.parameters[i], 0.02);
