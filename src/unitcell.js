@@ -6,7 +6,7 @@ export function UnitCell(a /*:number*/, b /*:number*/, c /*:number*/,
     throw Error('Zero or negative unit cell parameter(s).');
   }
   this.parameters = [a, b, c, alpha, beta, gamma];
-  var deg2rad = Math.PI / 180.0;
+  const deg2rad = Math.PI / 180.0;
   var cos_alpha = Math.cos(deg2rad * alpha);
   var cos_beta = Math.cos(deg2rad * beta);
   var cos_gamma = Math.cos(deg2rad * gamma);

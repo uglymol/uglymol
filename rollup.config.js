@@ -1,5 +1,5 @@
 
-//import buble from 'rollup-plugin-buble';
+import buble from 'rollup-plugin-buble';
 const version = require('./package.json').version
 
 const banner = `/*!
@@ -45,7 +45,7 @@ function three_import() {
 
 let build = {
   entry: 'src/all.js',
-  plugins: [/*buble() */],
+  plugins: [],
   format: 'umd',
   dest: 'uglymol.js',
   moduleName: 'UM',
@@ -64,6 +64,11 @@ if (process.env.BUNDLE_DEPS) {
   build.dest = 'uglymol-nodeps.js';
   console.log('\nYou may run next:\n' +
               'uglifyjs uglymol-nodeps.js -cm > uglymol-nodeps.min.js\n');
+}
+
+if (process.env.TARGET !== 'dev') {
+  // disable arrow b/c https://gitlab.com/Rich-Harris/buble/issues/158
+  build.plugins.push(buble({transforms: { arrow: false }}));
 }
 
 export default build;

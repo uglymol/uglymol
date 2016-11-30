@@ -24,11 +24,12 @@
     "istanbul": "^0.4.5",
     "mocha": "^3.2.0",
     "rollup": "^0.36.3",
+    "rollup-plugin-buble": "^0.13.0",
     "rollup-watch": "^2.5.0",
     "uglify-js": "^2.7.3"
   },
   "scripts": {
-    "test": "mocha",
+    "test": "npm run lint && npm run flow && rollup -c && mocha",
     "coverage": "istanbul cover -x '**/perf/**' _mocha -- --timeout 100000",
     "lint": "eslint src test perf || exit 0",
     "flow": "flow || exit 0",
@@ -38,7 +39,6 @@
     "build": "npm test && npm run uglify",
     "version": "npm run build && git add -A uglymol.js",
     "prepublish": "npm run build",
-    "pretest": "npm run lint && npm run flow && npm run bundle",
     "watch": "rollup -c --watch",
     "start": "npm run watch & http-server -a localhost -p 7890 -c-1"
   },
