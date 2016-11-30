@@ -5,14 +5,14 @@ var UM = UM || require('../uglymol'); // eslint-disable-line
 (function () {  // namespace is needed for perf.html
 'use strict';
 
-var pdb_string = util.open_as_utf8('1mru.pdb');
-var cmap_buf = util.open_as_array_buffer('1mru.map');
+const pdb_string = util.open_as_utf8('1mru.pdb');
+const cmap_buf = util.open_as_array_buffer('1mru.map');
 
-var viewer = new UM.Viewer({});
-var model = new UM.Model();
+let viewer = new UM.Viewer({});
+let model = new UM.Model();
 model.from_pdb(pdb_string);
 viewer.set_model(model);
-var emap = new UM.ElMap();
+let emap = new UM.ElMap();
 emap.from_ccp4(cmap_buf);
 
 util.bench('add trace', function () {

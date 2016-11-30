@@ -2,7 +2,7 @@
 
 /* eslint comma-spacing: 0, no-multi-spaces: 0 */
 
-var edgeTable = new Int32Array([
+const edgeTable = new Int32Array([
   0x0  , 0x0  , 0x202, 0x302, 0x406, 0x406, 0x604, 0x704,
   0x804, 0x805, 0xa06, 0xa06, 0xc0a, 0xd03, 0xe08, 0xf00,
   0x90 , 0x98 , 0x292, 0x292, 0x496, 0x49e, 0x694, 0x694,
@@ -38,7 +38,7 @@ var edgeTable = new Int32Array([
 
 
 // generated from classical triTable by tools/isolut.py
-var segTable = [
+const segTable = [
   [],
   [],
   [1, 9],
@@ -296,7 +296,7 @@ var segTable = [
   [],
   []];
 
-var segTable2 = [
+const segTable2 = [
   [],
   [],
   [1, 9],
@@ -554,17 +554,17 @@ var segTable2 = [
   [],
   []];
 
-var cubeVerts = [[0,0,0], [1,0,0], [1,1,0], [0,1,0],
-                 [0,0,1], [1,0,1], [1,1,1], [0,1,1]];
-var edgeIndex = [[0,1], [1,2], [2,3], [3,0], [4,5], [5,6],
-                 [6,7], [7,4], [0,4], [1,5], [2,6], [3,7]];
+const cubeVerts = [[0,0,0], [1,0,0], [1,1,0], [0,1,0],
+                   [0,0,1], [1,0,1], [1,1,1], [0,1,1]];
+const edgeIndex = [[0,1], [1,2], [2,3], [3,0], [4,5], [5,6],
+                   [6,7], [7,4], [0,4], [1,5], [2,6], [3,7]];
 // edge directions: [x, y, -x, -y, x, y, -x, -y, z, z, z, z]
 
 function check_input(dims, values, points) {
   if (dims[0] <= 0 || dims[1] <= 0 || dims[2] <= 0) {
     throw Error('Grid dimensions are zero along at least one edge');
   }
-  var size_xyz = dims[0] * dims[1] * dims[2];
+  const size_xyz = dims[0] * dims[1] * dims[2];
   if (values.length !== size_xyz || points.length !== size_xyz) {
     throw Error('isosurface: array size mismatch');
   }
@@ -572,9 +572,9 @@ function check_input(dims, values, points) {
 
 // return offsets relative to vertex [0,0,0]
 function calculate_vert_offsets(dims) {
-  var vert_offsets = [];
-  for (var i = 0; i < 8; ++i) {
-    var v = cubeVerts[i];
+  let vert_offsets = [];
+  for (let i = 0; i < 8; ++i) {
+    const v = cubeVerts[i];
     vert_offsets.push(v[0] + dims[2] * (v[1] + dims[1] * v[2]));
   }
   return vert_offsets;
@@ -582,26 +582,26 @@ function calculate_vert_offsets(dims) {
 
 
 function marching_cubes(dims, values, points, isolevel, method) {
-  var snap = (method === 'snapped MC');
-  var seg_table = (method === 'squarish' ? segTable2 : segTable);
-  var vlist = new Array(12);
-  var vert_offsets = calculate_vert_offsets(dims);
-  var vertex_values = new Float32Array(8);
-  var p0 = [0, 0, 0]; // initial value - never used, but makes Flow happy
-  var vertex_points = [p0, p0, p0, p0, p0, p0, p0, p0];
-  var size_x = dims[0];
-  var size_y = dims[1];
-  var size_z = dims[2];
-  var vertices = [];
-  var segments = [];
-  var vertex_count = 0;
-  for (var x = 0; x < size_x - 1; x++) {
-    for (var y = 0; y < size_y - 1; y++) {
-      for (var z = 0; z < size_z - 1; z++) {
-        var offset0 = z + size_z * (y + size_y * x);
-        var cubeindex = 0;
-        var i;
-        var j;
+  const snap = (method === 'snapped MC');
+  const seg_table = (method === 'squarish' ? segTable2 : segTable);
+  let vlist = new Array(12);
+  const vert_offsets = calculate_vert_offsets(dims);
+  let vertex_values = new Float32Array(8);
+  let p0 = [0, 0, 0]; // initial value - never used, but makes Flow happy
+  let vertex_points = [p0, p0, p0, p0, p0, p0, p0, p0];
+  const size_x = dims[0];
+  const size_y = dims[1];
+  const size_z = dims[2];
+  let vertices = [];
+  let segments = [];
+  let vertex_count = 0;
+  for (let x = 0; x < size_x - 1; x++) {
+    for (let y = 0; y < size_y - 1; y++) {
+      for (let z = 0; z < size_z - 1; z++) {
+        const offset0 = z + size_z * (y + size_y * x);
+        let cubeindex = 0;
+        let i;
+        let j;
         for (i = 0; i < 8; ++i) {
           j = offset0 + vert_offsets[i];
           cubeindex |= (values[j] < isolevel) ? 1 << i : 0;
@@ -614,21 +614,21 @@ function marching_cubes(dims, values, points, isolevel, method) {
         }
 
         // 12 bit number, indicates which edges are crossed by the isosurface
-        var edge_mask = edgeTable[cubeindex];
+        const edge_mask = edgeTable[cubeindex];
 
         // check which edges are crossed, and estimate the point location
         // using a weighted average of scalar values at edge endpoints.
         for (i = 0; i < 12; ++i) {
           if ((edge_mask & (1 << i)) !== 0) {
-            var e = edgeIndex[i];
-            var mu = (isolevel - vertex_values[e[0]]) /
+            const e = edgeIndex[i];
+            let mu = (isolevel - vertex_values[e[0]]) /
                      (vertex_values[e[1]] - vertex_values[e[0]]);
             if (snap === true) {
               if (mu > 0.85) mu = 1;
               else if (mu < 0.15) mu = 0;
             }
-            var p1 = vertex_points[e[0]];
-            var p2 = vertex_points[e[1]];
+            const p1 = vertex_points[e[0]];
+            const p2 = vertex_points[e[1]];
             // The number of added vertices could be roughly halved
             // if we avoided duplicates between neighbouring cells.
             // Using a map for lookups is too slow, perhaps a big
@@ -639,7 +639,7 @@ function marching_cubes(dims, values, points, isolevel, method) {
             vlist[i] = vertex_count++;
           }
         }
-        var t = seg_table[cubeindex];
+        const t = seg_table[cubeindex];
         for (i = 0; i < t.length; i++) {
           segments.push(vlist[t[i]]);
         }

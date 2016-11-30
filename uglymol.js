@@ -30,7 +30,7 @@ function UnitCell(a /*:number*/, b /*:number*/, c /*:number*/,
   if (sin_alpha === 0 || sin_beta === 0 || sin_gamma === 0) {
     throw Error('Impossible angle - N*180deg.');
   }
-  var cos_alpha_star_sin_beta = (cos_beta * cos_gamma - cos_alpha) / sin_gamma;
+  var cos_alpha_star_sin_beta = (cos_beta*cos_gamma - cos_alpha) / sin_gamma;
   var cos_alpha_star = cos_alpha_star_sin_beta / sin_beta;
   var s1rca2 = Math.sqrt(1.0 - cos_alpha_star * cos_alpha_star);
   // The orthogonalization matrix we use is described in ITfC B p.262:
@@ -40,8 +40,8 @@ function UnitCell(a /*:number*/, b /*:number*/, c /*:number*/,
   // Cartesian X_3 axis."
   /* eslint-disable no-multi-spaces, comma-spacing */
   var orth = [a,   b * cos_gamma,  c * cos_beta,
-              0.0, b * sin_gamma, -c * cos_alpha_star_sin_beta,
-              0.0, 0.0          ,  c * sin_beta * s1rca2];
+                0.0, b * sin_gamma, -c * cos_alpha_star_sin_beta,
+                0.0, 0.0          ,  c * sin_beta * s1rca2];
   // based on xtal.js which is based on cctbx.uctbx
   var frac = [
     1.0 / a,
@@ -57,10 +57,9 @@ function UnitCell(a /*:number*/, b /*:number*/, c /*:number*/,
   ];
 
   function multiply(xyz, mat) {
-    var x = xyz[0], y = xyz[1], z = xyz[2];  // eslint-disable-line
-    return [mat[0] * x + mat[1] * y + mat[2] * z,
-                         mat[4] * y + mat[5] * z,
-                                      mat[8] * z];
+    return [mat[0] * xyz[0] + mat[1] * xyz[1] + mat[2] * xyz[2],
+                              mat[4] * xyz[1] + mat[5] * xyz[2],
+                                                mat[8] * xyz[2]];
   }
 
   this.fractionalize = function (xyz) { return multiply(xyz, frac); };
@@ -357,9 +356,9 @@ Atom.prototype.is_main_conformer = function () {
 };
 
 Atom.prototype.is_bonded_to = function (other) {
-  /** @const */ var MAX_DIST_SQ = 1.99 * 1.99;
-  /** @const */ var MAX_DIST_H_SQ = 1.3 * 1.3;
-  /** @const */ var MAX_DIST_SP_SQ = 2.2 * 2.2;
+  var MAX_DIST_SQ = 1.99 * 1.99;
+  var MAX_DIST_H_SQ = 1.3 * 1.3;
+  var MAX_DIST_SP_SQ = 2.2 * 2.2;
 
   if (!this.is_same_conformer(other)) return false;
   if (this.element === 'H' && other.element === 'H') return false;
@@ -450,7 +449,7 @@ Cubicles.prototype.get_nearby_atoms = function (box_id) {
 Model.prototype.calculate_connectivity = function () {
   var atoms = this.atoms;
   var cubes = new Cubicles(atoms, 3.0, this.lower_bound, this.upper_bound);
-  //var cnt = 0;
+  //let cnt = 0;
   for (var i = 0; i < cubes.boxes.length; i++) {
     var box = cubes.boxes[i];
     if (box.length === 0) continue;
@@ -1049,9 +1048,9 @@ var segTable2 = [
   []];
 
 var cubeVerts = [[0,0,0], [1,0,0], [1,1,0], [0,1,0],
-                 [0,0,1], [1,0,1], [1,1,1], [0,1,1]];
+                   [0,0,1], [1,0,1], [1,1,1], [0,1,1]];
 var edgeIndex = [[0,1], [1,2], [2,3], [3,0], [4,5], [5,6],
-                 [6,7], [7,4], [0,4], [1,5], [2,6], [3,7]];
+                   [6,7], [7,4], [0,4], [1,5], [2,6], [3,7]];
 // edge directions: [x, y, -x, -y, x, y, -x, -y, z, z, z, z]
 
 function check_input(dims, values, points) {
@@ -1395,8 +1394,8 @@ ElMap.prototype.from_dsn6 = function (buf) {
   // bricks have 512 (8x8x8) values
   var offset = 512;
   var n_blocks = [Math.ceil(n_real[0] / 8),
-                  Math.ceil(n_real[1] / 8),
-                  Math.ceil(n_real[2] / 8)];
+                    Math.ceil(n_real[1] / 8),
+                    Math.ceil(n_real[2] / 8)];
   for (var zz = 0; zz < n_blocks[2]; zz++) {
     for (var yy = 0; yy < n_blocks[1]; yy++) {
       for (var xx = 0; xx < n_blocks[0]; xx++) { // loop over bricks
@@ -1439,8 +1438,8 @@ ElMap.prototype.extract_block = function (radius, center) {
   var grid_min = [0, 0, 0];
   var grid_max = grid.dim;
   if (center) {
-    var xyz_min = [center[0] - radius, center[1] - radius, center[2] - radius];
-    var xyz_max = [center[0] + radius, center[1] + radius, center[2] + radius];
+    var xyz_min = [center[0]-radius, center[1]-radius, center[2]-radius];
+    var xyz_max = [center[0]+radius, center[1]+radius, center[2]+radius];
     var frac_min = unit_cell.fractionalize(xyz_min);
     var frac_max = unit_cell.fractionalize(xyz_max);
     grid_min = grid.frac2grid(frac_min);
@@ -1479,17 +1478,17 @@ ElMap.prototype.isomesh_in_block = function (sigma, method) {
 /*:: type Vector3 = {x: number, y: number, z: number} */
 
 var CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
-                  [0, 0, 0], [0, 1, 0],
-                  [0, 0, 0], [0, 0, 1],
-                  [1, 0, 0], [1, 1, 0],
-                  [1, 0, 0], [1, 0, 1],
-                  [0, 1, 0], [1, 1, 0],
-                  [0, 1, 0], [0, 1, 1],
-                  [0, 0, 1], [1, 0, 1],
-                  [0, 0, 1], [0, 1, 1],
-                  [1, 0, 1], [1, 1, 1],
-                  [1, 1, 0], [1, 1, 1],
-                  [0, 1, 1], [1, 1, 1]];
+                    [0, 0, 0], [0, 1, 0],
+                    [0, 0, 0], [0, 0, 1],
+                    [1, 0, 0], [1, 1, 0],
+                    [1, 0, 0], [1, 0, 1],
+                    [0, 1, 0], [1, 1, 0],
+                    [0, 1, 0], [0, 1, 1],
+                    [0, 0, 1], [1, 0, 1],
+                    [0, 0, 1], [0, 1, 1],
+                    [1, 0, 1], [1, 1, 1],
+                    [1, 1, 0], [1, 1, 1],
+                    [0, 1, 1], [1, 1, 1]];
 
 function makeCube(size /*:number*/,
                          ctr /*:Vector3*/,
@@ -1809,7 +1808,7 @@ function makeChickenWire(data /*:{vertices: number[], segments: number[]}*/,
   // Although almost all browsers support OES_element_index_uint nowadays,
   // use Uint32 indexes only when needed.
   var arr = (data.vertices.length < 3*65536 ? new Uint16Array(data.segments)
-                                            : new Uint32Array(data.segments));
+                                              : new Uint32Array(data.segments));
   //console.log('arr len:', data.vertices.length, data.segments.length);
   geom.setIndex(new THREE.BufferAttribute(arr, 1));
   var material = new THREE.LineBasicMaterial(parameters);
@@ -2217,11 +2216,11 @@ function scale_by_height(value, size) { // for scaling bond_line
 }
 
 var STATE = {NONE: -1, ROTATE: 0, PAN: 1, ZOOM: 2, PAN_ZOOM: 3, SLAB: 4,
-             ROLL: 5, AUTO_ROTATE: 6, GO: 7};
+               ROLL: 5, AUTO_ROTATE: 6, GO: 7};
 
 
 // based on three.js/examples/js/controls/OrthographicTrackballControls.js
-var Controls = function (camera, target) {
+function Controls(camera, target) {
   var _state = STATE.NONE;
   var _rotate_start = new THREE.Vector3();
   var _rotate_end = new THREE.Vector3();
@@ -2368,7 +2367,7 @@ var Controls = function (camera, target) {
 
   this.move = function (x, y, dist) {
     switch (_state) {
-      case STATE.ROTATE:
+      case STATE.ROTATE: {
         var xyz = project_on_ball(x, y);
         //console.log(camera.projectionMatrix);
         //console.log(camera.matrixWorld);
@@ -2378,6 +2377,7 @@ var Controls = function (camera, target) {
         _rotate_end.addScaledVector(camera.up, xyz[1] / camera.up.length());
         _rotate_end.addScaledVector(eye, xyz[2] / eye.length());
         break;
+      }
       case STATE.ZOOM:
       case STATE.SLAB:
       case STATE.ROLL:
@@ -2439,10 +2439,10 @@ var Controls = function (camera, target) {
       }
     };
   };
-};
+}
 
 
-// constants
+// options handled by select_next()
 
 var COLOR_AIMS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
 var RENDER_STYLES = ['lines', 'trace', 'ribbon'/*, 'ball&stick'*/];
@@ -2541,8 +2541,8 @@ ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
   var vertex_arr /*:THREE.Vector3[]*/ = [];
   var color_arr = [];
   var opt = { hydrogens: this.conf.hydrogens,
-              ligands_only: ligands_only,
-              balls: this.conf.render_style === 'ball&stick' };
+                ligands_only: ligands_only,
+                balls: this.conf.render_style === 'ball&stick' };
   for (var i = 0; i < visible_atoms.length; i++) {
     var atom = visible_atoms[i];
     var color = colors[i];
@@ -2897,11 +2897,12 @@ Viewer.prototype.set_atomic_objects = function (model_bag) {
     case 'lines':
       model_bag.add_bonds();
       break;
-    case 'ball&stick':
+    case 'ball&stick': {
       var h_scale = this.camera.projectionMatrix.elements[5];
       var ball_size = Math.max(1, 200 * h_scale);
       model_bag.add_bonds(false, ball_size);
       break;
+    }
     case 'trace':  // + lines for ligands
       model_bag.add_trace();
       model_bag.add_bonds(true);
@@ -3709,6 +3710,7 @@ Viewer.prototype.show_nav = function (inset_id) {
 Viewer.prototype.ColorSchemes = ColorSchemes;
 
 // @flow
+// options handled by Viewer#select_next()
 var SPOT_SEL = ['all', 'indexed', 'not indexed'];
 var SHOW_AXES = ['three', 'two', 'none'];
 
@@ -3760,9 +3762,9 @@ ReciprocalViewer.prototype.set_reciprocal_key_bindings = function () {
   // v
   kb[86] = function (evt) {
     this.select_next('show', 'show_only', SPOT_SEL, evt.shiftKey);
-    var show_only = this.points.material.uniforms.show_only;
     var sel_map = { 'all': -2, 'indexed': 0, 'not indexed': -1 };
-    show_only.value = sel_map[this.config.show_only];
+    var sel = sel_map[this.config.show_only];
+    this.points.material.uniforms.show_only.value = sel;
   };
   // Home
   kb[36] = function (evt) {

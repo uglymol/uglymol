@@ -7,29 +7,29 @@ import * as THREE from 'three';
 /*:: type Color = {r: number, g: number, b: number} */
 /*:: type Vector3 = {x: number, y: number, z: number} */
 
-var CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
-                  [0, 0, 0], [0, 1, 0],
-                  [0, 0, 0], [0, 0, 1],
-                  [1, 0, 0], [1, 1, 0],
-                  [1, 0, 0], [1, 0, 1],
-                  [0, 1, 0], [1, 1, 0],
-                  [0, 1, 0], [0, 1, 1],
-                  [0, 0, 1], [1, 0, 1],
-                  [0, 0, 1], [0, 1, 1],
-                  [1, 0, 1], [1, 1, 1],
-                  [1, 1, 0], [1, 1, 1],
-                  [0, 1, 1], [1, 1, 1]];
+const CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
+                    [0, 0, 0], [0, 1, 0],
+                    [0, 0, 0], [0, 0, 1],
+                    [1, 0, 0], [1, 1, 0],
+                    [1, 0, 0], [1, 0, 1],
+                    [0, 1, 0], [1, 1, 0],
+                    [0, 1, 0], [0, 1, 1],
+                    [0, 0, 1], [1, 0, 1],
+                    [0, 0, 1], [0, 1, 1],
+                    [1, 0, 1], [1, 1, 1],
+                    [1, 1, 0], [1, 1, 1],
+                    [0, 1, 1], [1, 1, 1]];
 
 export function makeCube(size /*:number*/,
                          ctr /*:Vector3*/,
                          options /*:{[key:string]: any}*/) {
-  var vertices = CUBE_EDGES.map(function (a) {
+  const vertices = CUBE_EDGES.map(function (a) {
     return {
       x: ctr.x + size * (a[0] - 0.5),
       y: ctr.y + size * (a[1] - 0.5),
       z: ctr.z + size * (a[2] - 0.5)};
   });
-  var material = makeLineMaterial({
+  const material = makeLineMaterial({
     gl_lines: true,
     color: options.color,
     linewidth: options.linewidth,
@@ -42,18 +42,18 @@ export function makeCube(size /*:number*/,
 // A cube with 3 edges (for x, y, z axes) colored in red, green and blue.
 export function makeRgbBox(transform_func /*:Num3 => Num3*/,
                            options /*:{[key:string]: any}*/) {
-  var vertices = CUBE_EDGES.map(function (a) {
+  const vertices = CUBE_EDGES.map(function (a) {
     return { xyz: transform_func(a) };
   });
-  var colors = [
+  let colors = [
     new THREE.Color(0xff0000), new THREE.Color(0xffaa00),
     new THREE.Color(0x00ff00), new THREE.Color(0xaaff00),
     new THREE.Color(0x0000ff), new THREE.Color(0x00aaff),
   ];
-  for (var j = 6; j < CUBE_EDGES.length; j++) {
+  for (let j = 6; j < CUBE_EDGES.length; j++) {
     colors.push(options.color);
   }
-  var material = makeLineMaterial({
+  const material = makeLineMaterial({
     gl_lines: true,
     linewidth: 1,
     segments: true,
@@ -63,19 +63,19 @@ export function makeRgbBox(transform_func /*:Num3 => Num3*/,
 }
 
 function double_pos(vertex_arr /*:Vector3[] | Atom[]*/) {
-  var pos = [];
-  var i;
+  let pos = [];
+  let i;
   if (vertex_arr && vertex_arr[0].xyz) {
     for (i = 0; i < vertex_arr.length; i++) {
       // flow-ignore-line - disjoint unions not smart enough
-      var xyz /*:Num3*/ = vertex_arr[i].xyz;
+      const xyz /*:Num3*/ = vertex_arr[i].xyz;
       pos.push(xyz[0], xyz[1], xyz[2]);
       pos.push(xyz[0], xyz[1], xyz[2]);
     }
   } else {
     for (i = 0; i < vertex_arr.length; i++) {
       // flow-ignore-line
-      var v /*:Vector3*/ = vertex_arr[i];
+      const v /*:Vector3*/ = vertex_arr[i];
       pos.push(v.x, v.y, v.z);
       pos.push(v.x, v.y, v.z);
     }
@@ -84,10 +84,10 @@ function double_pos(vertex_arr /*:Vector3[] | Atom[]*/) {
 }
 
 function double_color(color_arr /*:Color[]*/) {
-  var len = color_arr.length;
-  var color = new Float32Array(6*len);
-  for (var i = 0; i < len; i++) {
-    var col = color_arr[i];
+  const len = color_arr.length;
+  let color = new Float32Array(6*len);
+  for (let i = 0; i < len; i++) {
+    const col = color_arr[i];
     color[6*i] = col.r;
     color[6*i+1] = col.g;
     color[6*i+2] = col.b;
@@ -100,24 +100,24 @@ function double_color(color_arr /*:Color[]*/) {
 
 // input arrays must be of the same length
 function wide_line_geometry(vertex_arr, color_arr) {
-  var len = vertex_arr.length;
-  var pos = double_pos(vertex_arr);
-  var position = new Float32Array(pos);
+  const len = vertex_arr.length;
+  const pos = double_pos(vertex_arr);
+  const position = new Float32Array(pos);
   // could we use three overlapping views of the same buffer?
-  var previous = new Float32Array(6*len);
-  var i;
+  let previous = new Float32Array(6*len);
+  let i;
   for (i = 0; i < 6; i++) previous[i] = pos[i];
   for (; i < 6 * len; i++) previous[i] = pos[i-6];
-  var next = new Float32Array(6*len);
+  let next = new Float32Array(6*len);
   for (i = 0; i < 6 * (len-1); i++) next[i] = pos[i+6];
   for (; i < 6 * len; i++) next[i] = pos[i];
-  var side = new Float32Array(2*len);
+  let side = new Float32Array(2*len);
   for (i = 0; i < len; i++) {
     side[2*i] = 1;
     side[2*i+1] = -1;
   }
-  var color = double_color(color_arr);
-  var geometry = new THREE.BufferGeometry();
+  const color = double_color(color_arr);
+  let geometry = new THREE.BufferGeometry();
   geometry.addAttribute('position', new THREE.BufferAttribute(position, 3));
   geometry.addAttribute('previous', new THREE.BufferAttribute(previous, 3));
   geometry.addAttribute('next', new THREE.BufferAttribute(next, 3));
@@ -129,35 +129,35 @@ function wide_line_geometry(vertex_arr, color_arr) {
 // input arrays must be of the same length
 function wide_segments_geometry(vertex_arr, color_arr) {
   // n input vertices => 2n output vertices, n triangles, 3n indexes
-  var len = vertex_arr.length;
-  var i;
-  var j;
-  var pos = double_pos(vertex_arr);
-  var position = new Float32Array(pos);
-  var other_vert = new Float32Array(6*len);
+  const len = vertex_arr.length;
+  let i;
+  let j;
+  const pos = double_pos(vertex_arr);
+  const position = new Float32Array(pos);
+  let other_vert = new Float32Array(6*len);
   for (i = 0; i < 6 * len; i += 12) {
     for (j = 0; j < 6; j++) other_vert[i+j] = pos[i+j+6];
     for (; j < 12; j++) other_vert[i+j] = pos[i+j-6];
   }
-  var side = new Float32Array(2*len);
+  let side = new Float32Array(2*len);
   for (i = 0; i < len; i++) {
     side[2*i] = -1;
     side[2*i+1] = 1;
   }
-  var index = (2*len < 65536 ? new Uint16Array(3*len)
+  let index = (2*len < 65536 ? new Uint16Array(3*len)
                              : new Uint32Array(3*len));
-  var vert_order = [0, 1, 2, 0, 2, 3];
+  const vert_order = [0, 1, 2, 0, 2, 3];
   for (i = 0; i < len / 2; i++) {
     for (j = 0; j < 6; j++) {
       index[6*i+j] = 4*i + vert_order[j];
     }
   }
-  var geometry = new THREE.BufferGeometry();
+  let geometry = new THREE.BufferGeometry();
   geometry.addAttribute('position', new THREE.BufferAttribute(position, 3));
   geometry.addAttribute('other', new THREE.BufferAttribute(other_vert, 3));
   geometry.addAttribute('side', new THREE.BufferAttribute(side, 1));
   if (color_arr != null) {
-    var color = double_color(color_arr);
+    const color = double_color(color_arr);
     geometry.addAttribute('color', new THREE.BufferAttribute(color, 3));
   }
   geometry.setIndex(new THREE.BufferAttribute(index, 1));
@@ -165,7 +165,7 @@ function wide_segments_geometry(vertex_arr, color_arr) {
 }
 
 
-var wide_line_vert = [
+const wide_line_vert = [
   'attribute vec3 previous;',
   'attribute vec3 next;',
   'attribute float side;',
@@ -194,7 +194,7 @@ var wide_line_vert = [
   '  gl_Position.xy += side * linewidth / angle_factor * normal / win_size;',
   '}'].join('\n');
 
-var wide_segments_vert = [
+const wide_segments_vert = [
   'attribute vec3 other;',
   'attribute float side;',
   'uniform vec2 win_size;',
@@ -210,7 +210,7 @@ var wide_segments_vert = [
   '  gl_Position.xy += side * linewidth * normal / win_size;',
   '}'].join('\n');
 
-var wide_line_frag = [
+const wide_line_frag = [
   '#include <fog_pars_fragment>',
   'varying vec3 vcolor;',
   'void main() {',
@@ -220,21 +220,21 @@ var wide_line_frag = [
 
 
 function interpolate_vertices(segment, smooth) /*:Vector3[]*/{
-  var vertices = [];
-  for (var i = 0; i < segment.length; i++) {
-    var xyz = segment[i].xyz;
+  let vertices = [];
+  for (let i = 0; i < segment.length; i++) {
+    const xyz = segment[i].xyz;
     vertices.push(new THREE.Vector3(xyz[0], xyz[1], xyz[2]));
   }
   if (!smooth || smooth < 2) return vertices;
-  var curve = new THREE.CatmullRomCurve3(vertices);
+  const curve = new THREE.CatmullRomCurve3(vertices);
   return curve.getPoints((segment.length - 1) * smooth);
 }
 
 function interpolate_colors(colors, smooth) {
   if (!smooth || smooth < 2) return colors;
-  var ret = [];
-  for (var i = 0; i < colors.length - 1; i++) {
-    for (var j = 0; j < smooth; j++) {
+  let ret = [];
+  for (let i = 0; i < colors.length - 1; i++) {
+    for (let j = 0; j < smooth; j++) {
       // currently we don't really interpolate colors
       ret.push(colors[i]);
     }
@@ -246,14 +246,14 @@ function interpolate_colors(colors, smooth) {
 // a simplistic linear interpolation, no need to SLERP
 function interpolate_directions(dirs, smooth) {
   smooth = smooth || 1;
-  var ret = [];
-  var i;
+  let ret = [];
+  let i;
   for (i = 0; i < dirs.length - 1; i++) {
-    var p = dirs[i];
-    var n = dirs[i+1];
-    for (var j = 0; j < smooth; j++) {
-      var an = j / smooth;
-      var ap = 1 - an;
+    const p = dirs[i];
+    const n = dirs[i+1];
+    for (let j = 0; j < smooth; j++) {
+      const an = j / smooth;
+      const ap = 1 - an;
       ret.push(ap*p[0] + an*n[0], ap*p[1] + an*n[1], ap*p[2] + an*n[2]);
     }
   }
@@ -262,18 +262,18 @@ function interpolate_directions(dirs, smooth) {
 }
 
 function make_uniforms(params) {
-  var uniforms = {
+  let uniforms = {
     fogNear: { value: null },  // will be updated in setProgram()
     fogFar: { value: null },
     fogColor: { value: null },
   };
-  for (var p in params) {  // eslint-disable-line guard-for-in
+  for (let p in params) {  // eslint-disable-line guard-for-in
     uniforms[p] = { value: params[p] };
   }
   return uniforms;
 }
 
-var ribbon_vert = [
+const ribbon_vert = [
   //'attribute vec3 normal;' is added by default for ShaderMaterial
   'uniform float shift;',
   'varying vec3 vcolor;',
@@ -283,7 +283,7 @@ var ribbon_vert = [
   '  gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);',
   '}'].join('\n');
 
-var ribbon_frag = [
+const ribbon_frag = [
   '#include <fog_pars_fragment>',
   'varying vec3 vcolor;',
   'void main() {',
@@ -296,23 +296,23 @@ export function makeRibbon(vertices /*:Atom[]*/,
                            colors /*:Color[]*/,
                            tangents /*:Num3[]*/,
                            smoothness /*:number*/) {
-  var vertex_arr = interpolate_vertices(vertices, smoothness);
-  var color_arr = interpolate_colors(colors, smoothness);
-  var tang_arr = interpolate_directions(tangents, smoothness);
-  var obj = new THREE.Object3D();
-  var geometry = makeSimpleGeometry(vertex_arr, color_arr);
-  var tan = new Float32Array(tang_arr);
+  const vertex_arr = interpolate_vertices(vertices, smoothness);
+  const color_arr = interpolate_colors(colors, smoothness);
+  const tang_arr = interpolate_directions(tangents, smoothness);
+  let obj = new THREE.Object3D();
+  let geometry = makeSimpleGeometry(vertex_arr, color_arr);
+  const tan = new Float32Array(tang_arr);
   // it's not 'normal', but it doesn't matter
   geometry.addAttribute('normal', new THREE.BufferAttribute(tan, 3));
-  var material0 = new THREE.ShaderMaterial({
+  const material0 = new THREE.ShaderMaterial({
     uniforms: make_uniforms({shift: 0}),
     vertexShader: ribbon_vert,
     fragmentShader: ribbon_frag,
     fog: true,
     vertexColors: THREE.VertexColors,
   });
-  for (var n = -4; n < 5; n++) {
-    var material = n === 0 ? material0 : material0.clone();
+  for (let n = -4; n < 5; n++) {
+    let material = n === 0 ? material0 : material0.clone();
     material.uniforms.shift.value = 0.1 * n;
     obj.add(new THREE.Line(geometry, material));
   }
@@ -323,8 +323,8 @@ export function makeRibbon(vertices /*:Atom[]*/,
 export
 function makeChickenWire(data /*:{vertices: number[], segments: number[]}*/,
                          parameters /*:{[key: string]: any}*/) {
-  var geom = new THREE.BufferGeometry();
-  var position = new Float32Array(data.vertices);
+  let geom = new THREE.BufferGeometry();
+  const position = new Float32Array(data.vertices);
   geom.addAttribute('position', new THREE.BufferAttribute(position, 3));
   /* old version - mesh instead of lines
   geom.setIndex(new THREE.BufferAttribute(new Uint32Array(data.faces), 1));
@@ -338,16 +338,16 @@ function makeChickenWire(data /*:{vertices: number[], segments: number[]}*/,
 
   // Although almost all browsers support OES_element_index_uint nowadays,
   // use Uint32 indexes only when needed.
-  var arr = (data.vertices.length < 3*65536 ? new Uint16Array(data.segments)
-                                            : new Uint32Array(data.segments));
+  const arr = (data.vertices.length < 3*65536 ? new Uint16Array(data.segments)
+                                              : new Uint32Array(data.segments));
   //console.log('arr len:', data.vertices.length, data.segments.length);
   geom.setIndex(new THREE.BufferAttribute(arr, 1));
-  var material = new THREE.LineBasicMaterial(parameters);
+  let material = new THREE.LineBasicMaterial(parameters);
   return new THREE.LineSegments(geom, material);
 }
 
 
-var grid_vert = [
+const grid_vert = [
   'uniform vec3 ucolor;',
   'uniform vec3 fogColor;',
   'varying vec4 vcolor;',
@@ -360,25 +360,25 @@ var grid_vert = [
   '  gl_Position = vec4(position.xy * scale, -0.99, 1.0);',
   '}'].join('\n');
 
-var grid_frag = [
+const grid_frag = [
   'varying vec4 vcolor;',
   'void main() {',
   '  gl_FragColor = vcolor;',
   '}'].join('\n');
 
 export function makeGrid() {
-  var N = 50;
-  var pos = [];
-  for (var i = -N; i <= N; i++) {
-    var z = 0; // z only marks major/minor axes
+  const N = 50;
+  let pos = [];
+  for (let i = -N; i <= N; i++) {
+    let z = 0; // z only marks major/minor axes
     if (i % 5 === 0) z = i % 2 === 0 ? 2 : 1;
     pos.push(-N, i, z, N, i, z);  // horizontal line
     pos.push(i, -N, z, i, N, z);  // vertical line
   }
-  var geom = new THREE.BufferGeometry();
+  let geom = new THREE.BufferGeometry();
   geom.addAttribute('position',
                     new THREE.BufferAttribute(new Float32Array(pos), 3));
-  var material = new THREE.ShaderMaterial({
+  let material = new THREE.ShaderMaterial({
     uniforms: make_uniforms({ucolor: new THREE.Color(0x888888)}),
     //linewidth: 3,
     vertexShader: grid_vert,
@@ -386,7 +386,7 @@ export function makeGrid() {
     fog: true, // no really, but we use fogColor
   });
   material.transparent = true;
-  var obj = new THREE.LineSegments(geom, material);
+  let obj = new THREE.LineSegments(geom, material);
   obj.frustumCulled = false;  // otherwise the renderer could skip it
   obj.color_value = material.uniforms.ucolor.value; // shortcut
   return obj;
@@ -394,7 +394,7 @@ export function makeGrid() {
 
 
 function makeSimpleLineMaterial(options) {
-  var mparams = {};
+  let mparams = {};
   mparams.linewidth = options.linewidth;
   if (options.color === undefined) {
     mparams.vertexColors = THREE.VertexColors;
@@ -405,7 +405,7 @@ function makeSimpleLineMaterial(options) {
 }
 
 function makeThickLineMaterial(options) {
-  var uniforms = make_uniforms({
+  let uniforms = make_uniforms({
     linewidth: options.linewidth,
     win_size: options.win_size,
   });
@@ -425,13 +425,13 @@ export function makeLineMaterial(options /*:{[key: string]: mixed}*/) {
 
 function makeSimpleGeometry(vertices /*:Vector3[] | Atom[]*/,
                             colors /*:?Color[]*/) {
-  var geometry = new THREE.BufferGeometry();
-  var pos = new Float32Array(vertices.length * 3);
-  var i;
+  let geometry = new THREE.BufferGeometry();
+  const pos = new Float32Array(vertices.length * 3);
+  let i;
   if (vertices && vertices[0].xyz) {
     for (i = 0; i < vertices.length; i++) {
       // flow-ignore-line - disjoint unions not smart enough
-      var xyz /*:Num3*/ = vertices[i].xyz;
+      const xyz /*:Num3*/ = vertices[i].xyz;
       pos[3*i] = xyz[0];
       pos[3*i+1] = xyz[1];
       pos[3*i+2] = xyz[2];
@@ -439,7 +439,7 @@ function makeSimpleGeometry(vertices /*:Vector3[] | Atom[]*/,
   } else {
     for (i = 0; i < vertices.length; i++) {
       // flow-ignore-line
-      var v /*:Vector3*/ = vertices[i];
+      const v /*:Vector3*/ = vertices[i];
       pos[3*i] = v.x;
       pos[3*i+1] = v.y;
       pos[3*i+2] = v.z;
@@ -447,9 +447,9 @@ function makeSimpleGeometry(vertices /*:Vector3[] | Atom[]*/,
   }
   geometry.addAttribute('position', new THREE.BufferAttribute(pos, 3));
   if (colors != null) {
-    var col = new Float32Array(colors.length * 3);
+    const col = new Float32Array(colors.length * 3);
     for (i = 0; i < colors.length; i++) {
-      var c = colors[i];
+      const c = colors[i];
       col[3*i] = c.r;
       col[3*i+1] = c.g;
       col[3*i+2] = c.b;
@@ -460,7 +460,7 @@ function makeSimpleGeometry(vertices /*:Vector3[] | Atom[]*/,
 }
 
 function makeThickLine(material, vertices, colors) {
-  var mesh = new THREE.Mesh(wide_line_geometry(vertices, colors), material);
+  let mesh = new THREE.Mesh(wide_line_geometry(vertices, colors), material);
   mesh.drawMode = THREE.TriangleStripDrawMode;
   mesh.raycast = line_raycast;
   return mesh;
@@ -477,7 +477,7 @@ export function makeLine(material /*:THREE.Material*/,
 }
 
 function makeThickLineSegments(material, vertices, colors) {
-  var mesh = new THREE.Mesh(wide_segments_geometry(vertices, colors), material);
+  let mesh = new THREE.Mesh(wide_segments_geometry(vertices, colors), material);
   mesh.raycast = line_raycast;
   return mesh;
 }
@@ -493,7 +493,7 @@ export function makeLineSegments(material /*:THREE.Material*/,
   }
 }
 
-var wheel_vert = [
+const wheel_vert = [
   'uniform float size;',
   'varying vec3 vcolor;',
   'void main() {',
@@ -503,7 +503,7 @@ var wheel_vert = [
   '}'].join('\n');
 
 // not sure how portable it is
-var wheel_frag = [
+const wheel_frag = [
   '#include <fog_pars_fragment>',
   'varying vec3 vcolor;',
   'void main() {',
@@ -516,15 +516,15 @@ var wheel_frag = [
 export function makeWheels(atom_arr /*:Atom[]*/,
                            color_arr /*:Color[]*/,
                            size /*:number*/) {
-  var geometry = makeSimpleGeometry(atom_arr, color_arr);
-  var material = new THREE.ShaderMaterial({
+  let geometry = makeSimpleGeometry(atom_arr, color_arr);
+  let material = new THREE.ShaderMaterial({
     uniforms: make_uniforms({size: size}),
     vertexShader: wheel_vert,
     fragmentShader: wheel_frag,
     fog: true,
     vertexColors: THREE.VertexColors,
   });
-  var obj = new THREE.Points(geometry, material);
+  let obj = new THREE.Points(geometry, material);
   // currently we use only lines for picking
   obj.raycast = function () {};
   return obj;
@@ -532,27 +532,27 @@ export function makeWheels(atom_arr /*:Atom[]*/,
 
 
 // based on THREE.Line.prototype.raycast(), but skipping duplicated points
-var inverseMatrix = new THREE.Matrix4();
-var ray = new THREE.Ray();
+let inverseMatrix = new THREE.Matrix4();
+let ray = new THREE.Ray();
 // this function will be put on prototype
 /* eslint-disable no-invalid-this */
 function line_raycast(raycaster, intersects) {
-  var precisionSq = raycaster.linePrecision * raycaster.linePrecision;
+  const precisionSq = raycaster.linePrecision * raycaster.linePrecision;
   inverseMatrix.getInverse(this.matrixWorld);
   ray.copy(raycaster.ray).applyMatrix4(inverseMatrix);
-  var vStart = new THREE.Vector3();
-  var vEnd = new THREE.Vector3();
-  var interSegment = new THREE.Vector3();
-  var interRay = new THREE.Vector3();
-  var step = this.drawMode === THREE.TriangleStripDrawMode ? 1 : 2;
-  var positions = this.geometry.attributes.position.array;
-  for (var i = 0, l = positions.length / 6 - 1; i < l; i += step) {
+  let vStart = new THREE.Vector3();
+  let vEnd = new THREE.Vector3();
+  let interSegment = new THREE.Vector3();
+  let interRay = new THREE.Vector3();
+  const step = this.drawMode === THREE.TriangleStripDrawMode ? 1 : 2;
+  const positions = this.geometry.attributes.position.array;
+  for (let i = 0, l = positions.length / 6 - 1; i < l; i += step) {
     vStart.fromArray(positions, 6 * i);
     vEnd.fromArray(positions, 6 * i + 6);
-    var distSq = ray.distanceSqToSegment(vStart, vEnd, interRay, interSegment);
+    let distSq = ray.distanceSqToSegment(vStart, vEnd, interRay, interSegment);
     if (distSq > precisionSq) continue;
     interRay.applyMatrix4(this.matrixWorld);
-    var distance = raycaster.ray.origin.distanceTo(interRay);
+    const distance = raycaster.ray.origin.distanceTo(interRay);
     if (distance < raycaster.near || distance > raycaster.far) continue;
     intersects.push({
       distance: distance,
@@ -566,11 +566,11 @@ function line_raycast(raycaster, intersects) {
 
 function makeCanvasWithText(text, options) {
   if (typeof document === 'undefined') return;  // for testing on node
-  var canvas = document.createElement('canvas');
+  let canvas = document.createElement('canvas');
   // Canvas size should be 2^N.
   canvas.width = 256;  // arbitrary limit, to keep it simple
   canvas.height = 16;  // font size
-  var context = canvas.getContext('2d');
+  let context = canvas.getContext('2d');
   if (!context) return null;
   context.font = (options.font || 'bold 14px') + ' sans-serif';
   //context.fillStyle = 'green';
@@ -581,7 +581,7 @@ function makeCanvasWithText(text, options) {
   return canvas;
 }
 
-var label_vert = [
+const label_vert = [
   'uniform vec2 canvas_size;',
   'uniform vec2 win_size;',
   'varying vec2 vUv;',
@@ -593,7 +593,7 @@ var label_vert = [
   '  gl_Position.z += 1.0 * projectionMatrix[2][2];',
   '}'].join('\n');
 
-var label_frag = [
+const label_frag = [
   '#include <fog_pars_fragment>',
   'varying vec2 vUv;',
   'uniform sampler2D map;',
@@ -604,22 +604,22 @@ var label_frag = [
 
 
 export function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
-  var canvas = makeCanvasWithText(text, options);
+  const canvas = makeCanvasWithText(text, options);
   if (!canvas) return;
-  var texture = new THREE.Texture(canvas);
+  let texture = new THREE.Texture(canvas);
   texture.needsUpdate = true;
 
   // Rectangle geometry.
-  var geometry = new THREE.BufferGeometry();
-  var pos = options.pos;
-  var position = new Float32Array([].concat(pos, pos, pos, pos));
-  var uvs = new Float32Array([0, 1, 1, 1, 0, 0, 1, 0]);
-  var indices = new Uint16Array([0, 2, 1, 2, 3, 1]);
+  let geometry = new THREE.BufferGeometry();
+  const pos = options.pos;
+  const position = new Float32Array([].concat(pos, pos, pos, pos));
+  const uvs = new Float32Array([0, 1, 1, 1, 0, 0, 1, 0]);
+  const indices = new Uint16Array([0, 2, 1, 2, 3, 1]);
   geometry.setIndex(new THREE.BufferAttribute(indices, 1));
   geometry.addAttribute('position', new THREE.BufferAttribute(position, 3));
   geometry.addAttribute('uv', new THREE.BufferAttribute(uvs, 2));
 
-  var material = new THREE.ShaderMaterial({
+  let material = new THREE.ShaderMaterial({
     uniforms: make_uniforms({map: texture,
                              canvas_size: [canvas.width, canvas.height],
                              win_size: options.win_size}),
@@ -628,7 +628,7 @@ export function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
     fog: true,
   });
   material.transparent = true;
-  var mesh = new THREE.Mesh(geometry, material);
+  let mesh = new THREE.Mesh(geometry, material);
   mesh.remake = function (text, options) {
     texture.image = makeCanvasWithText(text, options);
     texture.needsUpdate = true;

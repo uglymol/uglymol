@@ -3,11 +3,11 @@
 var util = util || require('./util'); // eslint-disable-line
 var UM = UM || require('../uglymol'); // eslint-disable-line
 
-var dsn6_buf = util.open_as_array_buffer('1mru.omap');
-var map2_buf = util.open_as_array_buffer('1mru.map');
-var map0_buf = util.open_as_array_buffer('1mru_m0.map');
+const dsn6_buf = util.open_as_array_buffer('1mru.omap');
+const map2_buf = util.open_as_array_buffer('1mru.map');
+const map0_buf = util.open_as_array_buffer('1mru_m0.map');
 
-var map;
+let map;
 
 function print_map_stats() {
   console.log('    mean/rms: ' + [map.mean, map.rms]);

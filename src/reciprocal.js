@@ -4,8 +4,9 @@ import { addXyzCross, makeLineMaterial, makeLineSegments } from './lines.js';
 import * as THREE from 'three';
 
 
-var SPOT_SEL = ['all', 'indexed', 'not indexed'];
-var SHOW_AXES = ['three', 'two', 'none'];
+// options handled by Viewer#select_next()
+const SPOT_SEL = ['all', 'indexed', 'not indexed'];
+const SHOW_AXES = ['three', 'two', 'none'];
 
 export function ReciprocalViewer(options /*: {[key: string]: any}*/) {
   Viewer.call(this, options);
@@ -44,7 +45,7 @@ ReciprocalViewer.prototype.MOUSE_HELP = Viewer.prototype.MOUSE_HELP
                                         .split('\n').slice(0, -2).join('\n');
 
 ReciprocalViewer.prototype.set_reciprocal_key_bindings = function () {
-  var kb = this.key_bindings;
+  let kb = this.key_bindings;
   // a
   kb[65] = function (evt) {
     this.select_next('axes', 'show_axes', SHOW_AXES, evt.shiftKey);
@@ -55,9 +56,9 @@ ReciprocalViewer.prototype.set_reciprocal_key_bindings = function () {
   // v
   kb[86] = function (evt) {
     this.select_next('show', 'show_only', SPOT_SEL, evt.shiftKey);
-    var show_only = this.points.material.uniforms.show_only;
-    var sel_map = { 'all': -2, 'indexed': 0, 'not indexed': -1 };
-    show_only.value = sel_map[this.config.show_only];
+    const sel_map = { 'all': -2, 'indexed': 0, 'not indexed': -1 };
+    const sel = sel_map[this.config.show_only];
+    this.points.material.uniforms.show_only.value = sel;
   };
   // Home
   kb[36] = function (evt) {
@@ -83,14 +84,14 @@ ReciprocalViewer.prototype.set_reciprocal_key_bindings = function () {
 
 ReciprocalViewer.prototype.load_data = function (url, options) {
   options = options || {};
-  var self = this;
+  let self = this;
   this.load_file(url, {binary: false, progress: true}, function (req) {
     self.parse_data(req.responseText);
     self.set_axes();
     self.set_points();
     self.camera.zoom = 0.5 * (self.camera.top - self.camera.bottom);
     // default scale is set to 100 - same as default_camera_pos
-    var d = 1.01 * self.max_dist;
+    const d = 1.01 * self.max_dist;
     self.controls.slab_width = [d, d, 100];
     self.set_view(options);
     if (options.callback) options.callback();
@@ -98,17 +99,17 @@ ReciprocalViewer.prototype.load_data = function (url, options) {
 };
 
 ReciprocalViewer.prototype.parse_data = function (text) {
-  var lines = text.split('\n').filter(function (line) {
+  const lines = text.split('\n').filter(function (line) {
     return line.length > 0 && line[0] !== '#';
   });
-  var pos = new Float32Array(lines.length * 3);
-  var lattice_ids = [];
-  var max_sq = 0;
-  for (var i = 0; i < lines.length; i++) {
-    var nums = lines[i].split(',').map(Number);
-    var sq = nums[0]*nums[0] + nums[1]*nums[1] + nums[2]*nums[2];
+  let pos = new Float32Array(lines.length * 3);
+  let lattice_ids = [];
+  let max_sq = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const nums = lines[i].split(',').map(Number);
+    const sq = nums[0]*nums[0] + nums[1]*nums[1] + nums[2]*nums[2];
     if (sq > max_sq) max_sq = sq;
-    for (var j = 0; j < 3; j++) {
+    for (let j = 0; j < 3; j++) {
       pos[3*i+j] = nums[j];
     }
     lattice_ids.push(nums[3]);
@@ -124,16 +125,16 @@ ReciprocalViewer.prototype.set_axes = function () {
     this.axes = null;
   }
   if (this.config.show_axes === 'none') return;
-  var axis_length = 1.2 * this.max_dist;
-  var vertices = [];
+  const axis_length = 1.2 * this.max_dist;
+  let vertices = [];
   addXyzCross(vertices, [0, 0, 0], axis_length);
-  var ca = this.config.colors.axes;
-  var colors = [ca[0], ca[0], ca[1], ca[1], ca[2], ca[2]];
+  const ca = this.config.colors.axes;
+  const colors = [ca[0], ca[0], ca[1], ca[1], ca[2], ca[2]];
   if (this.config.show_axes === 'two') {
     vertices.splice(4);
     colors.splice(4);
   }
-  var material = makeLineMaterial({
+  const material = makeLineMaterial({
     win_size: this.window_size,
     linewidth: 3,
     segments: true,
@@ -142,7 +143,7 @@ ReciprocalViewer.prototype.set_axes = function () {
   this.scene.add(this.axes);
 };
 
-var point_vert = [
+const point_vert = [
   'attribute float group;',
   'uniform float show_only;',
   'uniform float r2_max;',
@@ -159,7 +160,7 @@ var point_vert = [
   '  gl_PointSize = size;',
   '}'].join('\n');
 
-var point_frag = [
+const point_frag = [
   'varying vec3 vcolor;',
   'varying float vsel;',
   'void main() {',
@@ -173,16 +174,16 @@ var point_frag = [
 
 ReciprocalViewer.prototype.set_points = function () {
   if (this.data == null) return;
-  var pos = this.data.pos;
-  var lattice_ids = this.data.lattice_ids;
-  var color_arr = new Float32Array(3 * lattice_ids.length);
+  const pos = this.data.pos;
+  const lattice_ids = this.data.lattice_ids;
+  let color_arr = new Float32Array(3 * lattice_ids.length);
   this.colorize_by_id(color_arr, lattice_ids);
-  var geometry = new THREE.BufferGeometry();
+  let geometry = new THREE.BufferGeometry();
   geometry.addAttribute('position', new THREE.BufferAttribute(pos, 3));
   geometry.addAttribute('color', new THREE.BufferAttribute(color_arr, 3));
-  var groups = new Float32Array(lattice_ids);
+  const groups = new Float32Array(lattice_ids);
   geometry.addAttribute('group', new THREE.BufferAttribute(groups, 1));
-  var material = new THREE.ShaderMaterial({
+  let material = new THREE.ShaderMaterial({
     uniforms: {
       size: { value: 3 },
       show_only: { value: -2 },
@@ -200,9 +201,9 @@ ReciprocalViewer.prototype.set_points = function () {
 };
 
 ReciprocalViewer.prototype.colorize_by_id = function (color_arr, group_id) {
-  var palette = this.config.colors.lattices;
-  for (var i = 0; i < group_id.length; i++) {
-    var c = palette[(group_id[i] + 1) % 4];
+  const palette = this.config.colors.lattices;
+  for (let i = 0; i < group_id.length; i++) {
+    const c = palette[(group_id[i] + 1) % 4];
     color_arr[3*i] = c.r;
     color_arr[3*i+1] = c.g;
     color_arr[3*i+2] = c.b;
@@ -217,7 +218,7 @@ ReciprocalViewer.prototype.mousewheel_action = function (delta, evt) {
 
 ReciprocalViewer.prototype.change_point_size = function (delta) {
   if (this.points === null) return;
-  var size = this.points.material.uniforms.size;
+  let size = this.points.material.uniforms.size;
   size.value = Math.max(size.value + delta, 0.5);
   this.hud('point size: ' + size.value.toFixed(1));
 };
@@ -225,20 +226,20 @@ ReciprocalViewer.prototype.change_point_size = function (delta) {
 ReciprocalViewer.prototype.change_dmin = function (delta) {
   if (this.d_min == null) return;
   this.d_min = Math.max(this.d_min + delta, 0.1);
-  var dmax = this.d_max_inv > 0 ? 1 / this.d_max_inv : null;
+  const dmax = this.d_max_inv > 0 ? 1 / this.d_max_inv : null;
   if (dmax !== null && this.d_min > dmax) this.d_min = dmax;
   this.points.material.uniforms.r2_max.value = 1 / (this.d_min * this.d_min);
-  var low_res = dmax !== null ? dmax.toFixed(2) : '∞';
+  const low_res = dmax !== null ? dmax.toFixed(2) : '∞';
   this.hud('res. limit: ' + low_res + ' - ' + this.d_min.toFixed(2) + 'Å');
 };
 
 ReciprocalViewer.prototype.change_dmax = function (delta) {
   if (this.d_min == null) return;
-  var v = Math.min(this.d_max_inv + delta, 1 / this.d_min);
+  let v = Math.min(this.d_max_inv + delta, 1 / this.d_min);
   if (v < 1e-6) v = 0;
   this.d_max_inv = v;
   this.points.material.uniforms.r2_min.value = v * v;
-  var low_res = v > 0 ? (1 / v).toFixed(2) : '∞';
+  const low_res = v > 0 ? (1 / v).toFixed(2) : '∞';
   this.hud('res. limit: ' + low_res + ' - ' + this.d_min.toFixed(2) + 'Å');
 };
 

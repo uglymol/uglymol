@@ -2,16 +2,16 @@
 
 import { UnitCell } from './unitcell.js';
 
-var AMINO_ACIDS = [
+const AMINO_ACIDS = [
   'ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HIS', 'ILE', 'LEU',
   'LYS', 'MET', 'MSE', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL', 'UNK',
 ];
-var NUCLEIC_ACIDS = [
+const NUCLEIC_ACIDS = [
   'DA', 'DC', 'DG', 'DT', 'A', 'C', 'G', 'U', 'rA', 'rC', 'rG', 'rU',
   'Ar', 'Cr', 'Gr', 'Ur',
 ];
 
-var NOT_LIGANDS = ['HOH'].concat(AMINO_ACIDS, NUCLEIC_ACIDS);
+const NOT_LIGANDS = ['HOH'].concat(AMINO_ACIDS, NUCLEIC_ACIDS);
 
 export function Model() {
   this.atoms = [];
@@ -23,16 +23,16 @@ export function Model() {
 }
 
 Model.prototype.from_pdb = function (pdb_string) {
-  var lines = pdb_string.split('\n');
-  var chain_index = 0;  // will be ++'ed for the first atom
-  var last_chain = null;
-  var atom_i_seq = 0;
+  const lines = pdb_string.split('\n');
+  let chain_index = 0;  // will be ++'ed for the first atom
+  let last_chain = null;
+  let atom_i_seq = 0;
   //var last_atom = null;
-  for (var i = 0; i < lines.length; i++) {
-    var line = lines[i];
-    var rec_type = line.substring(0, 6);
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const rec_type = line.substring(0, 6);
     if (rec_type === 'ATOM  ' || rec_type === 'HETATM') {
-      var new_atom = new Atom();
+      let new_atom = new Atom();
       new_atom.from_pdb_line(line);
       new_atom.i_seq = atom_i_seq++;
       if (!this.has_hydrogens && new_atom.element === 'H') {
@@ -48,12 +48,12 @@ Model.prototype.from_pdb = function (pdb_string) {
     } else if (rec_type === 'ANISOU') {
       //last_atom.set_uij_from_anisou(line);
     } else if (rec_type === 'CRYST1') {
-      var a = parseFloat(line.substring(6, 15));
-      var b = parseFloat(line.substring(15, 24));
-      var c = parseFloat(line.substring(24, 33));
-      var alpha = parseFloat(line.substring(33, 40));
-      var beta = parseFloat(line.substring(40, 47));
-      var gamma = parseFloat(line.substring(47, 54));
+      const a = parseFloat(line.substring(6, 15));
+      const b = parseFloat(line.substring(15, 24));
+      const c = parseFloat(line.substring(24, 33));
+      const alpha = parseFloat(line.substring(33, 40));
+      const beta = parseFloat(line.substring(40, 47));
+      const gamma = parseFloat(line.substring(47, 54));
       //var sg_symbol = line.substring(55, 66);
       this.unit_cell = new UnitCell(a, b, c, alpha, beta, gamma);
     } else if (rec_type.substring(0, 3) === 'TER') {
@@ -68,29 +68,29 @@ Model.prototype.from_pdb = function (pdb_string) {
 };
 
 Model.prototype.calculate_bounds = function () {
-  var lower = this.lower_bound = [Infinity, Infinity, Infinity];
-  var upper = this.upper_bound = [-Infinity, -Infinity, -Infinity];
-  for (var i = 0; i < this.atoms.length; i++) {
-    var atom = this.atoms[i];
-    for (var j = 0; j < 3; j++) {
-      var v = atom.xyz[j];
+  let lower = this.lower_bound = [Infinity, Infinity, Infinity];
+  let upper = this.upper_bound = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < this.atoms.length; i++) {
+    const atom = this.atoms[i];
+    for (let j = 0; j < 3; j++) {
+      const v = atom.xyz[j];
       if (v < lower[j]) lower[j] = v;
       if (v > upper[j]) upper[j] = v;
     }
   }
   // with a margin
-  for (var k = 0; k < 3; ++k) {
+  for (let k = 0; k < 3; ++k) {
     lower[k] -= 0.001;
     upper[k] += 0.001;
   }
 };
 
 Model.prototype.next_residue = function (atom, backward) {
-  var len = this.atoms.length;
-  var start = (atom ? atom.i_seq : 0) + len;  // +len to avoid idx<0 below
-  for (var i = (atom ? 1 : 0); i < len; i++) {
-    var idx = (start + (backward ? -i : i)) % len;
-    var a = this.atoms[idx];
+  const len = this.atoms.length;
+  const start = (atom ? atom.i_seq : 0) + len;  // +len to avoid idx<0 below
+  for (let i = (atom ? 1 : 0); i < len; i++) {
+    const idx = (start + (backward ? -i : i)) % len;
+    let a = this.atoms[idx];
     if (!a.is_main_conformer()) continue;
     if ((a.name === 'CA' && a.element === 'C') || a.name === 'P') {
       return a;
@@ -99,16 +99,16 @@ Model.prototype.next_residue = function (atom, backward) {
 };
 
 Model.prototype.extract_trace = function () {
-  var segments = [];
-  var current_segment = [];
-  var last_atom = null;
-  for (var i = 0; i < this.atoms.length; i++) {
-    var atom = this.atoms[i];
+  let segments = [];
+  let current_segment = [];
+  let last_atom = null;
+  for (let i = 0; i < this.atoms.length; i++) {
+    const atom = this.atoms[i];
     if (atom.altloc !== '' && atom.altloc !== 'A') continue;
     if ((atom.name === 'CA' && atom.element === 'C') || atom.name === 'P') {
-      var start_new = true;
+      let start_new = true;
       if (last_atom !== null && last_atom.chain_index === atom.chain_index) {
-        var dxyz2 = atom.distance_sq(last_atom);
+        const dxyz2 = atom.distance_sq(last_atom);
         if ((atom.name === 'CA' && dxyz2 <= 5.5*5.5) ||
             (atom.name === 'P' && dxyz2 < 7.5*7.5)) {
           current_segment.push(atom);
@@ -133,11 +133,11 @@ Model.prototype.extract_trace = function () {
 
 Model.prototype.get_residues = function () {
   if (this.residue_map != null) return this.residue_map;
-  var residues = {};
-  for (var i = 0; i < this.atoms.length; i++) {
-    var atom = this.atoms[i];
-    var resid = atom.resid();
-    var reslist = residues[resid];
+  let residues = {};
+  for (let i = 0; i < this.atoms.length; i++) {
+    const atom = this.atoms[i];
+    const resid = atom.resid();
+    const reslist = residues[resid];
     if (reslist === undefined) {
       residues[resid] = [atom];
     } else {
@@ -150,14 +150,14 @@ Model.prototype.get_residues = function () {
 
 // tangent vector to the ribbon representation
 Model.prototype.calculate_tangent_vector = function (residue) {
-  var a1 = null;
-  var a2 = null;
+  let a1 = null;
+  let a2 = null;
   // it may be too simplistic
-  var peptide = (residue[0].resname.length === 3);
-  var name1 = peptide ? 'C' : 'C2\'';
-  var name2 = peptide ? 'O' : 'O4\'';
-  for (var i = 0; i < residue.length; i++) {
-    var atom = residue[i];
+  const peptide = (residue[0].resname.length === 3);
+  const name1 = peptide ? 'C' : 'C2\'';
+  const name2 = peptide ? 'O' : 'O4\'';
+  for (let i = 0; i < residue.length; i++) {
+    const atom = residue[i];
     if (!atom.is_main_conformer()) continue;
     if (atom.name === name1) {
       a1 = atom.xyz;
@@ -166,16 +166,16 @@ Model.prototype.calculate_tangent_vector = function (residue) {
     }
   }
   if (a1 === null || a2 === null) return [0, 0, 1]; // arbitrary value
-  var d = [a1[0]-a2[0], a1[1]-a2[1], a1[2]-a2[2]];
-  var len = Math.sqrt(d[0]*d[0] + d[1]*d[1] + d[2]*d[2]);
+  const d = [a1[0]-a2[0], a1[1]-a2[1], a1[2]-a2[2]];
+  const len = Math.sqrt(d[0]*d[0] + d[1]*d[1] + d[2]*d[2]);
   return [d[0]/len, d[1]/len, d[2]/len];
 };
 
 Model.prototype.get_center = function () {
-  var xsum = 0, ysum = 0, zsum = 0;  // eslint-disable-line
-  var n_atoms = this.atoms.length;
-  for (var i = 0; i < n_atoms; i++) {
-    var xyz = this.atoms[i].xyz;
+  let xsum = 0, ysum = 0, zsum = 0;  // eslint-disable-line
+  const n_atoms = this.atoms.length;
+  for (let i = 0; i < n_atoms; i++) {
+    const xyz = this.atoms[i].xyz;
     xsum += xyz[0];
     ysum += xyz[1];
     zsum += xyz[2];
@@ -209,7 +209,7 @@ Atom.prototype.from_pdb_line = function (pdb_line) {
   if (pdb_line.length < 66) {
     throw Error('ATOM or HETATM record is too short: ' + pdb_line);
   }
-  var rec_type = pdb_line.substring(0, 6);
+  const rec_type = pdb_line.substring(0, 6);
   if (rec_type === 'HETATM') {
     this.hetero = true;
   } else if (rec_type !== 'ATOM  ') {
@@ -221,9 +221,9 @@ Atom.prototype.from_pdb_line = function (pdb_line) {
   this.chain = pdb_line.substring(20, 22).trim();
   this.resseq = parseInt(pdb_line.substring(22, 26), 10);
   this.icode = pdb_line.substring(26, 27).trim();
-  var x = parseFloat(pdb_line.substring(30, 38));
-  var y = parseFloat(pdb_line.substring(38, 46));
-  var z = parseFloat(pdb_line.substring(46, 54));
+  const x = parseFloat(pdb_line.substring(30, 38));
+  const y = parseFloat(pdb_line.substring(38, 46));
+  const z = parseFloat(pdb_line.substring(46, 54));
   this.xyz = [x, y, z];
   this.occ = parseFloat(pdb_line.substring(54, 60));
   this.b = parseFloat(pdb_line.substring(60, 66));
@@ -242,9 +242,9 @@ Atom.prototype.b_as_u = function () {
 };
 
 Atom.prototype.distance_sq = function (other) {
-  var dx = this.xyz[0] - other.xyz[0];
-  var dy = this.xyz[1] - other.xyz[1];
-  var dz = this.xyz[2] - other.xyz[2];
+  const dx = this.xyz[0] - other.xyz[0];
+  const dy = this.xyz[1] - other.xyz[1];
+  const dz = this.xyz[2] - other.xyz[2];
   return dx*dx + dy*dy + dz*dz;
 };
 
@@ -290,13 +290,13 @@ Atom.prototype.is_main_conformer = function () {
 };
 
 Atom.prototype.is_bonded_to = function (other) {
-  /** @const */ var MAX_DIST_SQ = 1.99 * 1.99;
-  /** @const */ var MAX_DIST_H_SQ = 1.3 * 1.3;
-  /** @const */ var MAX_DIST_SP_SQ = 2.2 * 2.2;
+  const MAX_DIST_SQ = 1.99 * 1.99;
+  const MAX_DIST_H_SQ = 1.3 * 1.3;
+  const MAX_DIST_SP_SQ = 2.2 * 2.2;
 
   if (!this.is_same_conformer(other)) return false;
   if (this.element === 'H' && other.element === 'H') return false;
-  var dxyz2 = this.distance_sq(other);
+  const dxyz2 = this.distance_sq(other);
   if (dxyz2 > MAX_DIST_SP_SQ) return false;
   if (this.element === 'H' || other.element === 'H') {
     return dxyz2 <= MAX_DIST_H_SQ;
@@ -309,7 +309,7 @@ Atom.prototype.resid = function () {
 };
 
 Atom.prototype.long_label = function () {
-  var a = this;
+  const a = this;
   return a.name + ' /' + a.resseq + ' ' + a.resname + '/' + a.chain +
          ' - occ: ' + a.occ.toFixed(2) + ' bf: ' + a.b.toFixed(2) +
          ' ele: ' + a.element + ' pos: (' + a.xyz[0].toFixed(2) + ',' +
@@ -317,34 +317,34 @@ Atom.prototype.long_label = function () {
 };
 
 Atom.prototype.short_label = function () {
-  var a = this;
+  const a = this;
   return a.name + ' /' + a.resseq + ' ' + a.resname + '/' + a.chain;
 };
 
 // Partition atoms into boxes for quick neighbor searching.
 function Cubicles(atoms, box_length, lower_bound, upper_bound) {
-  var i;
+  let i;
   this.boxes = [];
   this.xdim = Math.ceil((upper_bound[0] - lower_bound[0]) / box_length);
   this.ydim = Math.ceil((upper_bound[1] - lower_bound[1]) / box_length);
   this.zdim = Math.ceil((upper_bound[2] - lower_bound[2]) / box_length);
   //console.log("Cubicles: " + this.xdim + "x" + this.ydim + "x" + this.zdim);
-  var nxyz = this.xdim * this.ydim * this.zdim;
+  const nxyz = this.xdim * this.ydim * this.zdim;
   for (i = 0; i < nxyz; i++) {
     this.boxes.push([]);
   }
 
   this.find_box_id = function (x, y, z) {
-    var xstep = Math.floor((x - lower_bound[0]) / box_length);
-    var ystep = Math.floor((y - lower_bound[1]) / box_length);
-    var zstep = Math.floor((z - lower_bound[2]) / box_length);
-    var box_id = (zstep * this.ydim + ystep) * this.xdim + xstep;
+    const xstep = Math.floor((x - lower_bound[0]) / box_length);
+    const ystep = Math.floor((y - lower_bound[1]) / box_length);
+    const zstep = Math.floor((z - lower_bound[2]) / box_length);
+    const box_id = (zstep * this.ydim + ystep) * this.xdim + xstep;
     return (box_id >= 0 && box_id < this.boxes.length) ? box_id : null;
   };
 
   for (i = 0; i < atoms.length; i++) {
-    var xyz = atoms[i].xyz;
-    var box_id = this.find_box_id(xyz[0], xyz[1], xyz[2]);
+    const xyz = atoms[i].xyz;
+    const box_id = this.find_box_id(xyz[0], xyz[1], xyz[2]);
     if (box_id === null) {
       throw Error('wrong cubicle');
     }
@@ -353,25 +353,25 @@ function Cubicles(atoms, box_length, lower_bound, upper_bound) {
 }
 
 Cubicles.prototype.get_nearby_atoms = function (box_id) {
-  var indices = [];
-  var xydim = this.xdim * this.ydim;
-  var uv = Math.max(box_id % xydim, 0);
-  var u = Math.max(uv % this.xdim, 0);
-  var v = Math.floor(uv / this.xdim);
-  var w = Math.floor(box_id / xydim);
+  let indices = [];
+  const xydim = this.xdim * this.ydim;
+  const uv = Math.max(box_id % xydim, 0);
+  const u = Math.max(uv % this.xdim, 0);
+  const v = Math.floor(uv / this.xdim);
+  const w = Math.floor(box_id / xydim);
   console.assert((w * xydim) + (v * this.xdim) + u === box_id);
-  for (var iu = u-1; iu <= u+1; iu++) {
+  for (let iu = u-1; iu <= u+1; iu++) {
     if (iu < 0 || iu >= this.xdim) continue;
-    for (var iv = v-1; iv <= v+1; iv++) {
+    for (let iv = v-1; iv <= v+1; iv++) {
       if (iv < 0 || iv >= this.ydim) continue;
-      for (var iw = w-1; iw <= w+1; iw++) {
+      for (let iw = w-1; iw <= w+1; iw++) {
         if (iw < 0 || iw >= this.zdim) continue;
-        var other_box_id = (iw * xydim) + (iv * this.xdim) + iu;
+        const other_box_id = (iw * xydim) + (iv * this.xdim) + iu;
         if (other_box_id >= this.boxes.length || other_box_id < 0) {
           throw Error('Box out of bounds: ID ' + other_box_id);
         }
-        var box = this.boxes[other_box_id];
-        for (var i = 0; i < box.length; i++) {
+        const box = this.boxes[other_box_id];
+        for (let i = 0; i < box.length; i++) {
           indices.push(box[i]);
         }
       }
@@ -381,17 +381,17 @@ Cubicles.prototype.get_nearby_atoms = function (box_id) {
 };
 
 Model.prototype.calculate_connectivity = function () {
-  var atoms = this.atoms;
-  var cubes = new Cubicles(atoms, 3.0, this.lower_bound, this.upper_bound);
-  //var cnt = 0;
-  for (var i = 0; i < cubes.boxes.length; i++) {
-    var box = cubes.boxes[i];
+  const atoms = this.atoms;
+  const cubes = new Cubicles(atoms, 3.0, this.lower_bound, this.upper_bound);
+  //let cnt = 0;
+  for (let i = 0; i < cubes.boxes.length; i++) {
+    const box = cubes.boxes[i];
     if (box.length === 0) continue;
-    var nearby_atoms = cubes.get_nearby_atoms(i);
-    for (var a = 0; a < box.length; a++) {
-      var atom_id = box[a];
-      for (var k = 0; k < nearby_atoms.length; k++) {
-        var j = nearby_atoms[k];
+    const nearby_atoms = cubes.get_nearby_atoms(i);
+    for (let a = 0; a < box.length; a++) {
+      const atom_id = box[a];
+      for (let k = 0; k < nearby_atoms.length; k++) {
+        const j = nearby_atoms[k];
         if (j > atom_id && atoms[atom_id].is_bonded_to(atoms[j])) {
           atoms[atom_id].bonds.push(j);
           atoms[j].bonds.push(atom_id);
@@ -405,18 +405,18 @@ Model.prototype.calculate_connectivity = function () {
 };
 
 Model.prototype.get_nearest_atom = function (x, y, z, atom_name) {
-  var box_id = this.cubes.find_box_id(x, y, z);
-  var indices = this.cubes.get_nearby_atoms(box_id);
-  var nearest = null;
-  var min_d2 = Infinity;
-  for (var i = 0; i < indices.length; i++) {
-    var atom = this.atoms[indices[i]];
+  const box_id = this.cubes.find_box_id(x, y, z);
+  const indices = this.cubes.get_nearby_atoms(box_id);
+  let nearest = null;
+  let min_d2 = Infinity;
+  for (let i = 0; i < indices.length; i++) {
+    const atom = this.atoms[indices[i]];
     if (atom_name !== undefined && atom_name !== null &&
         atom_name !== atom.name) continue;
-    var dx = atom.xyz[0] - x;
-    var dy = atom.xyz[1] - y;
-    var dz = atom.xyz[2] - z;
-    var d2 = dx*dx + dy*dy + dz*dz;
+    const dx = atom.xyz[0] - x;
+    const dy = atom.xyz[1] - y;
+    const dz = atom.xyz[2] - z;
+    const d2 = dx*dx + dy*dy + dz*dz;
     if (d2 < min_d2) {
       nearest = atom;
       min_d2 = d2;
