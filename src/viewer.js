@@ -86,8 +86,6 @@ const ColorSchemes = [ // Viewer.prototype.ColorSchemes
   },
 ];
 
-const auto_speed = 1.0;
-
 // map 2d position to sphere with radius 1.
 function project_on_ball(x, y) {
   let z = 0;
@@ -112,6 +110,7 @@ const STATE = {NONE: -1, ROTATE: 0, PAN: 1, ZOOM: 2, PAN_ZOOM: 3, SLAB: 4,
 
 // based on three.js/examples/js/controls/OrthographicTrackballControls.js
 function Controls(camera, target) {
+  const auto_speed = 1.0;
   let _state = STATE.NONE;
   let _rotate_start = new THREE.Vector3();
   let _rotate_end = new THREE.Vector3();
@@ -304,7 +303,7 @@ function Controls(camera, target) {
       return;
     }
     _state = STATE.GO;
-    steps = steps || (60 / auto_speed);
+    steps = (steps || 60) / auto_speed;
     let alphas = [];
     let prev_pos = 0;
     for (let i = 1; i <= steps; ++i) {
@@ -645,7 +644,7 @@ export function Viewer(options /*: {[key: string]: any}*/) {
     if (not_panned) {
       const atom = self.pick_atom(not_panned, self.camera);
       if (atom != null) {
-        self.select_atom(atom, {steps: 60 / auto_speed});
+        self.select_atom(atom, {steps: 60});
       }
     }
     self.redraw_maps();
@@ -1020,7 +1019,7 @@ Viewer.prototype.go_to_nearest_Ca = function () {
   if (this.active_model_bag === null) return;
   const a = this.active_model_bag.model.get_nearest_atom(t.x, t.y, t.z, 'CA');
   if (a) {
-    this.select_atom(a);
+    this.select_atom(a, {steps: 30});
   } else {
     this.hud('no nearby CA');
   }
@@ -1411,14 +1410,12 @@ Viewer.prototype.recenter = function (xyz, cam, steps) {
 Viewer.prototype.center_next_residue = function (back) {
   if (!this.active_model_bag) return;
   const a = this.active_model_bag.model.next_residue(this.selected_atom, back);
-  if (a) this.select_atom(a);
+  if (a) this.select_atom(a, {steps: 30});
 };
 
-Viewer.prototype.select_atom = function (atom, options) {
-  options = options || {};
+Viewer.prototype.select_atom = function (atom, options = {}) {
   this.hud('-> ' + atom.long_label());
-  const steps = options.steps || 30. / auto_speed;
-  this.controls.go_to(atom.xyz, null, null, steps);
+  this.controls.go_to(atom.xyz, null, null, options.steps);
   this.toggle_label(this.selected_atom);
   this.selected_atom = atom;
   this.toggle_label(atom);
