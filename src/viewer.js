@@ -967,9 +967,9 @@ Viewer.prototype.toggle_full_screen = function () {
   if (d.fullscreenElement || d.mozFullScreenElement ||
       d.webkitFullscreenElement || d.msFullscreenElement) {
     let ex = d.exitFullscreen || d.webkitExitFullscreen ||
-    // flow-ignore-line property `msExitFullscreen` not found in document
+    // $FlowFixMe: property `msExitFullscreen` not found in document
              d.mozCancelFullScreen || d.msExitFullscreen;
-    // flow-ignore-line cannot call property `exitFullscreen` of unknown type
+    // $FlowFixMe: cannot call property `exitFullscreen` of unknown type
     if (ex) ex.call(d);
   } else {
     let el = this.container;
@@ -1513,7 +1513,7 @@ Viewer.prototype.load_file = function (url/*:string*/,
     }
   };
   if (options.progress) {
-    // flow-ignore-line  dom.js in flow is incomplete
+    // $FlowFixMe: dom.js in flow is incomplete
     req.addEventListener('progress', function (evt /*:ProgressEvent*/) {
       if (evt.lengthComputable && evt.loaded && evt.total) {
         const fn = url.split('/').pop();

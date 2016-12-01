@@ -58,7 +58,7 @@ export function makeRgbBox(transform_func /*:Num3 => Num3*/,
     linewidth: 1,
     segments: true,
   });
-  // flow-ignore-line - the type of vertices confuses flow
+  // $FlowFixMe: the type of vertices confuses flow
   return makeLineSegments(material, vertices, colors);
 }
 
@@ -67,14 +67,14 @@ function double_pos(vertex_arr /*:Vector3[] | Atom[]*/) {
   let i;
   if (vertex_arr && vertex_arr[0].xyz) {
     for (i = 0; i < vertex_arr.length; i++) {
-      // flow-ignore-line - disjoint unions not smart enough
+      // $FlowFixMe: disjoint unions not smart enough
       const xyz /*:Num3*/ = vertex_arr[i].xyz;
       pos.push(xyz[0], xyz[1], xyz[2]);
       pos.push(xyz[0], xyz[1], xyz[2]);
     }
   } else {
     for (i = 0; i < vertex_arr.length; i++) {
-      // flow-ignore-line
+      // $FlowFixMe
       const v /*:Vector3*/ = vertex_arr[i];
       pos.push(v.x, v.y, v.z);
       pos.push(v.x, v.y, v.z);
@@ -430,7 +430,7 @@ function makeSimpleGeometry(vertices /*:Vector3[] | Atom[]*/,
   let i;
   if (vertices && vertices[0].xyz) {
     for (i = 0; i < vertices.length; i++) {
-      // flow-ignore-line - disjoint unions not smart enough
+      // $FlowFixMe: disjoint unions not smart enough
       const xyz /*:Num3*/ = vertices[i].xyz;
       pos[3*i] = xyz[0];
       pos[3*i+1] = xyz[1];
@@ -438,7 +438,7 @@ function makeSimpleGeometry(vertices /*:Vector3[] | Atom[]*/,
     }
   } else {
     for (i = 0; i < vertices.length; i++) {
-      // flow-ignore-line
+      // $FlowFixMe
       const v /*:Vector3*/ = vertices[i];
       pos[3*i] = v.x;
       pos[3*i+1] = v.y;
