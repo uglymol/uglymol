@@ -1,6 +1,6 @@
 
 var assert = require('chai').assert;
-var isosurface = require('../uglymol').isosurface;
+var Block = require('../uglymol').Block;
 
 describe('isosurface', function () {
   'use strict';
@@ -22,9 +22,11 @@ describe('isosurface', function () {
       }
     }
   }
+  const block = new Block();
+  block.set(points, values, dims);
   it('sphere', function () {
     var isolevel = 3;
-    var ret = isosurface(dims, values, points, isolevel);
+    var ret = block.isosurface(isolevel);
     assert.isAbove(ret.vertices.length, 100*3); // way above
     for (var i = 0; i < ret.vertices.length; i += 3) {
       var vertex = ret.vertices.slice(i, i+3);

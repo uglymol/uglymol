@@ -10,4 +10,5 @@
 suppress_comment= flow-ignore-line
 module.name_mapper='^three$' -> '../tools/three-imports.js'
 #module.name_mapper='^three$' -> '../tools/three.modules.js'
+munge_underscores=true
 

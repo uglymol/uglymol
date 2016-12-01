@@ -1,4 +1,49 @@
 // @flow
+/*:: type Num3 = [number, number, number] */
+
+export class Block {
+  /*::
+  _points: ?Num3[]
+  _values: ?number[]
+  _size: Num3
+  */
+  constructor() {
+    this._points = null;
+    this._values = null;
+    this._size = [0, 0, 0];
+  }
+
+  set(points /*:Num3[]*/, values/*:number[]*/, size/*:Num3*/) {
+    if (size[0] <= 0 || size[1] <= 0 || size[2] <= 0) {
+      throw Error('Grid dimensions are zero along at least one edge');
+    }
+    const len = size[0] * size[1] * size[2];
+    if (values.length !== len || points.length !== len) {
+      throw Error('isosurface: array size mismatch');
+    }
+
+    this._points = points;
+    this._values = values;
+    this._size = size;
+  }
+
+  clear() {
+    this._points = null;
+    this._values = null;
+  }
+
+  empty() /*:boolean*/ {
+    return this._values === null;
+  }
+
+  isosurface(isolevel /*: number*/, method /*: string*/) {
+    //if (method === 'marching tetrahedra') {
+    //  return marchingTetrahedra(block, isolevel);
+    //}
+    return marchingCubes(this._size, this._values, this._points,
+                         isolevel, method);
+  }
+}
 
 /* eslint comma-spacing: 0, no-multi-spaces: 0 */
 
@@ -560,18 +605,8 @@ const edgeIndex = [[0,1], [1,2], [2,3], [3,0], [4,5], [5,6],
                    [6,7], [7,4], [0,4], [1,5], [2,6], [3,7]];
 // edge directions: [x, y, -x, -y, x, y, -x, -y, z, z, z, z]
 
-function check_input(dims, values, points) {
-  if (dims[0] <= 0 || dims[1] <= 0 || dims[2] <= 0) {
-    throw Error('Grid dimensions are zero along at least one edge');
-  }
-  const size_xyz = dims[0] * dims[1] * dims[2];
-  if (values.length !== size_xyz || points.length !== size_xyz) {
-    throw Error('isosurface: array size mismatch');
-  }
-}
-
 // return offsets relative to vertex [0,0,0]
-function calculate_vert_offsets(dims) {
+function calculateVertOffsets(dims) {
   let vert_offsets = [];
   for (let i = 0; i < 8; ++i) {
     const v = cubeVerts[i];
@@ -581,17 +616,18 @@ function calculate_vert_offsets(dims) {
 }
 
 
-function marching_cubes(dims, values, points, isolevel, method) {
+function marchingCubes(dims, values, points, isolevel, method) {
   const snap = (method === 'snapped MC');
   const seg_table = (method === 'squarish' ? segTable2 : segTable);
   let vlist = new Array(12);
-  const vert_offsets = calculate_vert_offsets(dims);
+  const vert_offsets = calculateVertOffsets(dims);
   let vertex_values = new Float32Array(8);
   let p0 = [0, 0, 0]; // initial value - never used, but makes Flow happy
   let vertex_points = [p0, p0, p0, p0, p0, p0, p0, p0];
   const size_x = dims[0];
   const size_y = dims[1];
   const size_z = dims[2];
+  if (values == null || points == null) return;
   let vertices = [];
   let segments = [];
   let vertex_count = 0;
@@ -647,17 +683,5 @@ function marching_cubes(dims, values, points, isolevel, method) {
     }
   }
   return { vertices: vertices, segments: segments };
-}
-
-export function isosurface(dims /*: [number, number, number]*/,
-                           values /*: number[]*/,
-                           points /*: Array<[number, number, number]>*/,
-                           isolevel /*: number*/,
-                           method /*: string*/) {
-  check_input(dims, values, points);
-  //if (method === 'marching tetrahedra') {
-  //  return marching_tetrahedra(dims, values, points, isolevel);
-  //}
-  return marching_cubes(dims, values, points, isolevel, method);
 }
 

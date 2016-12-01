@@ -856,7 +856,7 @@ Viewer.prototype.toggle_map_visibility = function (map_bag) {
 Viewer.prototype.redraw_map = function (map_bag) {
   this.clear_el_objects(map_bag);
   if (map_bag.visible) {
-    map_bag.map.block = null;
+    map_bag.map.block.clear();
     this.add_el_objects(map_bag);
   }
 };
@@ -883,10 +883,10 @@ Viewer.prototype.redraw_models = function () {
 
 Viewer.prototype.add_el_objects = function (map_bag) {
   if (!map_bag.visible || this.config.map_radius <= 0) return;
-  if (!map_bag.map.block) {
-    map_bag.block_ctr.copy(this.target);
-    map_bag.map.extract_block(this.config.map_radius,
-                              [this.target.x, this.target.y, this.target.z]);
+  if (map_bag.map.block.empty()) {
+    const t = this.target;
+    map_bag.block_ctr.copy(t);
+    map_bag.map.extract_block(this.config.map_radius, [t.x, t.y, t.z]);
   }
   for (let i = 0; i < map_bag.types.length; i++) {
     const mtype = map_bag.types[i];
