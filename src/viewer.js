@@ -1120,14 +1120,6 @@ Viewer.prototype.keydown = function (evt) {
 
 Viewer.prototype.set_common_key_bindings = function () {
   let kb = new Array(256);
-  // Home
-  kb[36] = function (evt) {
-    evt.ctrlKey ? this.change_map_line(0.1) : this.change_bond_line(0.2);
-  };
-  // End
-  kb[35] = function (evt) {
-    evt.ctrlKey ? this.change_map_line(-0.1) : this.change_bond_line(-0.2);
-  };
   // b
   kb[66] = function (evt) {
     this.select_next('color scheme', 'colors', this.ColorSchemes, evt.shiftKey);
@@ -1220,6 +1212,14 @@ Viewer.prototype.set_common_key_bindings = function () {
 
 Viewer.prototype.set_real_space_key_bindings = function () {
   let kb = this.key_bindings;
+  // Home
+  kb[36] = function (evt) {
+    evt.ctrlKey ? this.change_map_line(0.1) : this.change_bond_line(0.2);
+  };
+  // End
+  kb[35] = function (evt) {
+    evt.ctrlKey ? this.change_map_line(-0.1) : this.change_bond_line(-0.2);
+  };
   // Space
   kb[32] = function (evt) { this.center_next_residue(evt.shiftKey); };
   // p

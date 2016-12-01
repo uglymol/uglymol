@@ -34,7 +34,7 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
   'M/N = zoom',
   'D/F = clip width',
   'R = center view',
-  'Home/End = point size',
+  'Z/X = point size',
   'Shift+P = permalink',
   'Shift+F = full screen',
   '←/→ = max resol.',
@@ -60,12 +60,12 @@ ReciprocalViewer.prototype.set_reciprocal_key_bindings = function () {
     const sel = sel_map[this.config.show_only];
     this.points.material.uniforms.show_only.value = sel;
   };
-  // Home
-  kb[36] = function (evt) {
+  // x
+  kb[88] = function (evt) {
     evt.ctrlKey ? this.change_map_line(0.1) : this.change_point_size(0.5);
   };
-  // End
-  kb[35] = function (evt) {
+  // z
+  kb[90] = function (evt) {
     evt.ctrlKey ? this.change_map_line(-0.1) : this.change_point_size(-0.5);
   };
   // 3, numpad 3
