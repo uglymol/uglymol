@@ -16,7 +16,7 @@ describe('UnitCell', function () {
     // derived from dimple/tests/utest.py
     var uc = new UnitCell(22.84, 32.84, 42.84, 80.84, 90.84, 100.84);
     assert(uc);
-    var orth = uc.orthogonalize;
+    var orth = uc.orthogonalize.bind(uc);
     assert_equal_arrays([22.84, 0, 0], orth([1, 0, 0]), 1e-6);
     assert_equal_arrays([-6.17612, 32.254, 0], orth([0, 1, 0]), 1e-6);
     assert_equal_arrays([-0.628045, 6.82343, 42.2884], orth([0, 0, 1]), 1e-6);

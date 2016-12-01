@@ -993,7 +993,7 @@ Viewer.prototype.toggle_cell_box = function () {
       uc = this.map_bags[0].map.unit_cell;
     }
     if (uc) {
-      this.decor.cell_box = makeRgbBox(uc.orthogonalize, {
+      this.decor.cell_box = makeRgbBox(uc.orthogonalize.bind(uc), {
         color: this.config.colors.fg,
       });
       this.scene.add(this.decor.cell_box);
