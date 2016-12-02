@@ -64,8 +64,8 @@ function calculate_stddev(a, offset) {
 
 export class ElMap {
   /*::
-  unit_cell: any
-  grid: any
+  unit_cell: ?UnitCell
+  grid: ?GridArray
   stats: { mean: number, rms: number }
   block: Block
   */
@@ -117,7 +117,7 @@ export class ElMap {
     const max = fview[20];
     //const sg_number = iview[22];
     //const lskflg = iview[24];
-    this.grid = new GridArray(n_grid);
+    const grid = new GridArray(n_grid);
     if (nsymbt % 4 !== 0) {
       throw Error('CCP4 map with NSYMBT not divisible by 4 is not supported.');
     }
@@ -148,8 +148,7 @@ export class ElMap {
     for (it[2] = start[2]; it[2] < end[2]; it[2]++) { // sections
       for (it[1] = start[1]; it[1] < end[1]; it[1]++) { // rows
         for (it[0] = start[0]; it[0] < end[0]; it[0]++) { // cols
-          this.grid.set_grid_value(it[ax], it[ay], it[az],
-                                   b1 * data_view[idx] + b0);
+          grid.set_grid_value(it[ax], it[ay], it[az], b1 * data_view[idx] + b0);
           idx++;
         }
       }
@@ -179,14 +178,15 @@ export class ElMap {
                 xyz[j] = it[ax] * mat[j][0] + it[ay] * mat[j][1] +
                          it[az] * mat[j][2] + mat[j][3];
               }
-              this.grid.set_grid_value(xyz[0], xyz[1], xyz[2],
-                                       b1 * data_view[idx] + b0);
+              grid.set_grid_value(xyz[0], xyz[1], xyz[2],
+                                  b1 * data_view[idx] + b0);
               idx++;
             }
           }
         }
       }
     }
+    this.grid = grid;
   }
 
   // DSN6 MAP FORMAT
@@ -219,7 +219,7 @@ export class ElMap {
                                   cell_mult * iview[12],
                                   cell_mult * iview[13],
                                   cell_mult * iview[14]);
-    this.grid = new GridArray(n_grid);
+    const grid = new GridArray(n_grid);
     const prod = iview[15] / 100;
     const plus = iview[16];
     //var data_scale_factor = iview[15] / iview[18] + iview[16];
@@ -240,9 +240,9 @@ export class ElMap {
                 if (x < n_real[0] && y < n_real[1] && z < n_real[2]) {
                   const density = (u8data[offset] - plus) / prod;
                   offset++;
-                  this.grid.set_grid_value(origin[0] + x,
-                                           origin[1] + y,
-                                           origin[2] + z, density);
+                  grid.set_grid_value(origin[0] + x,
+                                      origin[1] + y,
+                                      origin[2] + z, density);
                 } else {
                   offset += 8 - i;
                   break;
@@ -253,13 +253,14 @@ export class ElMap {
         }
       }
     }
-    this.stats = calculate_stddev(this.grid.values, 0);
+    this.stats = calculate_stddev(grid.values, 0);
+    this.grid = grid;
     //this.show_debug_info();
   }
 
   show_debug_info() {
-    console.log('unit cell: ' + this.unit_cell.parameters.join(', '));
-    console.log('grid: ' + this.grid.dim);
+    console.log('unit cell:', this.unit_cell && this.unit_cell.parameters);
+    console.log('grid:', this.grid && this.grid.dim);
   }
 
   // Extract a block of density for calculating an isosurface using the
@@ -267,6 +268,7 @@ export class ElMap {
   extract_block(radius/*:number*/, center /*:?number[]*/) {
     const grid = this.grid;
     const unit_cell = this.unit_cell;
+    if (grid == null || unit_cell == null) return;
     let grid_min = [0, 0, 0];
     let grid_max = grid.dim;
     if (center) {
