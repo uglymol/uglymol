@@ -297,7 +297,7 @@ function Controls(camera, target) {
     if (targ instanceof Array) {
       targ = new THREE.Vector3(targ[0], targ[1], targ[2]);
     }
-    if ((!targ || targ.distanceToSquared(target) < 0.1) &&
+    if ((!targ || targ.distanceToSquared(target) < 0.001) &&
         (!cam_pos || cam_pos.distanceToSquared(camera.position) < 0.1) &&
         (!cam_up || cam_up.distanceToSquared(camera.up) < 0.1)) {
       return;
