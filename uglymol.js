@@ -3851,7 +3851,13 @@ ReciprocalViewer.prototype.load_data = function (url, options) {
 };
 
 ReciprocalViewer.prototype.load_from_string = function (text, options) {
-  this.parse_data(text);
+  if (text[0] === '{') {
+    this.data = parse_json(text);
+  } else {
+    this.data = parse_csv(text);
+  }
+  this.max_dist = max_dist(this.data.pos);
+  this.d_min = 1 / this.max_dist;
   this.set_axes();
   this.set_points();
   this.camera.zoom = 0.5 * (this.camera.top - this.camera.bottom);
@@ -3861,26 +3867,50 @@ ReciprocalViewer.prototype.load_from_string = function (text, options) {
   this.set_view(options);
 };
 
-ReciprocalViewer.prototype.parse_data = function (text) {
+function max_dist(pos) {
+  var max_sq = 0;
+  for (var i = 0; i < pos.length; i += 3) {
+    var n = 3 * i;
+    var sq = pos[n]*pos[n] + pos[n+1]*pos[n+1] + pos[n+2]*pos[n+2];
+    if (sq > max_sq) { max_sq = sq; }
+  }
+  return Math.sqrt(max_sq);
+}
+
+function parse_csv(text) {
   var lines = text.split('\n').filter(function (line) {
     return line.length > 0 && line[0] !== '#';
   });
   var pos = new Float32Array(lines.length * 3);
   var lattice_ids = [];
-  var max_sq = 0;
   for (var i = 0; i < lines.length; i++) {
     var nums = lines[i].split(',').map(Number);
-    var sq = nums[0]*nums[0] + nums[1]*nums[1] + nums[2]*nums[2];
-    if (sq > max_sq) { max_sq = sq; }
     for (var j = 0; j < 3; j++) {
       pos[3*i+j] = nums[j];
     }
     lattice_ids.push(nums[3]);
   }
-  this.max_dist = Math.sqrt(max_sq);
-  this.d_min = 1 / this.max_dist;
-  this.data = { pos: pos, lattice_ids: lattice_ids };
-};
+  return { pos: pos, lattice_ids: lattice_ids };
+}
+
+function minus_ones(n) {
+  var a = [];
+  for (var i = 0; i < n; i++) { a.push(-1); }
+  return a;
+}
+
+function parse_json(text) {
+  var d = JSON.parse(text);
+  var n = d.rlp.length;
+  var pos = new Float32Array(3*n);
+  for (var i = 0; i < n; i++) {
+    for (var j = 0; j < 3; j++) {
+      pos[3*i+j] = d.rlp[i][j];
+    }
+  }
+  var lattice_ids = d.experiment_id || minus_ones(n);
+  return { pos: pos, lattice_ids: lattice_ids };
+}
 
 ReciprocalViewer.prototype.set_axes = function () {
   if (this.axes != null) {
