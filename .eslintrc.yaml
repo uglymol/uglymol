@@ -4,7 +4,7 @@ env:
   browser: true
   es6: true  # includes Float32Array
 parserOptions:
-  ecmaVersion: 5
+  ecmaVersion: 6
   sourceType: 'module'
 extends: ['eslint:recommended', 'google']
 rules:
