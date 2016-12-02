@@ -20,6 +20,7 @@ export function ReciprocalViewer(options /*: {[key: string]: any}*/) {
   this.config.show_only = SPOT_SEL[0];
   this.config.show_axes = SHOW_AXES[0];
   this.set_reciprocal_key_bindings();
+  this.set_dropzone();
 }
 
 ReciprocalViewer.prototype = Object.create(Viewer.prototype);
@@ -82,20 +83,47 @@ ReciprocalViewer.prototype.set_reciprocal_key_bindings = function () {
   kb[40] = function () { this.change_dmax(-0.025); };
 };
 
-ReciprocalViewer.prototype.load_data = function (url, options) {
-  options = options || {};
+ReciprocalViewer.prototype.set_dropzone = function () {
+  if (typeof document === 'undefined') return;  // for testing on node
+  const zone = this.renderer.domElement;
+  const self = this;
+  zone.addEventListener('dragover', function (e) {
+    e.stopPropagation();
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    self.hud('ready for drop...');
+  });
+  zone.addEventListener('drop', function (e) {
+    e.stopPropagation();
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file == null) return;
+    const reader = new FileReader();
+    reader.onload = function (evt) {
+      self.load_from_string(evt.target.result, {});
+    };
+    reader.readAsText(file);
+    self.hud('loading ' + file.name);
+  });
+};
+
+ReciprocalViewer.prototype.load_data = function (url, options = {}) {
   let self = this;
   this.load_file(url, {binary: false, progress: true}, function (req) {
-    self.parse_data(req.responseText);
-    self.set_axes();
-    self.set_points();
-    self.camera.zoom = 0.5 * (self.camera.top - self.camera.bottom);
-    // default scale is set to 100 - same as default_camera_pos
-    const d = 1.01 * self.max_dist;
-    self.controls.slab_width = [d, d, 100];
-    self.set_view(options);
+    self.load_from_string(req.responseText, options);
     if (options.callback) options.callback();
   });
+};
+
+ReciprocalViewer.prototype.load_from_string = function (text, options) {
+  this.parse_data(text);
+  this.set_axes();
+  this.set_points();
+  this.camera.zoom = 0.5 * (this.camera.top - this.camera.bottom);
+  // default scale is set to 100 - same as default_camera_pos
+  const d = 1.01 * this.max_dist;
+  this.controls.slab_width = [d, d, 100];
+  this.set_view(options);
 };
 
 ReciprocalViewer.prototype.parse_data = function (text) {
@@ -174,6 +202,10 @@ const point_frag = [
 
 ReciprocalViewer.prototype.set_points = function () {
   if (this.data == null) return;
+  if (this.points != null) {
+    this.remove_and_dispose(this.points);
+    this.points = null;
+  }
   const pos = this.data.pos;
   const lattice_ids = this.data.lattice_ids;
   let color_arr = new Float32Array(3 * lattice_ids.length);

@@ -59,7 +59,8 @@ var UnitCell = function UnitCell(a /*:number*/, b /*:number*/, c /*:number*/,
     cos_alpha_star / (s1rca2 * sin_gamma * b),
     0.0,
     0.0,
-    1.0 / (sin_beta * s1rca2 * c) ];
+    1.0 / (sin_beta * s1rca2 * c),
+  ];
 };
 
 UnitCell.prototype.fractionalize = function fractionalize (xyz /*:[number,number,number]*/) {
@@ -82,10 +83,12 @@ function multiply(xyz, mat) {
 
 var AMINO_ACIDS = [
   'ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HIS', 'ILE', 'LEU',
-  'LYS', 'MET', 'MSE', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL', 'UNK' ];
+  'LYS', 'MET', 'MSE', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL', 'UNK',
+];
 var NUCLEIC_ACIDS = [
   'DA', 'DC', 'DG', 'DT', 'A', 'C', 'G', 'U', 'rA', 'rC', 'rG', 'rU',
-  'Ar', 'Cr', 'Gr', 'Ur' ];
+  'Ar', 'Cr', 'Gr', 'Ur',
+];
 
 var NOT_LIGANDS = ['HOH'].concat(AMINO_ACIDS, NUCLEIC_ACIDS);
 
@@ -514,8 +517,8 @@ Block.prototype.set = function set (points /*:Num3[]*/, values/*:number[]*/, siz
   if (size[0] <= 0 || size[1] <= 0 || size[2] <= 0) {
     throw Error('Grid dimensions are zero along at least one edge');
   }
-  var size_xyz = size[0] * size[1] * size[2];
-  if (values.length !== size_xyz || points.length !== size_xyz) {
+  var len = size[0] * size[1] * size[2];
+  if (values.length !== len || points.length !== len) {
     throw Error('isosurface: array size mismatch');
   }
 
@@ -535,10 +538,10 @@ Block.prototype.empty = function empty () /*:boolean*/ {
 
 Block.prototype.isosurface = function isosurface (isolevel /*: number*/, method /*: string*/) {
   //if (method === 'marching tetrahedra') {
-  //return marching_tetrahedra(block, isolevel);
+  //return marchingTetrahedra(block, isolevel);
   //}
-  return marching_cubes(this._size, this._values, this._points,
-                        isolevel, method);
+  return marchingCubes(this._size, this._values, this._points,
+                       isolevel, method);
 };
 
 /* eslint comma-spacing: 0, no-multi-spaces: 0 */
@@ -1102,7 +1105,7 @@ var edgeIndex = [[0,1], [1,2], [2,3], [3,0], [4,5], [5,6],
 // edge directions: [x, y, -x, -y, x, y, -x, -y, z, z, z, z]
 
 // return offsets relative to vertex [0,0,0]
-function calculate_vert_offsets(dims) {
+function calculateVertOffsets(dims) {
   var vert_offsets = [];
   for (var i = 0; i < 8; ++i) {
     var v = cubeVerts[i];
@@ -1112,11 +1115,11 @@ function calculate_vert_offsets(dims) {
 }
 
 
-function marching_cubes(dims, values, points, isolevel, method) {
+function marchingCubes(dims, values, points, isolevel, method) {
   var snap = (method === 'snapped MC');
   var seg_table = (method === 'squarish' ? segTable2 : segTable);
   var vlist = new Array(12);
-  var vert_offsets = calculate_vert_offsets(dims);
+  var vert_offsets = calculateVertOffsets(dims);
   var vertex_values = new Float32Array(8);
   var p0 = [0, 0, 0]; // initial value - never used, but makes Flow happy
   var vertex_points = [p0, p0, p0, p0, p0, p0, p0, p0];
@@ -1132,8 +1135,8 @@ function marching_cubes(dims, values, points, isolevel, method) {
       for (var z = 0; z < size_z - 1; z++) {
         var offset0 = z + size_z * (y + size_y * x);
         var cubeindex = 0;
-        var i = (void 0);
-        var j = (void 0);
+        var i = void 0;
+        var j = void 0;
         for (i = 0; i < 8; ++i) {
           j = offset0 + vert_offsets[i];
           cubeindex |= (values[j] < isolevel) ? 1 << i : 0;
@@ -1324,7 +1327,7 @@ ElMap.prototype.from_ccp4 = function from_ccp4 (buf /*:ArrayBuffer*/, expand_sym
   if (expand_symmetry && nsymbt > 0) {
     var u8view = new Uint8Array(buf);
     for (var i = 0; i+80 <= nsymbt; i += 80) {
-      var j = (void 0);
+      var j = void 0;
       var symop = '';
       for (j = 0; j < 80; ++j) {
         symop += String.fromCharCode(u8view[1024 + i + j]);
@@ -1542,7 +1545,8 @@ function makeRgbBox(transform_func /*:Num3 => Num3*/,
   var colors = [
     new THREE.Color(0xff0000), new THREE.Color(0xffaa00),
     new THREE.Color(0x00ff00), new THREE.Color(0xaaff00),
-    new THREE.Color(0x0000ff), new THREE.Color(0x00aaff) ];
+    new THREE.Color(0x0000ff), new THREE.Color(0x00aaff),
+  ];
   for (var j = 6; j < CUBE_EDGES.length; j++) {
     colors.push(options.color);
   }
@@ -1551,7 +1555,7 @@ function makeRgbBox(transform_func /*:Num3 => Num3*/,
     linewidth: 1,
     segments: true,
   });
-  // flow-ignore-line - the type of vertices confuses flow
+  // $FlowFixMe: the type of vertices confuses flow
   return makeLineSegments(material, vertices, colors);
 }
 
@@ -1560,14 +1564,14 @@ function double_pos(vertex_arr /*:Vector3[] | Atom[]*/) {
   var i;
   if (vertex_arr && vertex_arr[0].xyz) {
     for (i = 0; i < vertex_arr.length; i++) {
-      // flow-ignore-line - disjoint unions not smart enough
+      // $FlowFixMe: disjoint unions not smart enough
       var xyz /*:Num3*/ = vertex_arr[i].xyz;
       pos.push(xyz[0], xyz[1], xyz[2]);
       pos.push(xyz[0], xyz[1], xyz[2]);
     }
   } else {
     for (i = 0; i < vertex_arr.length; i++) {
-      // flow-ignore-line
+      // $FlowFixMe
       var v /*:Vector3*/ = vertex_arr[i];
       pos.push(v.x, v.y, v.z);
       pos.push(v.x, v.y, v.z);
@@ -1922,7 +1926,7 @@ function makeSimpleGeometry(vertices /*:Vector3[] | Atom[]*/,
   var i;
   if (vertices && vertices[0].xyz) {
     for (i = 0; i < vertices.length; i++) {
-      // flow-ignore-line - disjoint unions not smart enough
+      // $FlowFixMe: disjoint unions not smart enough
       var xyz /*:Num3*/ = vertices[i].xyz;
       pos[3*i] = xyz[0];
       pos[3*i+1] = xyz[1];
@@ -1930,7 +1934,7 @@ function makeSimpleGeometry(vertices /*:Vector3[] | Atom[]*/,
     }
   } else {
     for (i = 0; i < vertices.length; i++) {
-      // flow-ignore-line
+      // $FlowFixMe
       var v /*:Vector3*/ = vertices[i];
       pos[3*i] = v.x;
       pos[3*i+1] = v.y;
@@ -2215,9 +2219,8 @@ var ColorSchemes = [ // Viewer.prototype.ColorSchemes
     O: 0xC33869,
     S: 0x9E7B3D,
     def: 0x808080,
-  } ];
-
-var auto_speed = 1.0;
+  },
+];
 
 // map 2d position to sphere with radius 1.
 function project_on_ball(x, y) {
@@ -2243,6 +2246,7 @@ var STATE = {NONE: -1, ROTATE: 0, PAN: 1, ZOOM: 2, PAN_ZOOM: 3, SLAB: 4,
 
 // based on three.js/examples/js/controls/OrthographicTrackballControls.js
 function Controls(camera, target) {
+  var auto_speed = 1.0;
   var _state = STATE.NONE;
   var _rotate_start = new THREE.Vector3();
   var _rotate_end = new THREE.Vector3();
@@ -2429,13 +2433,13 @@ function Controls(camera, target) {
     if (targ instanceof Array) {
       targ = new THREE.Vector3(targ[0], targ[1], targ[2]);
     }
-    if ((!targ || targ.distanceToSquared(target) < 0.1) &&
+    if ((!targ || targ.distanceToSquared(target) < 0.001) &&
         (!cam_pos || cam_pos.distanceToSquared(camera.position) < 0.1) &&
         (!cam_up || cam_up.distanceToSquared(camera.up) < 0.1)) {
       return;
     }
     _state = STATE.GO;
-    steps = steps || (60 / auto_speed);
+    steps = (steps || 60) / auto_speed;
     var alphas = [];
     var prev_pos = 0;
     for (var i = 1; i <= steps; ++i) {
@@ -2467,8 +2471,8 @@ function Controls(camera, target) {
 // options handled by select_next()
 
 var COLOR_AIMS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
-var RENDER_STYLES = ['lines', 'trace', 'ribbon' ];
-var MAP_STYLES = ['marching cubes', 'squarish' ];
+var RENDER_STYLES = ['lines', 'trace', 'ribbon'/*, 'ball&stick'*/];
+var MAP_STYLES = ['marching cubes', 'squarish'/*, 'snapped MC'*/];
 var LINE_STYLES = ['normal', 'simplistic'];
 var LABEL_FONTS = ['bold 14px', '14px', '16px', 'bold 16px'];
 
@@ -2776,7 +2780,7 @@ function Viewer(options /*: {[key: string]: any}*/) {
     if (not_panned) {
       var atom = self.pick_atom(not_panned, self.camera);
       if (atom != null) {
-        self.select_atom(atom, {steps: 60 / auto_speed});
+        self.select_atom(atom, {steps: 60});
       }
     }
     self.redraw_maps();
@@ -3098,9 +3102,9 @@ Viewer.prototype.toggle_full_screen = function () {
   if (d.fullscreenElement || d.mozFullScreenElement ||
       d.webkitFullscreenElement || d.msFullscreenElement) {
     var ex = d.exitFullscreen || d.webkitExitFullscreen ||
-    // flow-ignore-line property `msExitFullscreen` not found in document
+    // $FlowFixMe: property `msExitFullscreen` not found in document
              d.mozCancelFullScreen || d.msExitFullscreen;
-    // flow-ignore-line cannot call property `exitFullscreen` of unknown type
+    // $FlowFixMe: cannot call property `exitFullscreen` of unknown type
     if (ex) { ex.call(d); }
   } else {
     var el = this.container;
@@ -3151,7 +3155,7 @@ Viewer.prototype.go_to_nearest_Ca = function () {
   if (this.active_model_bag === null) { return; }
   var a = this.active_model_bag.model.get_nearest_atom(t.x, t.y, t.z, 'CA');
   if (a) {
-    this.select_atom(a);
+    this.select_atom(a, {steps: 30});
   } else {
     this.hud('no nearby CA');
   }
@@ -3192,7 +3196,8 @@ Viewer.prototype.MOUSE_HELP = [
   'Ctrl+Right = clipping',
   'Ctrl+Shift+Right = roll',
   'Wheel = σ level',
-  'Shift+Wheel = diff map σ' ].join('\n');
+  'Shift+Wheel = diff map σ',
+].join('\n');
 
 Viewer.prototype.KEYBOARD_HELP = [
   '<b>keyboard:</b>',
@@ -3217,7 +3222,8 @@ Viewer.prototype.KEYBOARD_HELP = [
   'P = nearest Cα',
   'Shift+P = permalink',
   '(Shift+)space = next res.',
-  'Shift+F = full screen' ].join('\n');
+  'Shift+F = full screen',
+].join('\n');
 
 Viewer.prototype.ABOUT_HELP =
   '<a href="https://uglymol.github.io">about uglymol</a>';
@@ -3249,14 +3255,6 @@ Viewer.prototype.keydown = function (evt) {
 
 Viewer.prototype.set_common_key_bindings = function () {
   var kb = new Array(256);
-  // Home
-  kb[36] = function (evt) {
-    evt.ctrlKey ? this.change_map_line(0.1) : this.change_bond_line(0.2);
-  };
-  // End
-  kb[35] = function (evt) {
-    evt.ctrlKey ? this.change_map_line(-0.1) : this.change_bond_line(-0.2);
-  };
   // b
   kb[66] = function (evt) {
     this.select_next('color scheme', 'colors', this.ColorSchemes, evt.shiftKey);
@@ -3349,6 +3347,14 @@ Viewer.prototype.set_common_key_bindings = function () {
 
 Viewer.prototype.set_real_space_key_bindings = function () {
   var kb = this.key_bindings;
+  // Home
+  kb[36] = function (evt) {
+    evt.ctrlKey ? this.change_map_line(0.1) : this.change_bond_line(0.2);
+  };
+  // End
+  kb[35] = function (evt) {
+    evt.ctrlKey ? this.change_map_line(-0.1) : this.change_bond_line(-0.2);
+  };
   // Space
   kb[32] = function (evt) { this.center_next_residue(evt.shiftKey); };
   // p
@@ -3540,14 +3546,14 @@ Viewer.prototype.recenter = function (xyz, cam, steps) {
 Viewer.prototype.center_next_residue = function (back) {
   if (!this.active_model_bag) { return; }
   var a = this.active_model_bag.model.next_residue(this.selected_atom, back);
-  if (a) { this.select_atom(a); }
+  if (a) { this.select_atom(a, {steps: 30}); }
 };
 
 Viewer.prototype.select_atom = function (atom, options) {
-  options = options || {};
+  if ( options === void 0 ) options = {};
+
   this.hud('-> ' + atom.long_label());
-  var steps = options.steps || 30. / auto_speed;
-  this.controls.go_to(atom.xyz, null, null, steps);
+  this.controls.go_to(atom.xyz, null, null, options.steps);
   this.toggle_label(this.selected_atom);
   this.selected_atom = atom;
   this.toggle_label(atom);
@@ -3642,7 +3648,7 @@ Viewer.prototype.load_file = function (url/*:string*/,
     }
   };
   if (options.progress) {
-    // flow-ignore-line  dom.js in flow is incomplete
+    // $FlowFixMe: dom.js in flow is incomplete
     req.addEventListener('progress', function (evt /*:ProgressEvent*/) {
       if (evt.lengthComputable && evt.loaded && evt.total) {
         var fn = url.split('/').pop();
@@ -3746,6 +3752,7 @@ function ReciprocalViewer(options /*: {[key: string]: any}*/) {
   this.config.show_only = SPOT_SEL[0];
   this.config.show_axes = SHOW_AXES[0];
   this.set_reciprocal_key_bindings();
+  this.set_dropzone();
 }
 
 ReciprocalViewer.prototype = Object.create(Viewer.prototype);
@@ -3760,11 +3767,12 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
   'M/N = zoom',
   'D/F = clip width',
   'R = center view',
-  'Home/End = point size',
+  'Z/X = point size',
   'Shift+P = permalink',
   'Shift+F = full screen',
   '←/→ = max resol.',
-  '↑/↓ = min resol.' ].join('\n');
+  '↑/↓ = min resol.',
+].join('\n');
 
 ReciprocalViewer.prototype.MOUSE_HELP = Viewer.prototype.MOUSE_HELP
                                         .split('\n').slice(0, -2).join('\n');
@@ -3785,12 +3793,12 @@ ReciprocalViewer.prototype.set_reciprocal_key_bindings = function () {
     var sel = sel_map[this.config.show_only];
     this.points.material.uniforms.show_only.value = sel;
   };
-  // Home
-  kb[36] = function (evt) {
+  // x
+  kb[88] = function (evt) {
     evt.ctrlKey ? this.change_map_line(0.1) : this.change_point_size(0.5);
   };
-  // End
-  kb[35] = function (evt) {
+  // z
+  kb[90] = function (evt) {
     evt.ctrlKey ? this.change_map_line(-0.1) : this.change_point_size(-0.5);
   };
   // 3, numpad 3
@@ -3807,20 +3815,49 @@ ReciprocalViewer.prototype.set_reciprocal_key_bindings = function () {
   kb[40] = function () { this.change_dmax(-0.025); };
 };
 
+ReciprocalViewer.prototype.set_dropzone = function () {
+  if (typeof document === 'undefined') { return; }  // for testing on node
+  var zone = this.renderer.domElement;
+  var self = this;
+  zone.addEventListener('dragover', function (e) {
+    e.stopPropagation();
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    self.hud('ready for drop...');
+  });
+  zone.addEventListener('drop', function (e) {
+    e.stopPropagation();
+    e.preventDefault();
+    var file = e.dataTransfer.files[0];
+    if (file == null) { return; }
+    var reader = new FileReader();
+    reader.onload = function (evt) {
+      self.load_from_string(evt.target.result, {});
+    };
+    reader.readAsText(file);
+    self.hud('loading ' + file.name);
+  });
+};
+
 ReciprocalViewer.prototype.load_data = function (url, options) {
-  options = options || {};
+  if ( options === void 0 ) options = {};
+
   var self = this;
   this.load_file(url, {binary: false, progress: true}, function (req) {
-    self.parse_data(req.responseText);
-    self.set_axes();
-    self.set_points();
-    self.camera.zoom = 0.5 * (self.camera.top - self.camera.bottom);
-    // default scale is set to 100 - same as default_camera_pos
-    var d = 1.01 * self.max_dist;
-    self.controls.slab_width = [d, d, 100];
-    self.set_view(options);
+    self.load_from_string(req.responseText, options);
     if (options.callback) { options.callback(); }
   });
+};
+
+ReciprocalViewer.prototype.load_from_string = function (text, options) {
+  this.parse_data(text);
+  this.set_axes();
+  this.set_points();
+  this.camera.zoom = 0.5 * (this.camera.top - this.camera.bottom);
+  // default scale is set to 100 - same as default_camera_pos
+  var d = 1.01 * this.max_dist;
+  this.controls.slab_width = [d, d, 100];
+  this.set_view(options);
 };
 
 ReciprocalViewer.prototype.parse_data = function (text) {
@@ -3899,6 +3936,10 @@ var point_frag = [
 
 ReciprocalViewer.prototype.set_points = function () {
   if (this.data == null) { return; }
+  if (this.points != null) {
+    this.remove_and_dispose(this.points);
+    this.points = null;
+  }
   var pos = this.data.pos;
   var lattice_ids = this.data.lattice_ids;
   var color_arr = new Float32Array(3 * lattice_ids.length);
@@ -3989,7 +4030,8 @@ ReciprocalViewer.prototype.ColorSchemes = [
     lattices: [0xdc322f, 0x2aa198, 0x268bd2, 0x859900,
                0xd33682, 0xb58900, 0x6c71c4, 0xcb4b16],
     axes: [0xffaaaa, 0xaaffaa, 0xaaaaff],
-  } ];
+  },
+];
 
 exports.UnitCell = UnitCell;
 exports.Model = Model;
