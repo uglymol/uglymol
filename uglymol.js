@@ -59,8 +59,7 @@ var UnitCell = function UnitCell(a /*:number*/, b /*:number*/, c /*:number*/,
     cos_alpha_star / (s1rca2 * sin_gamma * b),
     0.0,
     0.0,
-    1.0 / (sin_beta * s1rca2 * c),
-  ];
+    1.0 / (sin_beta * s1rca2 * c) ];
 };
 
 UnitCell.prototype.fractionalize = function fractionalize (xyz /*:[number,number,number]*/) {
@@ -83,34 +82,35 @@ function multiply(xyz, mat) {
 
 var AMINO_ACIDS = [
   'ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HIS', 'ILE', 'LEU',
-  'LYS', 'MET', 'MSE', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL', 'UNK',
-];
+  'LYS', 'MET', 'MSE', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL', 'UNK' ];
 var NUCLEIC_ACIDS = [
   'DA', 'DC', 'DG', 'DT', 'A', 'C', 'G', 'U', 'rA', 'rC', 'rG', 'rU',
-  'Ar', 'Cr', 'Gr', 'Ur',
-];
+  'Ar', 'Cr', 'Gr', 'Ur' ];
 
 var NOT_LIGANDS = ['HOH'].concat(AMINO_ACIDS, NUCLEIC_ACIDS);
 
-function Model() {
+var Model = function Model() {
   this.atoms = [];
   this.unit_cell = null;
   this.space_group = null;
   this.has_hydrogens = false;
-  this.lower_bound = null;
-  this.upper_bound = null;
-}
+  this.lower_bound = [0, 0, 0];
+  this.upper_bound = [0, 0, 0];
+  this.residue_map = null;
+  this.cubes = null;
+};
 
-Model.prototype.from_pdb = function (pdb_string) {
+Model.prototype.from_pdb = function from_pdb (pdb_string /*:string*/) {
   var lines = pdb_string.split('\n');
-  var chain_index = 0;  // will be ++'ed for the first atom
+  var chain_index = 0;// will be ++'ed for the first atom
   var last_chain = null;
   var atom_i_seq = 0;
   //var last_atom = null;
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i];
     var rec_type = line.substring(0, 6);
-    if (rec_type === 'ATOM  ' || rec_type === 'HETATM') {
+    //+ is temporary: https://gitlab.com/Rich-Harris/buble/issues/159
+    if (rec_type === 'ATOM '+' ' || rec_type === 'HETATM') {
       var new_atom = new Atom();
       new_atom.from_pdb_line(line);
       new_atom.i_seq = atom_i_seq++;
@@ -146,7 +146,7 @@ Model.prototype.from_pdb = function (pdb_string) {
   this.calculate_connectivity();
 };
 
-Model.prototype.calculate_bounds = function () {
+Model.prototype.calculate_bounds = function calculate_bounds () {
   var lower = this.lower_bound = [Infinity, Infinity, Infinity];
   var upper = this.upper_bound = [-Infinity, -Infinity, -Infinity];
   for (var i = 0; i < this.atoms.length; i++) {
@@ -164,9 +164,9 @@ Model.prototype.calculate_bounds = function () {
   }
 };
 
-Model.prototype.next_residue = function (atom, backward) {
+Model.prototype.next_residue = function next_residue (atom /*:?Atom*/, backward /*:?boolean*/) {
   var len = this.atoms.length;
-  var start = (atom ? atom.i_seq : 0) + len;  // +len to avoid idx<0 below
+  var start = (atom ? atom.i_seq : 0) + len;// +len to avoid idx<0 below
   for (var i = (atom ? 1 : 0); i < len; i++) {
     var idx = (start + (backward ? -i : i)) % len;
     var a = this.atoms[idx];
@@ -177,7 +177,7 @@ Model.prototype.next_residue = function (atom, backward) {
   }
 };
 
-Model.prototype.extract_trace = function () {
+Model.prototype.extract_trace = function extract_trace () {
   var segments = [];
   var current_segment = [];
   var last_atom = null;
@@ -210,7 +210,7 @@ Model.prototype.extract_trace = function () {
   return segments;
 };
 
-Model.prototype.get_residues = function () {
+Model.prototype.get_residues = function get_residues () {
   if (this.residue_map != null) { return this.residue_map; }
   var residues = {};
   for (var i = 0; i < this.atoms.length; i++) {
@@ -228,7 +228,7 @@ Model.prototype.get_residues = function () {
 };
 
 // tangent vector to the ribbon representation
-Model.prototype.calculate_tangent_vector = function (residue) {
+Model.prototype.calculate_tangent_vector = function calculate_tangent_vector (residue /*:Atom[]*/) {
   var a1 = null;
   var a2 = null;
   // it may be too simplistic
@@ -250,8 +250,8 @@ Model.prototype.calculate_tangent_vector = function (residue) {
   return [d[0]/len, d[1]/len, d[2]/len];
 };
 
-Model.prototype.get_center = function () {
-  var xsum = 0, ysum = 0, zsum = 0;  // eslint-disable-line
+Model.prototype.get_center = function get_center () {
+  var xsum = 0, ysum = 0, zsum = 0;// eslint-disable-line
   var n_atoms = this.atoms.length;
   for (var i = 0; i < n_atoms; i++) {
     var xyz = this.atoms[i].xyz;
@@ -262,36 +262,82 @@ Model.prototype.get_center = function () {
   return [xsum / n_atoms, ysum / n_atoms, zsum / n_atoms];
 };
 
+Model.prototype.calculate_connectivity = function calculate_connectivity () {
+  var atoms = this.atoms;
+  var cubes = new Cubicles(atoms, 3.0, this.lower_bound, this.upper_bound);
+  //let cnt = 0;
+  for (var i = 0; i < cubes.boxes.length; i++) {
+    var box = cubes.boxes[i];
+    if (box.length === 0) { continue; }
+    var nearby_atoms = cubes.get_nearby_atoms(i);
+    for (var a = 0; a < box.length; a++) {
+      var atom_id = box[a];
+      for (var k = 0; k < nearby_atoms.length; k++) {
+        var j = nearby_atoms[k];
+        if (j > atom_id && atoms[atom_id].is_bonded_to(atoms[j])) {
+          atoms[atom_id].bonds.push(j);
+          atoms[j].bonds.push(atom_id);
+          //cnt++;
+        }
+      }
+    }
+  }
+  //console.log(atoms.length + ' atoms, ' + cnt + ' bonds.');
+  this.cubes = cubes;
+};
+
+Model.prototype.get_nearest_atom = function get_nearest_atom (x /*:number*/, y /*:number*/, z /*:number*/,
+                 atom_name /*:string*/) {
+  var cubes = this.cubes;
+  if (cubes == null) { throw Error('Missing Cubicles'); }
+  var box_id = cubes.find_box_id(x, y, z);
+  var indices = cubes.get_nearby_atoms(box_id);
+  var nearest = null;
+  var min_d2 = Infinity;
+  for (var i = 0; i < indices.length; i++) {
+    var atom = this.atoms[indices[i]];
+    if (atom_name !== undefined && atom_name !== null &&
+        atom_name !== atom.name) { continue; }
+    var dx = atom.xyz[0] - x;
+    var dy = atom.xyz[1] - y;
+    var dz = atom.xyz[2] - z;
+    var d2 = dx*dx + dy*dy + dz*dz;
+    if (d2 < min_d2) {
+      nearest = atom;
+      min_d2 = d2;
+    }
+  }
+  return nearest;
+};
 
 // Single atom and associated labels
-function Atom() {
+var Atom = function Atom() {
   this.hetero = false;
   this.name = '';
   this.altloc = '';
   this.resname = '';
   this.chain = '';
   this.chain_index = null;
-  this.resseq = null;
+  this.resseq = -1;
   this.icode = null;
   this.xyz = [0, 0, 0];
   this.occ = 1.0;
   this.b = 0;
   this.element = '';
-  this.charge = 0;
   this.i_seq = null;
   this.is_ligand = null;
   this.bonds = [];
-}
+};
 
 // http://www.wwpdb.org/documentation/format33/sect9.html#ATOM
-Atom.prototype.from_pdb_line = function (pdb_line) {
+Atom.prototype.from_pdb_line = function from_pdb_line (pdb_line /*:string*/) {
   if (pdb_line.length < 66) {
     throw Error('ATOM or HETATM record is too short: ' + pdb_line);
   }
   var rec_type = pdb_line.substring(0, 6);
   if (rec_type === 'HETATM') {
     this.hetero = true;
-  } else if (rec_type !== 'ATOM  ') {
+  } else if (rec_type !== 'ATOM '+' ') {
     throw Error('Wrong record type: ' + rec_type);
   }
   this.name = pdb_line.substring(12, 16).trim();
@@ -309,66 +355,66 @@ Atom.prototype.from_pdb_line = function (pdb_line) {
   if (pdb_line.length >= 78) {
     this.element = pdb_line.substring(76, 78).trim().toUpperCase();
   }
-  if (pdb_line.length >= 80) {
-    this.charge = pdb_line.substring(78, 80).trim();
-  }
+  //if (pdb_line.length >= 80) {
+  //this.charge = pdb_line.substring(78, 80).trim();
+  //}
   this.is_ligand = (NOT_LIGANDS.indexOf(this.resname) === -1);
 };
 
-Atom.prototype.b_as_u = function () {
+Atom.prototype.b_as_u = function b_as_u () {
   // B = 8 * pi^2 * u^2
   return Math.sqrt(this.b / (8 * 3.14159 * 3.14159));
 };
 
-Atom.prototype.distance_sq = function (other) {
+Atom.prototype.distance_sq = function distance_sq (other /*:Atom*/) {
   var dx = this.xyz[0] - other.xyz[0];
   var dy = this.xyz[1] - other.xyz[1];
   var dz = this.xyz[2] - other.xyz[2];
   return dx*dx + dy*dy + dz*dz;
 };
 
-Atom.prototype.distance = function (other) {
+Atom.prototype.distance = function distance (other /*:Atom*/) {
   return Math.sqrt(this.distance_sq(other));
 };
 
-Atom.prototype.midpoint = function (other) {
+Atom.prototype.midpoint = function midpoint (other /*:Atom*/) {
   return [(this.xyz[0] + other.xyz[0]) / 2,
           (this.xyz[1] + other.xyz[1]) / 2,
           (this.xyz[2] + other.xyz[2]) / 2];
 };
 
-Atom.prototype.is_hydrogen = function () {
+Atom.prototype.is_hydrogen = function is_hydrogen () {
   return this.element === 'H' || this.element === 'D';
 };
 
-Atom.prototype.is_s_or_p = function () {
+Atom.prototype.is_s_or_p = function is_s_or_p () {
   return this.element === 'S' || this.element === 'P';
 };
 
-Atom.prototype.is_ion = function () {
+Atom.prototype.is_ion = function is_ion () {
   return this.element === this.resname;
 };
 
-Atom.prototype.is_water = function () {
+Atom.prototype.is_water = function is_water () {
   return this.resname === 'HOH';
 };
 
-Atom.prototype.is_same_residue = function (other, ignore_altloc) {
+Atom.prototype.is_same_residue = function is_same_residue (other /*:Atom*/, ignore_altloc /*:?boolean*/) {
   return other.resseq === this.resseq && other.icode === this.icode &&
          other.chain === this.chain && other.resname === this.resname &&
          (ignore_altloc || other.altloc === this.altloc);
 };
 
-Atom.prototype.is_same_conformer = function (other) {
+Atom.prototype.is_same_conformer = function is_same_conformer (other /*:Atom*/) {
   return this.altloc === '' || other.altloc === '' ||
          this.altloc === other.altloc;
 };
 
-Atom.prototype.is_main_conformer = function () {
+Atom.prototype.is_main_conformer = function is_main_conformer () {
   return this.altloc === '' || this.altloc === 'A';
 };
 
-Atom.prototype.is_bonded_to = function (other) {
+Atom.prototype.is_bonded_to = function is_bonded_to (other /*:Atom*/) {
   var MAX_DIST_SQ = 1.99 * 1.99;
   var MAX_DIST_H_SQ = 1.3 * 1.3;
   var MAX_DIST_SP_SQ = 2.2 * 2.2;
@@ -383,11 +429,11 @@ Atom.prototype.is_bonded_to = function (other) {
   return dxyz2 <= MAX_DIST_SQ || this.is_s_or_p() || other.is_s_or_p();
 };
 
-Atom.prototype.resid = function () {
+Atom.prototype.resid = function resid () {
   return this.resseq + '/' + this.chain;
 };
 
-Atom.prototype.long_label = function () {
+Atom.prototype.long_label = function long_label () {
   var a = this;
   return a.name + ' /' + a.resseq + ' ' + a.resname + '/' + a.chain +
          ' - occ: ' + a.occ.toFixed(2) + ' bf: ' + a.b.toFixed(2) +
@@ -395,33 +441,27 @@ Atom.prototype.long_label = function () {
          a.xyz[1].toFixed(2) + ',' + a.xyz[2].toFixed(2) + ')';
 };
 
-Atom.prototype.short_label = function () {
+Atom.prototype.short_label = function short_label () {
   var a = this;
   return a.name + ' /' + a.resseq + ' ' + a.resname + '/' + a.chain;
 };
 
+
 // Partition atoms into boxes for quick neighbor searching.
-function Cubicles(atoms, box_length, lower_bound, upper_bound) {
-  var i;
+var Cubicles = function Cubicles(atoms, box_length, lower_bound, upper_bound) {
   this.boxes = [];
+  this.box_length = box_length;
+  this.lower_bound = lower_bound;
+  this.upper_bound = upper_bound;
   this.xdim = Math.ceil((upper_bound[0] - lower_bound[0]) / box_length);
   this.ydim = Math.ceil((upper_bound[1] - lower_bound[1]) / box_length);
   this.zdim = Math.ceil((upper_bound[2] - lower_bound[2]) / box_length);
   //console.log("Cubicles: " + this.xdim + "x" + this.ydim + "x" + this.zdim);
   var nxyz = this.xdim * this.ydim * this.zdim;
-  for (i = 0; i < nxyz; i++) {
+  for (var j = 0; j < nxyz; j++) {
     this.boxes.push([]);
   }
-
-  this.find_box_id = function (x, y, z) {
-    var xstep = Math.floor((x - lower_bound[0]) / box_length);
-    var ystep = Math.floor((y - lower_bound[1]) / box_length);
-    var zstep = Math.floor((z - lower_bound[2]) / box_length);
-    var box_id = (zstep * this.ydim + ystep) * this.xdim + xstep;
-    return (box_id >= 0 && box_id < this.boxes.length) ? box_id : null;
-  };
-
-  for (i = 0; i < atoms.length; i++) {
+  for (var i = 0; i < atoms.length; i++) {
     var xyz = atoms[i].xyz;
     var box_id = this.find_box_id(xyz[0], xyz[1], xyz[2]);
     if (box_id === null) {
@@ -429,9 +469,18 @@ function Cubicles(atoms, box_length, lower_bound, upper_bound) {
     }
     this.boxes[box_id].push(i);
   }
-}
+};
 
-Cubicles.prototype.get_nearby_atoms = function (box_id) {
+Cubicles.prototype.find_box_id = function find_box_id (x, y, z) {
+  var xstep = Math.floor((x - this.lower_bound[0]) / this.box_length);
+  var ystep = Math.floor((y - this.lower_bound[1]) / this.box_length);
+  var zstep = Math.floor((z - this.lower_bound[2]) / this.box_length);
+  var box_id = (zstep * this.ydim + ystep) * this.xdim + xstep;
+  if (box_id < 0 || box_id >= this.boxes.length) { throw Error('Ups!'); }
+  return box_id;
+};
+
+Cubicles.prototype.get_nearby_atoms = function get_nearby_atoms (box_id) {
   var indices = [];
   var xydim = this.xdim * this.ydim;
   var uv = Math.max(box_id % xydim, 0);
@@ -457,51 +506,6 @@ Cubicles.prototype.get_nearby_atoms = function (box_id) {
     }
   }
   return indices;
-};
-
-Model.prototype.calculate_connectivity = function () {
-  var atoms = this.atoms;
-  var cubes = new Cubicles(atoms, 3.0, this.lower_bound, this.upper_bound);
-  //let cnt = 0;
-  for (var i = 0; i < cubes.boxes.length; i++) {
-    var box = cubes.boxes[i];
-    if (box.length === 0) { continue; }
-    var nearby_atoms = cubes.get_nearby_atoms(i);
-    for (var a = 0; a < box.length; a++) {
-      var atom_id = box[a];
-      for (var k = 0; k < nearby_atoms.length; k++) {
-        var j = nearby_atoms[k];
-        if (j > atom_id && atoms[atom_id].is_bonded_to(atoms[j])) {
-          atoms[atom_id].bonds.push(j);
-          atoms[j].bonds.push(atom_id);
-          //cnt++;
-        }
-      }
-    }
-  }
-  //console.log(atoms.length + ' atoms, ' + cnt + ' bonds.');
-  this.cubes = cubes;
-};
-
-Model.prototype.get_nearest_atom = function (x, y, z, atom_name) {
-  var box_id = this.cubes.find_box_id(x, y, z);
-  var indices = this.cubes.get_nearby_atoms(box_id);
-  var nearest = null;
-  var min_d2 = Infinity;
-  for (var i = 0; i < indices.length; i++) {
-    var atom = this.atoms[indices[i]];
-    if (atom_name !== undefined && atom_name !== null &&
-        atom_name !== atom.name) { continue; }
-    var dx = atom.xyz[0] - x;
-    var dy = atom.xyz[1] - y;
-    var dz = atom.xyz[2] - z;
-    var d2 = dx*dx + dy*dy + dz*dz;
-    if (d2 < min_d2) {
-      nearest = atom;
-      min_d2 = d2;
-    }
-  }
-  return nearest;
 };
 
 // @flow
@@ -1135,8 +1139,8 @@ function marchingCubes(dims, values, points, isolevel, method) {
       for (var z = 0; z < size_z - 1; z++) {
         var offset0 = z + size_z * (y + size_y * x);
         var cubeindex = 0;
-        var i = void 0;
-        var j = void 0;
+        var i = (void 0);
+        var j = (void 0);
         for (i = 0; i < 8; ++i) {
           j = offset0 + vert_offsets[i];
           cubeindex |= (values[j] < isolevel) ? 1 << i : 0;
@@ -1287,7 +1291,7 @@ ElMap.prototype.from_ccp4 = function from_ccp4 (buf /*:ArrayBuffer*/, expand_sym
   var max = fview[20];
   //const sg_number = iview[22];
   //const lskflg = iview[24];
-  this.grid = new GridArray(n_grid);
+  var grid = new GridArray(n_grid);
   if (nsymbt % 4 !== 0) {
     throw Error('CCP4 map with NSYMBT not divisible by 4 is not supported.');
   }
@@ -1318,8 +1322,7 @@ ElMap.prototype.from_ccp4 = function from_ccp4 (buf /*:ArrayBuffer*/, expand_sym
   for (it[2] = start[2]; it[2] < end[2]; it[2]++) { // sections
     for (it[1] = start[1]; it[1] < end[1]; it[1]++) { // rows
       for (it[0] = start[0]; it[0] < end[0]; it[0]++) { // cols
-        this.grid.set_grid_value(it[ax], it[ay], it[az],
-                                 b1 * data_view[idx] + b0);
+        grid.set_grid_value(it[ax], it[ay], it[az], b1 * data_view[idx] + b0);
         idx++;
       }
     }
@@ -1327,7 +1330,7 @@ ElMap.prototype.from_ccp4 = function from_ccp4 (buf /*:ArrayBuffer*/, expand_sym
   if (expand_symmetry && nsymbt > 0) {
     var u8view = new Uint8Array(buf);
     for (var i = 0; i+80 <= nsymbt; i += 80) {
-      var j = void 0;
+      var j = (void 0);
       var symop = '';
       for (j = 0; j < 80; ++j) {
         symop += String.fromCharCode(u8view[1024 + i + j]);
@@ -1349,14 +1352,15 @@ ElMap.prototype.from_ccp4 = function from_ccp4 (buf /*:ArrayBuffer*/, expand_sym
               xyz[j] = it[ax] * mat[j][0] + it[ay] * mat[j][1] +
                        it[az] * mat[j][2] + mat[j][3];
             }
-            this.grid.set_grid_value(xyz[0], xyz[1], xyz[2],
-                                     b1 * data_view[idx] + b0);
+            grid.set_grid_value(xyz[0], xyz[1], xyz[2],
+                                b1 * data_view[idx] + b0);
             idx++;
           }
         }
       }
     }
   }
+  this.grid = grid;
 };
 
 // DSN6 MAP FORMAT
@@ -1389,7 +1393,7 @@ ElMap.prototype.from_dsn6 = function from_dsn6 (buf /*: ArrayBuffer*/) {
                                 cell_mult * iview[12],
                                 cell_mult * iview[13],
                                 cell_mult * iview[14]);
-  this.grid = new GridArray(n_grid);
+  var grid = new GridArray(n_grid);
   var prod = iview[15] / 100;
   var plus = iview[16];
   //var data_scale_factor = iview[15] / iview[18] + iview[16];
@@ -1410,9 +1414,9 @@ ElMap.prototype.from_dsn6 = function from_dsn6 (buf /*: ArrayBuffer*/) {
               if (x < n_real[0] && y < n_real[1] && z < n_real[2]) {
                 var density = (u8data[offset] - plus) / prod;
                 offset++;
-                this.grid.set_grid_value(origin[0] + x,
-                                         origin[1] + y,
-                                         origin[2] + z, density);
+                grid.set_grid_value(origin[0] + x,
+                                    origin[1] + y,
+                                    origin[2] + z, density);
               } else {
                 offset += 8 - i;
                 break;
@@ -1423,13 +1427,14 @@ ElMap.prototype.from_dsn6 = function from_dsn6 (buf /*: ArrayBuffer*/) {
       }
     }
   }
-  this.stats = calculate_stddev(this.grid.values, 0);
+  this.stats = calculate_stddev(grid.values, 0);
+  this.grid = grid;
   //this.show_debug_info();
 };
 
 ElMap.prototype.show_debug_info = function show_debug_info () {
-  console.log('unit cell: ' + this.unit_cell.parameters.join(', '));
-  console.log('grid: ' + this.grid.dim);
+  console.log('unit cell:', this.unit_cell && this.unit_cell.parameters);
+  console.log('grid:', this.grid && this.grid.dim);
 };
 
 // Extract a block of density for calculating an isosurface using the
@@ -1437,6 +1442,7 @@ ElMap.prototype.show_debug_info = function show_debug_info () {
 ElMap.prototype.extract_block = function extract_block (radius/*:number*/, center /*:?number[]*/) {
   var grid = this.grid;
   var unit_cell = this.unit_cell;
+  if (grid == null || unit_cell == null) { return; }
   var grid_min = [0, 0, 0];
   var grid_max = grid.dim;
   if (center) {
@@ -1545,8 +1551,7 @@ function makeRgbBox(transform_func /*:Num3 => Num3*/,
   var colors = [
     new THREE.Color(0xff0000), new THREE.Color(0xffaa00),
     new THREE.Color(0x00ff00), new THREE.Color(0xaaff00),
-    new THREE.Color(0x0000ff), new THREE.Color(0x00aaff),
-  ];
+    new THREE.Color(0x0000ff), new THREE.Color(0x00aaff) ];
   for (var j = 6; j < CUBE_EDGES.length; j++) {
     colors.push(options.color);
   }
@@ -2219,8 +2224,7 @@ var ColorSchemes = [ // Viewer.prototype.ColorSchemes
     O: 0xC33869,
     S: 0x9E7B3D,
     def: 0x808080,
-  },
-];
+  } ];
 
 // map 2d position to sphere with radius 1.
 function project_on_ball(x, y) {
@@ -2471,8 +2475,8 @@ function Controls(camera, target) {
 // options handled by select_next()
 
 var COLOR_AIMS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
-var RENDER_STYLES = ['lines', 'trace', 'ribbon'/*, 'ball&stick'*/];
-var MAP_STYLES = ['marching cubes', 'squarish'/*, 'snapped MC'*/];
+var RENDER_STYLES = ['lines', 'trace', 'ribbon' ];
+var MAP_STYLES = ['marching cubes', 'squarish' ];
 var LINE_STYLES = ['normal', 'simplistic'];
 var LABEL_FONTS = ['bold 14px', '14px', '16px', 'bold 16px'];
 
@@ -3196,8 +3200,7 @@ Viewer.prototype.MOUSE_HELP = [
   'Ctrl+Right = clipping',
   'Ctrl+Shift+Right = roll',
   'Wheel = σ level',
-  'Shift+Wheel = diff map σ',
-].join('\n');
+  'Shift+Wheel = diff map σ' ].join('\n');
 
 Viewer.prototype.KEYBOARD_HELP = [
   '<b>keyboard:</b>',
@@ -3222,8 +3225,7 @@ Viewer.prototype.KEYBOARD_HELP = [
   'P = nearest Cα',
   'Shift+P = permalink',
   '(Shift+)space = next res.',
-  'Shift+F = full screen',
-].join('\n');
+  'Shift+F = full screen' ].join('\n');
 
 Viewer.prototype.ABOUT_HELP =
   '<a href="https://uglymol.github.io">about uglymol</a>';
@@ -3771,8 +3773,7 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
   'Shift+P = permalink',
   'Shift+F = full screen',
   '←/→ = max resol.',
-  '↑/↓ = min resol.',
-].join('\n');
+  '↑/↓ = min resol.' ].join('\n');
 
 ReciprocalViewer.prototype.MOUSE_HELP = Viewer.prototype.MOUSE_HELP
                                         .split('\n').slice(0, -2).join('\n');
@@ -4030,8 +4031,7 @@ ReciprocalViewer.prototype.ColorSchemes = [
     lattices: [0xdc322f, 0x2aa198, 0x268bd2, 0x859900,
                0xd33682, 0xb58900, 0x6c71c4, 0xcb4b16],
     axes: [0xffaaaa, 0xaaffaa, 0xaaaaff],
-  },
-];
+  } ];
 
 exports.UnitCell = UnitCell;
 exports.Model = Model;
