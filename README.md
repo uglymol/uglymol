@@ -27,6 +27,8 @@ But first try it:
 - [a blob](https://uglymol.github.io/dimple_thaum.html#xyz=14,18,12&eye=80,71,-41&zoom=70)
   (Dimple result, thaumatin, 1.4Å).
 
+It also has a [reciprocal space spin-off](https://uglymol.github.io/reciprocal.html).
+
 UglyMol is a small (~3 KLOC) [project](https://github.com/uglymol/uglymol)
 forked from Nat Echols' [xtal.js](https://github.com/natechols/xtal.js/).
 The [plan](https://github.com/uglymol/uglymol/blob/master/TODO.md)
