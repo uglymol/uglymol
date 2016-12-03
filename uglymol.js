@@ -3739,7 +3739,7 @@ Viewer.prototype.ColorSchemes = ColorSchemes;
 
 // @flow
 // options handled by Viewer#select_next()
-var SPOT_SEL = ['all', 'indexed', 'not indexed'];
+var SPOT_SEL = ['all', 'unindexed', '#1']; //extended when needed
 var SHOW_AXES = ['three', 'two', 'none'];
 
 function ReciprocalViewer(options /*: {[key: string]: any}*/) {
@@ -3790,9 +3790,8 @@ ReciprocalViewer.prototype.set_reciprocal_key_bindings = function () {
   // v
   kb[86] = function (evt) {
     this.select_next('show', 'show_only', SPOT_SEL, evt.shiftKey);
-    var sel_map = { 'all': -2, 'indexed': 0, 'not indexed': -1 };
-    var sel = sel_map[this.config.show_only];
-    this.points.material.uniforms.show_only.value = sel;
+    var idx = SPOT_SEL.indexOf(this.config.show_only);
+    this.points.material.uniforms.show_only.value = idx - 2;
   };
   // x
   kb[88] = function (evt) {
@@ -3858,6 +3857,12 @@ ReciprocalViewer.prototype.load_from_string = function (text, options) {
   }
   this.max_dist = max_dist(this.data.pos);
   this.d_min = 1 / this.max_dist;
+  var last_group = max_val(this.data.lattice_ids);
+  console.log(last_group);
+  SPOT_SEL.splice(3);
+  for (var i = 1; i <= last_group; i++) {
+    SPOT_SEL.push('#' + (i + 1));
+  }
   this.set_axes();
   this.set_points();
   this.camera.zoom = 0.5 * (this.camera.top - this.camera.bottom);
@@ -3875,6 +3880,14 @@ function max_dist(pos) {
     if (sq > max_sq) { max_sq = sq; }
   }
   return Math.sqrt(max_sq);
+}
+
+function max_val(arr) {
+  var max = -Infinity;
+  for (var i = 0; i < arr.length; i++) {
+    if (arr[i] > max) { max = arr[i]; }
+  }
+  return max;
 }
 
 function parse_csv(text) {
@@ -3946,10 +3959,11 @@ var point_vert = [
   'varying float vsel;',
   'void main() {',
   '  vcolor = color;',
-  '  bool sel = show_only == -2.0 || show_only == group;',
+  '  float throw_away = (show_only + 2.0) * (show_only - group);',
   '  float r2 = dot(position, position);',
-  '  vsel = sel && r2_min <= r2 && r2 < r2_max ? 1.0 : 0.0;',
+  '  vsel = r2_min <= r2 && r2 < r2_max ? 1.0 : 0.0;',
   '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
+  '  gl_Position.x += 2.0 * throw_away;',
   '  gl_PointSize = size;',
   '}'].join('\n');
 
