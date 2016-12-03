@@ -13,6 +13,7 @@ export function ReciprocalViewer(options /*: {[key: string]: any}*/) {
   this.default_camera_pos = [100, 0, 0];
   this.axes = null;
   this.points = null;
+  this.map = null;
   this.max_dist = null;
   this.d_min = null;
   this.d_max_inv = 0;
@@ -95,14 +96,23 @@ ReciprocalViewer.prototype.set_dropzone = function () {
   zone.addEventListener('drop', function (e) {
     e.stopPropagation();
     e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (file == null) return;
-    const reader = new FileReader();
-    reader.onload = function (evt) {
-      self.load_from_string(evt.target.result, {});
-    };
-    reader.readAsText(file);
-    self.hud('loading ' + file.name);
+    let names = [];
+    for (const file of e.dataTransfer.files) {
+      const reader = new FileReader();
+      if (/\.(map|ccp4)$/.test(file.name)) {
+        reader.onload = function (evt) {
+          self.load_map_from_ab(evt.target.result);
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        reader.onload = function (evt) {
+          self.load_from_string(evt.target.result, {});
+        };
+        reader.readAsText(file);
+      }
+      names.push(file.name);
+    }
+    self.hud('loading ' + names.join(', '));
   });
 };
 
@@ -123,7 +133,6 @@ ReciprocalViewer.prototype.load_from_string = function (text, options) {
   this.max_dist = max_dist(this.data.pos);
   this.d_min = 1 / this.max_dist;
   const last_group = max_val(this.data.lattice_ids);
-  console.log(last_group);
   SPOT_SEL.splice(3);
   for (let i = 1; i <= last_group; i++) {
     SPOT_SEL.push('#' + (i + 1));
@@ -189,6 +198,14 @@ function parse_json(text) {
   const lattice_ids = d.experiment_id || minus_ones(n);
   return { pos, lattice_ids };
 }
+
+ReciprocalViewer.prototype.load_map_from_ab = function (buffer) {
+  if (this.map_bags.length > 0) {
+    this.clear_el_objects(this.map_bags.pop());
+  }
+  this.load_map_from_buffer(buffer, {format: 'ccp4'});
+};
+
 
 ReciprocalViewer.prototype.set_axes = function () {
   if (this.axes != null) {
@@ -329,6 +346,7 @@ ReciprocalViewer.prototype.ColorSchemes = [
     name: 'solarized dark',
     bg: 0x002b36,
     fg: 0xfdf6e3,
+    map_den: 0xeee8d5,
     lattices: [0xdc322f, 0x2aa198, 0x268bd2, 0x859900,
                0xd33682, 0xb58900, 0x6c71c4, 0xcb4b16],
     axes: [0xffaaaa, 0xaaffaa, 0xaaaaff],
@@ -337,6 +355,7 @@ ReciprocalViewer.prototype.ColorSchemes = [
     name: 'solarized light',
     bg: 0xfdf6e3,
     fg: 0x002b36,
+    map_den: 0x073642,
     lattices: [0xdc322f, 0x2aa198, 0x268bd2, 0x859900,
                0xd33682, 0xb58900, 0x6c71c4, 0xcb4b16],
     axes: [0xffaaaa, 0xaaffaa, 0xaaaaff],

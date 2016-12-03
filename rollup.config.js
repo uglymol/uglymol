@@ -68,7 +68,8 @@ if (process.env.BUNDLE_DEPS) {
 
 if (process.env.TARGET !== 'dev') {
   // disable arrow b/c https://gitlab.com/Rich-Harris/buble/issues/158
-  build.plugins.push(buble({transforms: { arrow: false }}));
+  const transforms = { arrow: false, dangerousForOf: true };
+  build.plugins.push(buble({transforms}));
 }
 
 export default build;

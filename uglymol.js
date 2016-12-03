@@ -2698,6 +2698,7 @@ function Viewer(options /*: {[key: string]: any}*/) {
   this.scene.fog = new THREE.Fog(this.config.colors.bg, 0, 1);
   this.light = new THREE.AmbientLight(0xffffff);
   this.scene.add(this.light);
+  this.default_camera_pos = [0, 0, 100];
   if (options.share_view) {
     this.target = options.share_view.target;
     this.camera = options.share_view.camera;
@@ -2705,12 +2706,12 @@ function Viewer(options /*: {[key: string]: any}*/) {
     this.tied_viewer = options.share_view;
     this.tied_viewer.tied_viewer = this; // not GC friendly
   } else {
-    this.target = new THREE.Vector3();
+    this.target = new THREE.Vector3(0, 0, 0);
     this.camera = new THREE.OrthographicCamera();
+    this.camera.position.fromArray(this.default_camera_pos);
     this.controls = new Controls(this.camera, this.target);
   }
   this.raycaster = new THREE.Raycaster();
-  this.default_camera_pos = [0, 0, 100];
   this.set_common_key_bindings();
   if (this.constructor === Viewer) { this.set_real_space_key_bindings(); }
   if (typeof document === 'undefined') { return; }  // for testing on node
@@ -2740,6 +2741,7 @@ function Viewer(options /*: {[key: string]: any}*/) {
   this.renderer.setPixelRatio(window.devicePixelRatio);
   this.resize();
   this.camera.zoom = this.camera.right / 35.0;  // arbitrary choice
+  this.update_camera();
   this.container.appendChild(this.renderer.domElement);
   if (options.focusable) {
     this.renderer.domElement.tabIndex = 0;
@@ -3691,12 +3693,19 @@ Viewer.prototype.load_map = function (url, options, callback) {
   }
   var self = this;
   this.load_file(url, {binary: true, progress: true}, function (req) {
-    var map = new ElMap();
-    if (options.format === 'ccp4') { map.from_ccp4(req.response, true); }
-    else /* === 'dsn6'*/ { map.from_dsn6(req.response); }
-    self.add_map(map, options.diff_map);
+    self.load_map_from_buffer(req.response, options);
     if (callback) { callback(); }
   });
+};
+
+Viewer.prototype.load_map_from_buffer = function (buffer, options) {
+  var map = new ElMap();
+  if (options.format === 'dsn6') {
+    map.from_dsn6(buffer);
+  } else {
+    map.from_ccp4(buffer, true);
+  }
+  this.add_map(map, options.diff_map);
 };
 
 // Load a normal map and a difference map.
@@ -3747,6 +3756,7 @@ function ReciprocalViewer(options /*: {[key: string]: any}*/) {
   this.default_camera_pos = [100, 0, 0];
   this.axes = null;
   this.points = null;
+  this.map = null;
   this.max_dist = null;
   this.d_min = null;
   this.d_max_inv = 0;
@@ -3828,14 +3838,25 @@ ReciprocalViewer.prototype.set_dropzone = function () {
   zone.addEventListener('drop', function (e) {
     e.stopPropagation();
     e.preventDefault();
-    var file = e.dataTransfer.files[0];
-    if (file == null) { return; }
-    var reader = new FileReader();
-    reader.onload = function (evt) {
-      self.load_from_string(evt.target.result, {});
-    };
-    reader.readAsText(file);
-    self.hud('loading ' + file.name);
+    var names = [];
+    for (var i = 0, list = e.dataTransfer.files; i < list.length; i += 1) {
+      var file = list[i];
+
+      var reader = new FileReader();
+      if (/\.(map|ccp4)$/.test(file.name)) {
+        reader.onload = function (evt) {
+          self.load_map_from_ab(evt.target.result);
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        reader.onload = function (evt) {
+          self.load_from_string(evt.target.result, {});
+        };
+        reader.readAsText(file);
+      }
+      names.push(file.name);
+    }
+    self.hud('loading ' + names.join(', '));
   });
 };
 
@@ -3858,7 +3879,6 @@ ReciprocalViewer.prototype.load_from_string = function (text, options) {
   this.max_dist = max_dist(this.data.pos);
   this.d_min = 1 / this.max_dist;
   var last_group = max_val(this.data.lattice_ids);
-  console.log(last_group);
   SPOT_SEL.splice(3);
   for (var i = 1; i <= last_group; i++) {
     SPOT_SEL.push('#' + (i + 1));
@@ -3924,6 +3944,14 @@ function parse_json(text) {
   var lattice_ids = d.experiment_id || minus_ones(n);
   return { pos: pos, lattice_ids: lattice_ids };
 }
+
+ReciprocalViewer.prototype.load_map_from_ab = function (buffer) {
+  if (this.map_bags.length > 0) {
+    this.clear_el_objects(this.map_bags.pop());
+  }
+  this.load_map_from_buffer(buffer, {format: 'ccp4'});
+};
+
 
 ReciprocalViewer.prototype.set_axes = function () {
   if (this.axes != null) {
@@ -4064,6 +4092,7 @@ ReciprocalViewer.prototype.ColorSchemes = [
     name: 'solarized dark',
     bg: 0x002b36,
     fg: 0xfdf6e3,
+    map_den: 0xeee8d5,
     lattices: [0xdc322f, 0x2aa198, 0x268bd2, 0x859900,
                0xd33682, 0xb58900, 0x6c71c4, 0xcb4b16],
     axes: [0xffaaaa, 0xaaffaa, 0xaaaaff],
@@ -4072,6 +4101,7 @@ ReciprocalViewer.prototype.ColorSchemes = [
     name: 'solarized light',
     bg: 0xfdf6e3,
     fg: 0x002b36,
+    map_den: 0x073642,
     lattices: [0xdc322f, 0x2aa198, 0x268bd2, 0x859900,
                0xd33682, 0xb58900, 0x6c71c4, 0xcb4b16],
     axes: [0xffaaaa, 0xaaffaa, 0xaaaaff],
