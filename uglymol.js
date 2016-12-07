@@ -3977,34 +3977,9 @@ ReciprocalViewer.prototype.set_axes = function () {
   this.scene.add(this.axes);
 };
 
-var point_vert = [
-  'attribute float group;',
-  'uniform float show_only;',
-  'uniform float r2_max;',
-  'uniform float r2_min;',
-  'uniform float size;',
-  'varying vec3 vcolor;',
-  'varying float vsel;',
-  'void main() {',
-  '  vcolor = color;',
-  '  float throw_away = (show_only + 2.0) * (show_only - group);',
-  '  float r2 = dot(position, position);',
-  '  vsel = r2_min <= r2 && r2 < r2_max ? 1.0 : 0.0;',
-  '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
-  '  gl_Position.x += 2.0 * throw_away;',
-  '  gl_PointSize = size;',
-  '}'].join('\n');
+var point_vert = "\nattribute float group;\nuniform float show_only;\nuniform float r2_max;\nuniform float r2_min;\nuniform float size;\nvarying vec3 vcolor;\nvoid main() {\n  vcolor = color;\n  float r2 = dot(position, position);\n  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n  if (r2 < r2_min || r2 >= r2_max || (show_only != -2.0 && show_only != group))\n    gl_Position.x = 2.0;\n  gl_PointSize = size;\n}";
 
-var point_frag = [
-  'varying vec3 vcolor;',
-  'varying float vsel;',
-  'void main() {',
-  // not sure how reliable is such rounding of points
-  '  vec2 diff = gl_PointCoord - vec2(0.5, 0.5);',
-  '  float dist_sq = 4.0 * dot(diff, diff);',
-  '  if (vsel == 0.0 || dist_sq >= 1.0) discard;',
-  '  gl_FragColor = vec4(vcolor, 1.0 - dist_sq * dist_sq * dist_sq);',
-  '}'].join('\n');
+var point_frag = "\nvarying vec3 vcolor;\nvoid main() {\n  // not sure how reliable is such rounding of points\n  vec2 diff = gl_PointCoord - vec2(0.5, 0.5);\n  float dist_sq = 4.0 * dot(diff, diff);\n  if (dist_sq >= 1.0) discard;\n  gl_FragColor = vec4(vcolor, 1.0 - dist_sq * dist_sq * dist_sq);\n}";
 
 
 ReciprocalViewer.prototype.set_points = function () {
