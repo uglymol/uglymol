@@ -44,8 +44,7 @@ export class Model {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
       const rec_type = line.substring(0, 6);
-      //+ is temporary: https://gitlab.com/Rich-Harris/buble/issues/159
-      if (rec_type === 'ATOM '+' ' || rec_type === 'HETATM') {
+      if (rec_type === 'ATOM  ' || rec_type === 'HETATM') {
         let new_atom = new Atom();
         new_atom.from_pdb_line(line);
         new_atom.i_seq = atom_i_seq++;
@@ -291,7 +290,7 @@ class Atom {
     const rec_type = pdb_line.substring(0, 6);
     if (rec_type === 'HETATM') {
       this.hetero = true;
-    } else if (rec_type !== 'ATOM '+' ') {
+    } else if (rec_type !== 'ATOM  ') {
       throw Error('Wrong record type: ' + rec_type);
     }
     this.name = pdb_line.substring(12, 16).trim();

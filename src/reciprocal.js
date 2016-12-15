@@ -245,7 +245,7 @@ void main() {
   if (r2 < r2_min || r2 >= r2_max || (show_only != -2.0 && show_only != group))
     gl_Position.x = 2.0;
   gl_PointSize = size;
-}`
+}`;
 
 const point_frag = `
 varying vec3 vcolor;
@@ -255,7 +255,7 @@ void main() {
   float dist_sq = 4.0 * dot(diff, diff);
   if (dist_sq >= 1.0) discard;
   gl_FragColor = vec4(vcolor, 1.0 - dist_sq * dist_sq * dist_sq);
-}`
+}`;
 
 
 ReciprocalViewer.prototype.set_points = function () {

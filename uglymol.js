@@ -109,8 +109,7 @@ Model.prototype.from_pdb = function from_pdb (pdb_string /*:string*/) {
   for (var i = 0; i < lines.length; i++) {
     var line = lines[i];
     var rec_type = line.substring(0, 6);
-    //+ is temporary: https://gitlab.com/Rich-Harris/buble/issues/159
-    if (rec_type === 'ATOM '+' ' || rec_type === 'HETATM') {
+    if (rec_type === 'ATOM  ' || rec_type === 'HETATM') {
       var new_atom = new Atom();
       new_atom.from_pdb_line(line);
       new_atom.i_seq = atom_i_seq++;
@@ -337,7 +336,7 @@ Atom.prototype.from_pdb_line = function from_pdb_line (pdb_line /*:string*/) {
   var rec_type = pdb_line.substring(0, 6);
   if (rec_type === 'HETATM') {
     this.hetero = true;
-  } else if (rec_type !== 'ATOM '+' ') {
+  } else if (rec_type !== 'ATOM  ') {
     throw Error('Wrong record type: ' + rec_type);
   }
   this.name = pdb_line.substring(12, 16).trim();
