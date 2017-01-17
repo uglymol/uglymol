@@ -6,12 +6,13 @@
  * Released under the MIT License.
  */
 (function (global, factory) {
-  typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('three')) :
-  typeof define === 'function' && define.amd ? define(['exports', 'three'], factory) :
-  (factory((global.UM = global.UM || {}),global.THREE));
+	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('three')) :
+	typeof define === 'function' && define.amd ? define(['exports', 'three'], factory) :
+	(factory((global.UM = global.UM || {}),global.THREE));
 }(this, (function (exports,THREE) { 'use strict';
 
 exports.VERSION = '0.5.2';
+
 
 // @flow
 
@@ -2148,83 +2149,6 @@ function addXyzCross(vertices /*:Vector3[]*/, xyz /*:Num3*/, r /*:number*/) {
 
 // @flow
 
-var ColorSchemes = [ // Viewer.prototype.ColorSchemes
-  { // generally mimicks Coot
-    name: 'coot dark',
-    bg: 0x000000,
-    fg: 0xFFFFFF,
-    map_den: 0x3362B2,
-    map_pos: 0x298029,
-    map_neg: 0x8B2E2E,
-    center: 0xC997B0,
-    // atoms
-    H: 0x858585, // H is normally invisible
-    // C, N and O are taken approximately (by color-picker) from coot
-    C: 0xb3b300,
-    N: 0x7EAAFB,
-    O: 0xF24984,
-    S: 0x40ff40, // S in coot is too similar to C, here it is greener
-    // Coot doesn't define other colors (?)
-    MG: 0xc0c0c0,
-    P: 0xffc040,
-    CL: 0xa0ff60,
-    CA: 0xffffff,
-    MN: 0xff90c0,
-    FE: 0xa03000,
-    NI: 0x00ff80,
-    def: 0xa0a0a0, // default atom color
-  },
-  // scheme made of "solarized" colors (http://ethanschoonover.com/solarized):
-  // base03  base02  base01  base00  base0   base1   base2   base3
-  // #002b36 #073642 #586e75 #657b83 #839496 #93a1a1 #eee8d5 #fdf6e3
-  // yellow  orange  red     magenta violet  blue    cyan    green
-  // #b58900 #cb4b16 #dc322f #d33682 #6c71c4 #268bd2 #2aa198 #859900
-  {
-    name: 'solarized dark',
-    bg: 0x002b36,
-    fg: 0xfdf6e3,
-    map_den: 0x268bd2,
-    map_pos: 0x859900,
-    map_neg: 0xd33682,
-    center: 0xfdf6e3,
-    H: 0x586e75,
-    C: 0x93a1a1,
-    N: 0x6c71c4,
-    O: 0xcb4b16,
-    S: 0xb58900,
-    def: 0xeee8d5,
-  },
-  {
-    name: 'solarized light',
-    bg: 0xfdf6e3,
-    fg: 0x002b36,
-    map_den: 0x268bd2,
-    map_pos: 0x859900,
-    map_neg: 0xd33682,
-    center: 0x002b36,
-    H: 0x93a1a1,
-    C: 0x586e75,
-    N: 0x6c71c4,
-    O: 0xcb4b16,
-    S: 0xb58900,
-    def: 0x073642,
-  },
-  { // like in Coot after Edit > Background Color > White
-    name: 'coot light',
-    bg: 0xFFFFFF,
-    fg: 0x000000,
-    map_den: 0x3362B2,
-    map_pos: 0x298029,
-    map_neg: 0x8B2E2E,
-    center: 0xC7C769,
-    H: 0x999999,
-    C: 0xA96464,
-    N: 0x1C51B3,
-    O: 0xC33869,
-    S: 0x9E7B3D,
-    def: 0x808080,
-  } ];
-
 // map 2d position to sphere with radius 1.
 function project_on_ball(x, y) {
   var z = 0;
@@ -2239,16 +2163,11 @@ function project_on_ball(x, y) {
   return [x, y, z];  // guaranteed to be normalized
 }
 
-function scale_by_height(value, size) { // for scaling bond_line
-  return value * size[1] / 700;
-}
-
-var STATE = {NONE: -1, ROTATE: 0, PAN: 1, ZOOM: 2, PAN_ZOOM: 3, SLAB: 4,
-               ROLL: 5, AUTO_ROTATE: 6, GO: 7};
-
+var STATE = { NONE: -1, ROTATE: 0, PAN: 1, ZOOM: 2, PAN_ZOOM: 3,
+                       SLAB: 4, ROLL: 5, AUTO_ROTATE: 6, GO: 7 };
 
 // based on three.js/examples/js/controls/OrthographicTrackballControls.js
-function Controls(camera, target) {
+function Controls(camera /*:THREE.Camera*/, target /*:THREE.Vector3*/) {
   var auto_speed = 1.0;
   var _state = STATE.NONE;
   var _rotate_start = new THREE.Vector3();
@@ -2470,6 +2389,85 @@ function Controls(camera, target) {
   };
 }
 
+// @flow
+
+var ColorSchemes = [ // Viewer.prototype.ColorSchemes
+  { // generally mimicks Coot
+    name: 'coot dark',
+    bg: 0x000000,
+    fg: 0xFFFFFF,
+    map_den: 0x3362B2,
+    map_pos: 0x298029,
+    map_neg: 0x8B2E2E,
+    center: 0xC997B0,
+    // atoms
+    H: 0x858585, // H is normally invisible
+    // C, N and O are taken approximately (by color-picker) from coot
+    C: 0xb3b300,
+    N: 0x7EAAFB,
+    O: 0xF24984,
+    S: 0x40ff40, // S in coot is too similar to C, here it is greener
+    // Coot doesn't define other colors (?)
+    MG: 0xc0c0c0,
+    P: 0xffc040,
+    CL: 0xa0ff60,
+    CA: 0xffffff,
+    MN: 0xff90c0,
+    FE: 0xa03000,
+    NI: 0x00ff80,
+    def: 0xa0a0a0, // default atom color
+  },
+  // scheme made of "solarized" colors (http://ethanschoonover.com/solarized):
+  // base03  base02  base01  base00  base0   base1   base2   base3
+  // #002b36 #073642 #586e75 #657b83 #839496 #93a1a1 #eee8d5 #fdf6e3
+  // yellow  orange  red     magenta violet  blue    cyan    green
+  // #b58900 #cb4b16 #dc322f #d33682 #6c71c4 #268bd2 #2aa198 #859900
+  {
+    name: 'solarized dark',
+    bg: 0x002b36,
+    fg: 0xfdf6e3,
+    map_den: 0x268bd2,
+    map_pos: 0x859900,
+    map_neg: 0xd33682,
+    center: 0xfdf6e3,
+    H: 0x586e75,
+    C: 0x93a1a1,
+    N: 0x6c71c4,
+    O: 0xcb4b16,
+    S: 0xb58900,
+    def: 0xeee8d5,
+  },
+  {
+    name: 'solarized light',
+    bg: 0xfdf6e3,
+    fg: 0x002b36,
+    map_den: 0x268bd2,
+    map_pos: 0x859900,
+    map_neg: 0xd33682,
+    center: 0x002b36,
+    H: 0x93a1a1,
+    C: 0x586e75,
+    N: 0x6c71c4,
+    O: 0xcb4b16,
+    S: 0xb58900,
+    def: 0x073642,
+  },
+  { // like in Coot after Edit > Background Color > White
+    name: 'coot light',
+    bg: 0xFFFFFF,
+    fg: 0x000000,
+    map_den: 0x3362B2,
+    map_pos: 0x298029,
+    map_neg: 0x8B2E2E,
+    center: 0xC7C769,
+    H: 0x999999,
+    C: 0xA96464,
+    N: 0x1C51B3,
+    O: 0xC33869,
+    S: 0x9E7B3D,
+    def: 0x808080,
+  } ];
+
 
 // options handled by select_next()
 
@@ -2527,6 +2525,10 @@ function color_by(style, atoms, elem_colors) {
     colors.push(color_func(atoms[i]));
   }
   return colors;
+}
+
+function scale_by_height(value, size) { // for scaling bond_line
+  return value * size[1] / 700;
 }
 
 function MapBag(map, is_diff_map) {
@@ -4096,6 +4098,8 @@ exports.makeLineSegments = makeLineSegments;
 exports.makeWheels = makeWheels;
 exports.makeLabel = makeLabel;
 exports.addXyzCross = addXyzCross;
+exports.STATE = STATE;
+exports.Controls = Controls;
 exports.Viewer = Viewer;
 exports.ReciprocalViewer = ReciprocalViewer;
 

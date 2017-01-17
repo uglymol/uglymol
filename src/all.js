@@ -6,8 +6,9 @@
  *              v-- elmap.js <-.
  *    unitcell.js               \
  *              ^-  model.js <- viewer.js
- * THREE.js <--------------------' /
- *        ^----- lines.js <-------'
+ * THREE.js <--------------------' / /
+ *     ^  ^----- lines.js <-------' /
+ *     '------ controls.js <-------'
  */
 
 // UnitCell class with methods to fractionalize/orthogonalize coords
@@ -26,6 +27,9 @@ export * from './elmap.js';
 
 // drawing primitives
 export * from './lines.js';
+
+// mouse/touchscreen controls
+export * from './controls.js';
 
 // Viewer
 export * from './viewer.js';
