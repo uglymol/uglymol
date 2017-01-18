@@ -1277,7 +1277,6 @@ Viewer.prototype.load_file = function (url/*:string*/,
     }
   };
   if (options.progress) {
-    // $FlowFixMe: dom.js in flow is incomplete
     req.addEventListener('progress', function (evt /*:ProgressEvent*/) {
       if (evt.lengthComputable && evt.loaded && evt.total) {
         const fn = url.split('/').pop();

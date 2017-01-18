@@ -622,7 +622,7 @@ function marchingCubes(dims, values, points, isolevel, method) {
   let vlist = new Array(12);
   const vert_offsets = calculateVertOffsets(dims);
   let vertex_values = new Float32Array(8);
-  let p0 = [0, 0, 0]; // initial value - never used, but makes Flow happy
+  let p0 /*:Num3*/ = [0, 0, 0]; // unused initial value - to make Flow happy
   let vertex_points = [p0, p0, p0, p0, p0, p0, p0, p0];
   const size_x = dims[0];
   const size_y = dims[1];
