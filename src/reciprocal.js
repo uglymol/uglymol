@@ -100,8 +100,10 @@ ReciprocalViewer.prototype.set_dropzone = function () {
     for (const file of e.dataTransfer.files) {
       const reader = new FileReader();
       if (/\.(map|ccp4)$/.test(file.name)) {
-        reader.onload = function (evt) {
-          self.load_map_from_ab(evt.target.result);
+        reader.onloadend = function (evt) {
+          if (evt.target.readyState == 2) {
+            self.load_map_from_ab(evt.target.result);
+          }
         };
         reader.readAsArrayBuffer(file);
       } else {
