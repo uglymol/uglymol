@@ -96,7 +96,7 @@ const MAP_STYLES = ['marching cubes', 'squarish'/*, 'snapped MC'*/];
 const LINE_STYLES = ['normal', 'simplistic'];
 const LABEL_FONTS = ['bold 14px', '14px', '16px', 'bold 16px'];
 
-function rainbow_value(v, vmin, vmax) {
+function rainbow_value(v/*:number*/, vmin/*:number*/, vmax/*:number*/) {
   let c = new THREE.Color(0xe0e0e0);
   if (vmin < vmax) {
     const ratio = (v - vmin) / (vmax - vmin);
@@ -106,9 +106,11 @@ function rainbow_value(v, vmin, vmax) {
   return c;
 }
 
-function color_by(style, atoms, elem_colors) {
+/*::
+ import type {AtomT} from './model.js'
+ */
+function color_by(style, atoms /*:AtomT[]*/, elem_colors) {
   let color_func;
-  let i;
   const last_atom = atoms[atoms.length-1];
   if (style === 'index') {
     color_func = function (atom) {
@@ -117,7 +119,7 @@ function color_by(style, atoms, elem_colors) {
   } else if (style === 'B-factor') {
     let vmin = Infinity;
     let vmax = -Infinity;
-    for (i = 0; i < atoms.length; i++) {
+    for (let i = 0; i < atoms.length; i++) {
       const v = atoms[i].b;
       if (v > vmax) vmax = v;
       if (v < vmin) vmin = v;
@@ -139,11 +141,7 @@ function color_by(style, atoms, elem_colors) {
       return elem_colors[atom.element] || elem_colors.def;
     };
   }
-  let colors = [];
-  for (i = 0; i < atoms.length; i++) {
-    colors.push(color_func(atoms[i]));
-  }
-  return colors;
+  return atoms.map(color_func);
 }
 
 function scale_by_height(value, size) { // for scaling bond_line
@@ -161,131 +159,142 @@ function MapBag(map, is_diff_map) {
 }
 
 
-function ModelBag(model, config, win_size) {
-  this.model = model;
-  this.name = '';
-  this.visible = true;
-  this.conf = config;
-  this.win_size = win_size;
-  this.atomic_objects = null; // list of three.js objects
-}
-
-ModelBag.prototype.get_visible_atoms = function () {
-  const atoms = this.model.atoms;
-  if (this.conf.hydrogens || !this.model.has_hydrogens) {
-    return atoms;
+class ModelBag {
+  /*::
+  model: Model
+  name: string
+  visible: boolean
+  conf: Object
+  win_size: [number, number]
+  atomic_objects: Object[]
+  */
+  constructor(model, config, win_size) {
+    this.model = model;
+    this.name = '';
+    this.visible = true;
+    this.conf = config;
+    this.win_size = win_size;
+    this.atomic_objects = []; // list of three.js objects
   }
-  const non_h = [];
-  for (let i = 0; i < atoms.length; i++) {
-    if (atoms[i].element !== 'H') {
-      non_h.push(atoms[i]);
+
+  get_visible_atoms() {
+    const atoms = this.model.atoms;
+    if (this.conf.hydrogens || !this.model.has_hydrogens) {
+      return atoms;
     }
+    // with filter() it's twice slower (on Node 4.2)
+    //return atoms.filter(function(a) { return a.element !== 'H'; });
+    const non_h = [];
+    for (const atom of atoms) {
+      if (atom.element !== 'H') non_h.push(atom);
+    }
+    return non_h;
   }
-  return non_h;
-};
 
-ModelBag.prototype.add_bonds = function (ligands_only, ball_size) {
-  const visible_atoms = this.get_visible_atoms();
-  const color_style = ligands_only ? 'element' : this.conf.color_aim;
-  const colors = color_by(color_style, visible_atoms, this.conf.colors);
-  let vertex_arr /*:THREE.Vector3[]*/ = [];
-  let color_arr = [];
-  const opt = { hydrogens: this.conf.hydrogens,
-                ligands_only: ligands_only,
-                balls: this.conf.render_style === 'ball&stick' };
-  for (let i = 0; i < visible_atoms.length; i++) {
-    const atom = visible_atoms[i];
-    const color = colors[i];
-    if (ligands_only && !atom.is_ligand) continue;
-    if (atom.bonds.length === 0 && !opt.balls) { // nonbonded, draw star
-      addXyzCross(vertex_arr, atom.xyz, 0.7);
-      for (let n = 0; n < 6; n++) {
-        color_arr.push(color);
-      }
-    } else { // bonded, draw lines
-      for (let j = 0; j < atom.bonds.length; j++) {
-        const other = this.model.atoms[atom.bonds[j]];
-        if (!opt.hydrogens && other.element === 'H') continue;
-        // Coot show X-H bonds as thinner lines in a single color.
-        // Here we keep it simple and render such bonds like all others.
-        if (opt.ligands_only && !other.is_ligand) continue;
-        const mid = atom.midpoint(other);
-        const vmid = new THREE.Vector3(mid[0], mid[1], mid[2]);
-        const vatom = new THREE.Vector3(atom.xyz[0], atom.xyz[1], atom.xyz[2]);
-        if (opt.balls) {
-          const lerp_factor = vatom.distanceTo(vmid) / ball_size;
-          vatom.lerp(vmid, lerp_factor);
+  add_bonds(ligands_only, ball_size) {
+    const visible_atoms = this.get_visible_atoms();
+    const color_style = ligands_only ? 'element' : this.conf.color_aim;
+    const colors = color_by(color_style, visible_atoms, this.conf.colors);
+    let vertex_arr /*:THREE.Vector3[]*/ = [];
+    let color_arr = [];
+    const opt = { hydrogens: this.conf.hydrogens,
+                  ligands_only: ligands_only,
+                  balls: this.conf.render_style === 'ball&stick' };
+    for (let i = 0; i < visible_atoms.length; i++) {
+      const atom = visible_atoms[i];
+      const color = colors[i];
+      if (ligands_only && !atom.is_ligand) continue;
+      if (atom.bonds.length === 0 && !opt.balls) { // nonbonded, draw star
+        addXyzCross(vertex_arr, atom.xyz, 0.7);
+        for (let n = 0; n < 6; n++) {
+          color_arr.push(color);
         }
-        vertex_arr.push(vatom, vmid);
-        color_arr.push(color, color);
+      } else { // bonded, draw lines
+        for (let j = 0; j < atom.bonds.length; j++) {
+          const other = this.model.atoms[atom.bonds[j]];
+          if (!opt.hydrogens && other.element === 'H') continue;
+          // Coot show X-H bonds as thinner lines in a single color.
+          // Here we keep it simple and render such bonds like all others.
+          if (opt.ligands_only && !other.is_ligand) continue;
+          const mid = atom.midpoint(other);
+          const vmid = new THREE.Vector3(mid[0], mid[1], mid[2]);
+          const vatom = new THREE.Vector3(atom.xyz[0], atom.xyz[1],
+                                          atom.xyz[2]);
+          if (opt.balls) {
+            const lerp_factor = vatom.distanceTo(vmid) / ball_size;
+            vatom.lerp(vmid, lerp_factor);
+          }
+          vertex_arr.push(vatom, vmid);
+          color_arr.push(color, color);
+        }
       }
     }
-  }
-  //console.log('add_bonds() vertex count: ' + vertex_arr.length);
-  const linewidth = scale_by_height(this.conf.bond_line, this.win_size);
-  const use_gl_lines = this.conf.line_style === 'simplistic';
-  const material = makeLineMaterial({
-    gl_lines: use_gl_lines,
-    linewidth: linewidth,
-    win_size: this.win_size,
-    segments: true,
-  });
-  this.atomic_objects.push(makeLineSegments(material, vertex_arr, color_arr));
-  if (opt.balls) {
-    this.atomic_objects.push(makeWheels(visible_atoms, colors, ball_size));
-  } else if (!use_gl_lines && !ligands_only) {
-    // wheels (discs) as simplistic round caps
-    this.atomic_objects.push(makeWheels(visible_atoms, colors, linewidth));
-  }
-};
-
-ModelBag.prototype.add_trace = function () {
-  const segments = this.model.extract_trace();
-  const visible_atoms = [].concat.apply([], segments);
-  const colors = color_by(this.conf.color_aim, visible_atoms, this.conf.colors);
-  const material = makeLineMaterial({
-    gl_lines: this.conf.line_style === 'simplistic',
-    linewidth: scale_by_height(this.conf.bond_line, this.win_size),
-    win_size: this.win_size,
-  });
-  let k = 0;
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i];
-    const color_slice = colors.slice(k, k + seg.length);
-    k += seg.length;
-    const line = makeLine(material, seg, color_slice);
-    this.atomic_objects.push(line);
-  }
-};
-
-ModelBag.prototype.add_ribbon = function (smoothness) {
-  const segments = this.model.extract_trace();
-  const res_map = this.model.get_residues();
-  const visible_atoms = [].concat.apply([], segments);
-  const colors = color_by(this.conf.color_aim, visible_atoms, this.conf.colors);
-  let k = 0;
-  for (let i = 0; i < segments.length; i++) {
-    const seg = segments[i];
-    let tangents = [];
-    let last = [0, 0, 0];
-    for (let j = 0; j < seg.length; j++) {
-      const residue = res_map[seg[j].resid()];
-      const tang = this.model.calculate_tangent_vector(residue);
-      // untwisting (usually applies to beta-strands)
-      if (tang[0]*last[0] + tang[1]*last[1] + tang[2]*last[2] < 0) {
-        tang[0] = -tang[0];
-        tang[1] = -tang[1];
-        tang[2] = -tang[2];
-      }
-      tangents.push(tang);
-      last = tang;
+    //console.log('add_bonds() vertex count: ' + vertex_arr.length);
+    const linewidth = scale_by_height(this.conf.bond_line, this.win_size);
+    const use_gl_lines = this.conf.line_style === 'simplistic';
+    const material = makeLineMaterial({
+      gl_lines: use_gl_lines,
+      linewidth: linewidth,
+      win_size: this.win_size,
+      segments: true,
+    });
+    this.atomic_objects.push(makeLineSegments(material, vertex_arr, color_arr));
+    if (opt.balls) {
+      this.atomic_objects.push(makeWheels(visible_atoms, colors, ball_size));
+    } else if (!use_gl_lines && !ligands_only) {
+      // wheels (discs) as simplistic round caps
+      this.atomic_objects.push(makeWheels(visible_atoms, colors, linewidth));
     }
-    const color_slice = colors.slice(k, k + seg.length);
-    k += seg.length;
-    const obj = makeRibbon(seg, color_slice, tangents, smoothness);
-    this.atomic_objects.push(obj);
   }
-};
+
+  add_trace() {
+    const segments = this.model.extract_trace();
+    const visible_atoms = [].concat.apply([], segments);
+    const colors = color_by(this.conf.color_aim, visible_atoms,
+                            this.conf.colors);
+    const material = makeLineMaterial({
+      gl_lines: this.conf.line_style === 'simplistic',
+      linewidth: scale_by_height(this.conf.bond_line, this.win_size),
+      win_size: this.win_size,
+    });
+    let k = 0;
+    for (const seg of segments) {
+      const color_slice = colors.slice(k, k + seg.length);
+      k += seg.length;
+      const line = makeLine(material, seg, color_slice);
+      this.atomic_objects.push(line);
+    }
+  }
+
+  add_ribbon(smoothness) {
+    const segments = this.model.extract_trace();
+    const res_map = this.model.get_residues();
+    const visible_atoms = [].concat.apply([], segments);
+    const colors = color_by(this.conf.color_aim, visible_atoms,
+                            this.conf.colors);
+    let k = 0;
+    for (const seg of segments) {
+      let tangents = [];
+      let last = [0, 0, 0];
+      for (const atom of seg) {
+        const residue = res_map[atom.resid()];
+        const tang = this.model.calculate_tangent_vector(residue);
+        // untwisting (usually applies to beta-strands)
+        if (tang[0]*last[0] + tang[1]*last[1] + tang[2]*last[2] < 0) {
+          tang[0] = -tang[0];
+          tang[1] = -tang[1];
+          tang[2] = -tang[2];
+        }
+        tangents.push(tang);
+        last = tang;
+      }
+      const color_slice = colors.slice(k, k + seg.length);
+      k += seg.length;
+      const obj = makeRibbon(seg, color_slice, tangents, smoothness);
+      this.atomic_objects.push(obj);
+    }
+  }
+}
 
 export function Viewer(options /*: {[key: string]: any}*/) {
   // rendered objects
@@ -505,8 +514,7 @@ Viewer.prototype.redraw_center = function () {
 
 Viewer.prototype.redraw_maps = function (force) {
   this.redraw_center();
-  for (let i = 0; i < this.map_bags.length; i++) {
-    const map_bag = this.map_bags[i];
+  for (const map_bag of this.map_bags) {
     if (force || this.target.distanceToSquared(map_bag.block_ctr) > 0.01) {
       this.redraw_map(map_bag);
     }
@@ -522,25 +530,23 @@ Viewer.prototype.remove_and_dispose = function (obj, only_dispose) {
     }
     obj.material.dispose();
   }
-  for (let i = 0; i < obj.children.length; i++) {
-    this.remove_and_dispose(obj.children[i]);
+  for (let o of obj.children) {
+    this.remove_and_dispose(o);
   }
 };
 
 Viewer.prototype.clear_el_objects = function (map_bag) {
-  for (let i = 0; i < map_bag.el_objects.length; i++) {
-    this.remove_and_dispose(map_bag.el_objects[i]);
+  for (let o of map_bag.el_objects) {
+    this.remove_and_dispose(o);
   }
   map_bag.el_objects = [];
 };
 
 Viewer.prototype.clear_atomic_objects = function (model) {
-  if (model.atomic_objects) {
-    for (let i = 0; i < model.atomic_objects.length; i++) {
-      this.remove_and_dispose(model.atomic_objects[i]);
-    }
+  for (let o of model.atomic_objects) {
+    this.remove_and_dispose(o);
   }
-  model.atomic_objects = null;
+  model.atomic_objects = [];
 };
 
 Viewer.prototype.set_atomic_objects = function (model_bag) {
@@ -564,8 +570,8 @@ Viewer.prototype.set_atomic_objects = function (model_bag) {
       model_bag.add_bonds(true);
       break;
   }
-  for (let i = 0; i < model_bag.atomic_objects.length; i++) {
-    this.scene.add(model_bag.atomic_objects[i]);
+  for (let o of model_bag.atomic_objects) {
+    this.scene.add(o);
   }
 };
 
@@ -637,8 +643,8 @@ Viewer.prototype.redraw_model = function (model_bag) {
 };
 
 Viewer.prototype.redraw_models = function () {
-  for (let i = 0; i < this.model_bags.length; i++) {
-    this.redraw_model(this.model_bags[i]);
+  for (const model_bag of this.model_bags) {
+    this.redraw_model(model_bag);
   }
 };
 
@@ -649,8 +655,7 @@ Viewer.prototype.add_el_objects = function (map_bag) {
     map_bag.block_ctr.copy(t);
     map_bag.map.extract_block(this.config.map_radius, [t.x, t.y, t.z]);
   }
-  for (let i = 0; i < map_bag.types.length; i++) {
-    const mtype = map_bag.types[i];
+  for (const mtype of map_bag.types) {
     const isolevel = (mtype === 'map_neg' ? -1 : 1) * map_bag.isolevel;
     const iso = map_bag.map.isomesh_in_block(isolevel, this.config.map_style);
 

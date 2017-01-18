@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 
 /*:: type Num3 = [number, number, number] */
-/*:: type Atom = {xyz: Num3} */
+/*:: import type {AtomT} from './model.js' */
 /*:: type Color = {r: number, g: number, b: number} */
 /*:: type Vector3 = {x: number, y: number, z: number} */
 
@@ -62,7 +62,7 @@ export function makeRgbBox(transform_func /*:Num3 => Num3*/,
   return makeLineSegments(material, vertices, colors);
 }
 
-function double_pos(vertex_arr /*:Vector3[] | Atom[]*/) {
+function double_pos(vertex_arr /*:Vector3[] | AtomT[]*/) {
   let pos = [];
   let i;
   if (vertex_arr && vertex_arr[0].xyz) {
@@ -292,7 +292,7 @@ const ribbon_frag = [
   '}'].join('\n');
 
 // 9-line ribbon
-export function makeRibbon(vertices /*:Atom[]*/,
+export function makeRibbon(vertices /*:AtomT[]*/,
                            colors /*:Color[]*/,
                            tangents /*:Num3[]*/,
                            smoothness /*:number*/) {
@@ -423,7 +423,7 @@ export function makeLineMaterial(options /*:{[key: string]: mixed}*/) {
                           : makeThickLineMaterial(options);
 }
 
-function makeSimpleGeometry(vertices /*:Vector3[] | Atom[]*/,
+function makeSimpleGeometry(vertices /*:Vector3[] | AtomT[]*/,
                             colors /*:?Color[]*/) {
   let geometry = new THREE.BufferGeometry();
   const pos = new Float32Array(vertices.length * 3);
@@ -467,7 +467,7 @@ function makeThickLine(material, vertices, colors) {
 }
 
 export function makeLine(material /*:THREE.Material*/,
-                         vertices /*:Vector3[]*/,
+                         vertices /*:AtomT[]*/,
                          colors /*:Color[]*/) {
   if (material.isShaderMaterial) {
     return makeThickLine(material, vertices, colors);
@@ -483,7 +483,7 @@ function makeThickLineSegments(material, vertices, colors) {
 }
 
 export function makeLineSegments(material /*:THREE.Material*/,
-                                 vertices /*:Vector3[] | Atom[]*/,
+                                 vertices /*:Vector3[] | AtomT[]*/,
                                  colors /*:?Color[]*/) {
   if (material.isShaderMaterial) {
     return makeThickLineSegments(material, vertices, colors);
@@ -513,7 +513,7 @@ const wheel_frag = [
   '#include <fog_fragment>',
   '}'].join('\n');
 
-export function makeWheels(atom_arr /*:Atom[]*/,
+export function makeWheels(atom_arr /*:AtomT[]*/,
                            color_arr /*:Color[]*/,
                            size /*:number*/) {
   let geometry = makeSimpleGeometry(atom_arr, color_arr);

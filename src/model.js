@@ -253,14 +253,14 @@ class Atom {
   altloc: string
   resname: string
   chain: string
-  chain_index: ?number
+  chain_index: number
   resseq: number
   icode: ?string
   xyz: [number, number, number]
   occ: number
   b: number
   element: string
-  i_seq: ?number
+  i_seq: number
   is_ligand: ?boolean
   bonds: number[];
   */
@@ -270,14 +270,14 @@ class Atom {
     this.altloc = '';
     this.resname = '';
     this.chain = '';
-    this.chain_index = null;
+    this.chain_index = -1;
     this.resseq = -1;
     this.icode = null;
     this.xyz = [0, 0, 0];
     this.occ = 1.0;
     this.b = 0;
     this.element = '';
-    this.i_seq = null;
+    this.i_seq = -1;
     this.is_ligand = null;
     this.bonds = [];
   }
@@ -399,6 +399,7 @@ class Atom {
     return a.name + ' /' + a.resseq + ' ' + a.resname + '/' + a.chain;
   }
 }
+/*:: export type AtomT = Atom; */
 
 
 // Partition atoms into boxes for quick neighbor searching.
