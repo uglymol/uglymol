@@ -1,4 +1,6 @@
 // @flow
+import { UnitCell } from './unitcell.js';
+import { ElMap } from './elmap.js';
 import { Viewer } from './viewer.js';
 import { addXyzCross, makeLineMaterial, makeLineSegments } from './lines.js';
 import * as THREE from 'three';
@@ -7,6 +9,22 @@ import * as THREE from 'three';
 // options handled by Viewer#select_next()
 const SPOT_SEL = ['all', 'unindexed', '#1']; //extended when needed
 const SHOW_AXES = ['three', 'two', 'none'];
+
+// modified ElMap for handling output of dials.rs_mapper
+class ReciprocalSpaceMap extends ElMap {
+  constructor(buf /*:ArrayBuffer*/) {
+    super();
+    this.from_ccp4(buf, false);
+    if (this.unit_cell == null) return;
+    // unit of the map from dials.rs_mapper is (100A)^-1, we scale it to A^-1
+    const par = this.unit_cell.parameters;
+    const scale = 0.01;
+    this.unit_cell = new UnitCell(scale*par[0], scale*par[1], scale*par[2],
+                                  par[3], par[4], par[5]); // always ==90
+    // the map needs to be shifted, so it's centered at 0,0,0
+    // at last, avoid translational symmetry
+  }
+}
 
 export function ReciprocalViewer(options /*: {[key: string]: any}*/) {
   Viewer.call(this, options);
@@ -205,7 +223,10 @@ ReciprocalViewer.prototype.load_map_from_ab = function (buffer) {
   if (this.map_bags.length > 0) {
     this.clear_el_objects(this.map_bags.pop());
   }
-  this.load_map_from_buffer(buffer, {format: 'ccp4'});
+  let map = new ReciprocalSpaceMap(buffer);
+  if (map == null || map.unit_cell == null) return;
+  this.config.map_radius = map.unit_cell.parameters[0] / 2.;
+  this.add_map(map, false);
 };
 
 

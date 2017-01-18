@@ -8,8 +8,16 @@ import { STATE, Controls } from './controls.js';
 import { ElMap } from './elmap.js';
 import { Model } from './model.js';
 
+/*::
+ type ColorScheme = {
+   name: string,
+   bg: number,
+   fg: number,
+   [name:string]: number
+ };
+ */
 
-const ColorSchemes = [ // Viewer.prototype.ColorSchemes
+const ColorSchemes /*:ColorScheme[]*/ = [ // Viewer.prototype.ColorSchemes
   { // generally mimicks Coot
     name: 'coot dark',
     bg: 0x000000,
@@ -220,7 +228,7 @@ class ModelBag {
           const vmid = new THREE.Vector3(mid[0], mid[1], mid[2]);
           const vatom = new THREE.Vector3(atom.xyz[0], atom.xyz[1],
                                           atom.xyz[2]);
-          if (opt.balls) {
+          if (opt.balls && ball_size != null) {
             const lerp_factor = vatom.distanceTo(vmid) / ball_size;
             vatom.lerp(vmid, lerp_factor);
           }
@@ -239,7 +247,7 @@ class ModelBag {
       segments: true,
     });
     this.atomic_objects.push(makeLineSegments(material, vertex_arr, color_arr));
-    if (opt.balls) {
+    if (opt.balls && ball_size != null) {
       this.atomic_objects.push(makeWheels(visible_atoms, colors, ball_size));
     } else if (!use_gl_lines && !ligands_only) {
       // wheels (discs) as simplistic round caps
@@ -296,528 +304,1082 @@ class ModelBag {
   }
 }
 
-export function Viewer(options /*: {[key: string]: any}*/) {
-  // rendered objects
-  this.model_bags = [];
-  this.map_bags = [];
-  this.decor = {cell_box: null, selection: null, zoom_grid: makeGrid() };
-  this.labels = {};
-  this.nav = null;
-
-  this.config = {
-    bond_line: 4.0, // ~ to height, like in Coot (see scale_by_height())
-    map_line: 1.25,  // for any height
-    map_radius: 10.0,
-    map_style: MAP_STYLES[0],
-    render_style: RENDER_STYLES[0],
-    color_aim: COLOR_AIMS[0],
-    line_style: LINE_STYLES[0],
-    label_font: LABEL_FONTS[0],
-    colors: this.ColorSchemes[0],
-    hydrogens: false,
-  };
-  this.set_colors();
-  this.window_size = [1, 1]; // it will be set in resize()
-  this.window_offset = [0, 0];
-
-  this.last_ctr = new THREE.Vector3(Infinity, 0, 0);
-  this.selected_atom = null;
-  this.active_model_bag = null;
-  this.scene = new THREE.Scene();
-  this.scene.fog = new THREE.Fog(this.config.colors.bg, 0, 1);
-  this.light = new THREE.AmbientLight(0xffffff);
-  this.scene.add(this.light);
-  this.default_camera_pos = [0, 0, 100];
-  if (options.share_view) {
-    this.target = options.share_view.target;
-    this.camera = options.share_view.camera;
-    this.controls = options.share_view.controls;
-    this.tied_viewer = options.share_view;
-    this.tied_viewer.tied_viewer = this; // not GC friendly
-  } else {
-    this.target = new THREE.Vector3(0, 0, 0);
-    this.camera = new THREE.OrthographicCamera();
-    this.camera.position.fromArray(this.default_camera_pos);
-    this.controls = new Controls(this.camera, this.target);
-  }
-  this.raycaster = new THREE.Raycaster();
-  this.set_common_key_bindings();
-  if (this.constructor === Viewer) this.set_real_space_key_bindings();
-  if (typeof document === 'undefined') return;  // for testing on node
-
-  try {
-    this.renderer = new THREE.WebGLRenderer({antialias: true});
-  } catch (e) {
-    this.hud('no WebGL in your browser?', 'ERR');
-    this.renderer = null;
-    return;
-  }
-
-  function get_elem(name) {
-    if (options[name] === null) return null;
-    return document.getElementById(options[name] || name);
-  }
-  this.container = get_elem('viewer');
-  this.hud_el = get_elem('hud');
-  this.help_el = get_elem('help');
-  if (this.hud_el) {
-    this.initial_hud_html = this.hud_el.innerHTML;
-    this.initial_hud_bg = this.hud_el.style['background-color'];
-  }
-
-  if (this.container === null) return; // can be null in headless tests
-  this.renderer.setClearColor(this.config.colors.bg, 1);
-  this.renderer.setPixelRatio(window.devicePixelRatio);
-  this.resize();
-  this.camera.zoom = this.camera.right / 35.0;  // arbitrary choice
-  this.update_camera();
-  this.container.appendChild(this.renderer.domElement);
-  if (options.focusable) {
-    this.renderer.domElement.tabIndex = 0;
-  }
-  this.decor.zoom_grid.visible = false;
-  this.scene.add(this.decor.zoom_grid);
-  if (window.Stats) { // set by including three/examples/js/libs/stats.min.js
-    this.stats = new window.Stats();
-    this.container.appendChild(this.stats.dom);
-  }
-
-  window.addEventListener('resize', this.resize.bind(this));
-  let el = this.renderer.domElement;
-  let keydown_el = (options.focusable ? el : window);
-  keydown_el.addEventListener('keydown', this.keydown.bind(this));
-  el.addEventListener('contextmenu', function (e) { e.preventDefault(); });
-  el.addEventListener('mousewheel', this.mousewheel.bind(this));
-  el.addEventListener('MozMousePixelScroll', this.mousewheel.bind(this));
-  el.addEventListener('mousedown', this.mousedown.bind(this));
-  el.addEventListener('touchstart', this.touchstart.bind(this));
-  el.addEventListener('touchmove', this.touchmove.bind(this));
-  el.addEventListener('touchend', this.touchend.bind(this));
-  el.addEventListener('touchcancel', this.touchend.bind(this));
-  el.addEventListener('dblclick', this.dblclick.bind(this));
-
-  let self = this;
-
-  this.mousemove = function (event) {
-    event.preventDefault();
-    //event.stopPropagation();
-    self.controls.move(self.relX(event), self.relY(event));
-  };
-
-  this.mouseup = function (event) {
-    event.preventDefault();
-    event.stopPropagation();
-    document.removeEventListener('mousemove', self.mousemove);
-    document.removeEventListener('mouseup', self.mouseup);
-    self.decor.zoom_grid.visible = false;
-    const not_panned = self.controls.stop();
-    // special case - centering on atoms after action 'pan' with no shift
-    if (not_panned) {
-      const atom = self.pick_atom(not_panned, self.camera);
-      if (atom != null) {
-        self.select_atom(atom, {steps: 60});
-      }
-    }
-    self.redraw_maps();
-  };
-
-  this.scheduled = false;
-  this.request_render();
-}
-
-Viewer.prototype.pick_atom = function (coords, camera) {
-  const bag = this.active_model_bag;
-  if (bag === null) return;
-  this.raycaster.setFromCamera(coords, camera);
-  this.raycaster.near = camera.near;
-  // '0.15' b/c the furthest 15% is hardly visible in the fog
-  this.raycaster.far = camera.far - 0.15 * (camera.far - camera.near);
-  this.raycaster.linePrecision = 0.3;
-  let intersects = this.raycaster.intersectObjects(bag.atomic_objects);
-  if (intersects.length < 1) return null;
-  intersects.sort(function (x) { return x.line_dist || Infinity; });
-  const p = intersects[0].point;
-  return bag.model.get_nearest_atom(p.x, p.y, p.z);
-};
-
-Viewer.prototype.set_colors = function (scheme) {
-  function to_col(x) { return new THREE.Color(x); }
-  if (scheme == null) {
-    scheme = this.ColorSchemes[0];
-  } else if (typeof scheme === 'number') {
-    scheme = this.ColorSchemes[scheme % this.ColorSchemes.length];
-  } else if (typeof scheme === 'string') {
-    for (let i = 0; i !== this.ColorSchemes.length; i++) {
-      if (this.ColorSchemes[i].name === scheme) {
-        scheme = this.ColorSchemes[i];
-        break;
-      }
-    }
-  }
-  if (scheme.bg === undefined) return;
-  if (typeof scheme.bg === 'number') {
-    for (let key in scheme) {
-      if (key !== 'name') {
-        scheme[key] = scheme[key] instanceof Array ? scheme[key].map(to_col)
-                                                   : to_col(scheme[key]);
-      }
-    }
-  }
-  this.decor.zoom_grid.color_value.set(scheme.fg);
-  this.redraw_all();
-};
-
-// relative position on canvas in normalized device coordinates [-1, +1]
-Viewer.prototype.relX = function (evt) {
-  return 2 * (evt.pageX - this.window_offset[0]) / this.window_size[0] - 1;
-};
-
-Viewer.prototype.relY = function (evt) {
-  return 1 - 2 * (evt.pageY - this.window_offset[1]) / this.window_size[1];
-};
-
-Viewer.prototype.hud = function (text, type) {
-  if (typeof document === 'undefined') return;  // for testing on node
-  let el = this.hud_el;
-  if (el) {
-    if (text !== undefined) {
-      if (type === 'HTML') {
-        el.innerHTML = text;
-      } else {
-        el.textContent = text;
-      }
-    } else {
-      el.innerHTML = this.initial_hud_html;
-    }
-    const err = (type === 'ERR');
-    el.style['background-color'] = (err ? '#b00' : this.initial_hud_bg);
-    if (err) console.log('ERR: ' + text);
-  } else {
-    console.log('hud: ' + text);
-  }
-};
-
-Viewer.prototype.redraw_center = function () {
-  if (this.target.distanceToSquared(this.last_ctr) > 0.0001) {
-    this.last_ctr.copy(this.target);
-    if (this.mark) {
-      this.scene.remove(this.mark);
-    }
-    this.mark = makeCube(0.1, this.target, {
-      color: this.config.colors.center,
-      linewidth: 2,
-      win_size: this.window_size,
-    });
-    this.scene.add(this.mark);
-  }
-};
-
-Viewer.prototype.redraw_maps = function (force) {
-  this.redraw_center();
-  for (const map_bag of this.map_bags) {
-    if (force || this.target.distanceToSquared(map_bag.block_ctr) > 0.01) {
-      this.redraw_map(map_bag);
-    }
-  }
-};
-
-Viewer.prototype.remove_and_dispose = function (obj, only_dispose) {
-  if (!only_dispose) this.scene.remove(obj);
-  if (obj.geometry) obj.geometry.dispose();
-  if (obj.material) {
-    if (obj.material.uniforms && obj.material.uniforms.map) {
-      obj.material.uniforms.map.value.dispose();
-    }
-    obj.material.dispose();
-  }
-  for (let o of obj.children) {
-    this.remove_and_dispose(o);
-  }
-};
-
-Viewer.prototype.clear_el_objects = function (map_bag) {
-  for (let o of map_bag.el_objects) {
-    this.remove_and_dispose(o);
-  }
-  map_bag.el_objects = [];
-};
-
-Viewer.prototype.clear_atomic_objects = function (model) {
-  for (let o of model.atomic_objects) {
-    this.remove_and_dispose(o);
-  }
-  model.atomic_objects = [];
-};
-
-Viewer.prototype.set_atomic_objects = function (model_bag) {
-  model_bag.atomic_objects = [];
-  switch (model_bag.conf.render_style) {
-    case 'lines':
-      model_bag.add_bonds();
-      break;
-    case 'ball&stick': {
-      const h_scale = this.camera.projectionMatrix.elements[5];
-      const ball_size = Math.max(1, 200 * h_scale);
-      model_bag.add_bonds(false, ball_size);
-      break;
-    }
-    case 'trace':  // + lines for ligands
-      model_bag.add_trace();
-      model_bag.add_bonds(true);
-      break;
-    case 'ribbon':
-      model_bag.add_ribbon(8);
-      model_bag.add_bonds(true);
-      break;
-  }
-  for (let o of model_bag.atomic_objects) {
-    this.scene.add(o);
-  }
-};
-
-// Add/remove label if `show` is specified, toggle otherwise.
-Viewer.prototype.toggle_label = function (atom, show) {
-  if (!atom) return;
-  const text = atom.short_label();
-  const uid = text; // we assume that the labels are unique - often true
-  const is_shown = (uid in this.labels);
-  if (show === undefined) show = !is_shown;
-  if (show) {
-    if (is_shown) return;
-    const label = makeLabel(text, {
-      pos: atom.xyz,
-      font: this.config.label_font,
-      color: '#' + this.config.colors.fg.getHexString(),
-      win_size: this.window_size,
-    });
-    if (!label) return;
-    this.labels[uid] = label;
-    this.scene.add(label);
-  } else {
-    if (!is_shown) return;
-    this.remove_and_dispose(this.labels[uid]);
-    delete this.labels[uid];
-  }
-};
-
-Viewer.prototype.redraw_labels = function () {
-  for (let uid in this.labels) { // eslint-disable-line guard-for-in
-    const text = uid;
-    this.labels[uid].remake(text, {
-      font: this.config.label_font,
-      color: '#' + this.config.colors.fg.getHexString(),
-    });
-  }
-};
-
-
-Viewer.prototype.toggle_map_visibility = function (map_bag) {
-  if (typeof map_bag === 'number') {
-    map_bag = this.map_bags[map_bag];
-  }
-  map_bag.visible = !map_bag.visible;
-  this.redraw_map(map_bag);
-  this.request_render();
-};
-
-Viewer.prototype.redraw_map = function (map_bag) {
-  this.clear_el_objects(map_bag);
-  if (map_bag.visible) {
-    map_bag.map.block.clear();
-    this.add_el_objects(map_bag);
-  }
-};
-
-Viewer.prototype.toggle_model_visibility = function (model_bag) {
-  model_bag = model_bag || this.active_model_bag;
-  model_bag.visible = !model_bag.visible;
-  this.redraw_model(model_bag);
-  this.request_render();
-};
-
-Viewer.prototype.redraw_model = function (model_bag) {
-  this.clear_atomic_objects(model_bag);
-  if (model_bag.visible) {
-    this.set_atomic_objects(model_bag);
-  }
-};
-
-Viewer.prototype.redraw_models = function () {
-  for (const model_bag of this.model_bags) {
-    this.redraw_model(model_bag);
-  }
-};
-
-Viewer.prototype.add_el_objects = function (map_bag) {
-  if (!map_bag.visible || this.config.map_radius <= 0) return;
-  if (map_bag.map.block.empty()) {
-    const t = this.target;
-    map_bag.block_ctr.copy(t);
-    map_bag.map.extract_block(this.config.map_radius, [t.x, t.y, t.z]);
-  }
-  for (const mtype of map_bag.types) {
-    const isolevel = (mtype === 'map_neg' ? -1 : 1) * map_bag.isolevel;
-    const iso = map_bag.map.isomesh_in_block(isolevel, this.config.map_style);
-
-    const obj = makeChickenWire(iso, {
-      color: this.config.colors[mtype],
-      linewidth: this.config.map_line,
-    });
-    map_bag.el_objects.push(obj);
-    this.scene.add(obj);
-  }
-};
-
-Viewer.prototype.change_isolevel_by = function (map_idx, delta) {
-  if (map_idx >= this.map_bags.length) return;
-  const map_bag = this.map_bags[map_idx];
-  map_bag.isolevel += delta;
-  //TODO: move slow part into update()
-  this.clear_el_objects(map_bag);
-  this.add_el_objects(map_bag);
-  const abs_level = map_bag.map.abs_level(map_bag.isolevel);
-  let abs_text = abs_level.toFixed(4);
-  let tied = this.tied_viewer;
-  if (tied && map_idx < tied.map_bags.length) {
-    let tied_bag = tied.map_bags[map_idx];
-    // Should we tie by sigma or absolute level? Now it's sigma.
-    tied_bag.isolevel = map_bag.isolevel;
-    abs_text += ' / ' + tied_bag.map.abs_level(tied_bag.isolevel).toFixed(4);
-    tied.clear_el_objects(tied_bag);
-    tied.add_el_objects(tied_bag);
-  }
-  this.hud('map ' + (map_idx+1) + ' level =  ' + abs_text +
-           ' e/\u212B\u00B3 (' + map_bag.isolevel.toFixed(2) + ' rmsd)');
-};
-
-Viewer.prototype.change_map_radius = function (delta) {
-  const RMAX = 40;
-  const cf = this.config;
-  cf.map_radius = Math.min(Math.max(cf.map_radius + delta, 0), RMAX);
-  let info = 'map "radius": ' + cf.map_radius;
-  if (cf.map_radius === RMAX) info += ' (max)';
-  else if (cf.map_radius === 0) info += ' (hidden maps)';
-  this.hud(info);
-  this.redraw_maps(true);
-};
-
-Viewer.prototype.change_slab_width_by = function (delta) {
-  let slab_width = this.controls.slab_width;
-  slab_width[0] = Math.max(slab_width[0] + delta, 0.01);
-  slab_width[1] = Math.max(slab_width[1] + delta, 0.01);
-  this.update_camera();
-  this.hud('clip width: ' + (this.camera.far-this.camera.near).toPrecision(3));
-};
-
-Viewer.prototype.change_zoom_by_factor = function (mult) {
-  this.camera.zoom *= mult;
-  this.update_camera();
-  this.hud('zoom: ' + this.camera.zoom.toPrecision(3));
-};
-
-Viewer.prototype.change_bond_line = function (delta) {
-  this.config.bond_line = Math.max(this.config.bond_line + delta, 0.1);
-  this.redraw_models();
-  this.hud('bond width: ' + scale_by_height(this.config.bond_line,
-                                            this.window_size).toFixed(1));
-};
-
-Viewer.prototype.change_map_line = function (delta) {
-  this.config.map_line = Math.max(this.config.map_line + delta, 0.1);
-  this.redraw_maps(true);
-  this.hud('wireframe width: ' + this.config.map_line.toFixed(1));
-};
-
-Viewer.prototype.toggle_full_screen = function () {
-  let d = document;
-  if (d.fullscreenElement || d.mozFullScreenElement ||
-      d.webkitFullscreenElement || d.msFullscreenElement) {
-    let ex = d.exitFullscreen || d.webkitExitFullscreen ||
-    // $FlowFixMe: property `msExitFullscreen` not found in document
-             d.mozCancelFullScreen || d.msExitFullscreen;
-    // $FlowFixMe: cannot call property `exitFullscreen` of unknown type
-    if (ex) ex.call(d);
-  } else {
-    let el = this.container;
-    let req = el.requestFullscreen || el.webkitRequestFullscreen ||
-              el.mozRequestFullScreen || el.msRequestFullscreen;
-    if (req) req.call(el);
-  }
-};
-
-Viewer.prototype.toggle_cell_box = function () {
-  if (this.decor.cell_box) {
-    this.scene.remove(this.decor.cell_box);
-    this.decor.cell_box = null;
-  } else {
-    let uc = null;
-    if (this.model_bags.length > 0) {
-      uc = this.model_bags[0].model.unit_cell;
-    }
-    // model may not have unit cell
-    if (!uc && this.map_bags.length > 0) {
-      uc = this.map_bags[0].map.unit_cell;
-    }
-    if (uc) {
-      this.decor.cell_box = makeRgbBox(uc.orthogonalize.bind(uc), {
-        color: this.config.colors.fg,
-      });
-      this.scene.add(this.decor.cell_box);
-    }
-  }
-};
-
 function vec3_to_fixed(vec, n) {
   return [vec.x.toFixed(n), vec.y.toFixed(n), vec.z.toFixed(n)];
 }
 
-Viewer.prototype.shift_clip = function (delta) {
-  let eye = this.camera.position.clone().sub(this.target);
-  eye.multiplyScalar(delta / eye.length());
-  this.target.add(eye);
-  this.camera.position.add(eye);
-  this.update_camera();
-  this.redraw_maps();
-  this.hud('clip shifted by [' + vec3_to_fixed(eye, 2).join(' ') + ']');
-};
+// for two-finger touch events
+function touch_info(evt/*:TouchEvent*/) {
+  const touches = evt.touches;
+  const dx = touches[0].pageX - touches[1].pageX;
+  const dy = touches[0].pageY - touches[1].pageY;
+  return {pageX: (touches[0].pageX + touches[1].pageX) / 2,
+          pageY: (touches[0].pageY + touches[1].pageY) / 2,
+          dist: Math.sqrt(dx * dx + dy * dy)};
+}
 
-Viewer.prototype.go_to_nearest_Ca = function () {
-  const t = this.target;
-  if (this.active_model_bag === null) return;
-  const a = this.active_model_bag.model.get_nearest_atom(t.x, t.y, t.z, 'CA');
-  if (a) {
-    this.select_atom(a, {steps: 30});
-  } else {
-    this.hud('no nearby CA');
+// makes sense only for full-window viewer
+function parse_url_fragment() {
+  let ret = {};
+  if (typeof window === 'undefined') return ret;
+  const params = window.location.hash.substr(1).split('&');
+  for (let i = 0; i < params.length; i++) {
+    const kv = params[i].split('=');
+    let val = kv[1];
+    if (kv[0] === 'xyz' || kv[0] === 'eye') {
+      val = val.split(',').map(Number);
+    } else if (kv[0] === 'zoom') {
+      val = Number(val);
+    }
+    ret[kv[0]] = val;
   }
-};
+  return ret;
+}
 
-Viewer.prototype.permalink = function () {
-  if (typeof window === 'undefined') return;
-  window.location.hash = '#xyz=' + vec3_to_fixed(this.target, 1).join(',') +
-    '&eye=' + vec3_to_fixed(this.camera.position, 1).join(',') +
-    '&zoom=' + this.camera.zoom.toFixed(0);
-  this.hud('copy URL from the location bar');
-};
 
-Viewer.prototype.redraw_all = function () {
-  if (!this.renderer) return;
-  this.scene.fog.color = this.config.colors.bg;
-  if (this.renderer) this.renderer.setClearColor(this.config.colors.bg, 1);
-  this.redraw_models();
-  this.redraw_maps(true);
-  this.redraw_labels();
-};
+export class Viewer {
+  /*::
+  model_bags: ModelBag[]
+  map_bags: MapBag[]
+  decor: {cell_box: ?Object , selection: ?Object, zoom_grid: Object}
+  labels: {[id:string]: THREE.Mesh}
+  nav: ?Object
+  config: Object
+  window_size: [number, number]
+  window_offset: [number, number]
+  last_ctr: THREE.Vector3
+  selected_atom: ?AtomT
+  active_model_bag: ?ModelBag
+  scene: THREE.Scene
+  light: THREE.Light
+  default_camera_pos: [number, number, number]
+  target: THREE.Vector3
+  camera: THREE.OrthographicCamera
+  controls: Controls
+  tied_viewer: ?Viewer
+  raycaster: THREE.Raycaster
+  renderer: THREE.WebGLRenderer
+  container: ?HTMLElement
+  hud_el: ?HTMLElement
+  help_el: ?HTMLElement
+  initial_hud_html: string
+  initial_hud_bg: string
+  scheduled: boolean
+  ColorSchemes: ColorScheme[]
+  MOUSE_HELP: string
+  KEYBOARD_HELP: string
+  ABOUT_HELP: string
+  stats: ?Object
+  mousemove: (MouseEvent) => void
+  mouseup: (MouseEvent) => void
+  */
+  constructor(options /*: {[key: string]: any}*/) {
+    // rendered objects
+    this.model_bags = [];
+    this.map_bags = [];
+    this.decor = {cell_box: null, selection: null, zoom_grid: makeGrid() };
+    this.labels = {};
+    this.nav = null;
 
-Viewer.prototype.toggle_help = function () {
-  let el = this.help_el;
-  if (!el) return;
-  el.style.display = el.style.display === 'block' ? 'none' : 'block';
-  if (el.innerHTML === '') {
-    el.innerHTML = [this.MOUSE_HELP, this.KEYBOARD_HELP,
-                    this.ABOUT_HELP].join('\n\n');
+    this.config = {
+      bond_line: 4.0, // ~ to height, like in Coot (see scale_by_height())
+      map_line: 1.25,  // for any height
+      map_radius: 10.0,
+      map_style: MAP_STYLES[0],
+      render_style: RENDER_STYLES[0],
+      color_aim: COLOR_AIMS[0],
+      line_style: LINE_STYLES[0],
+      label_font: LABEL_FONTS[0],
+      colors: this.ColorSchemes[0],
+      hydrogens: false,
+    };
+    this.set_colors();
+    this.window_size = [1, 1]; // it will be set in resize()
+    this.window_offset = [0, 0];
+
+    this.last_ctr = new THREE.Vector3(Infinity, 0, 0);
+    this.selected_atom = null;
+    this.active_model_bag = null;
+    this.scene = new THREE.Scene();
+    this.scene.fog = new THREE.Fog(this.config.colors.bg, 0, 1);
+    this.light = new THREE.AmbientLight(0xffffff);
+    this.scene.add(this.light);
+    this.default_camera_pos = [0, 0, 100];
+    if (options.share_view) {
+      this.target = options.share_view.target;
+      this.camera = options.share_view.camera;
+      this.controls = options.share_view.controls;
+      this.tied_viewer = options.share_view;
+      this.tied_viewer.tied_viewer = this; // not GC friendly
+    } else {
+      this.target = new THREE.Vector3(0, 0, 0);
+      this.camera = new THREE.OrthographicCamera();
+      this.camera.position.fromArray(this.default_camera_pos);
+      this.controls = new Controls(this.camera, this.target);
+    }
+    this.raycaster = new THREE.Raycaster();
+    this.set_common_key_bindings();
+    if (this.constructor === Viewer) this.set_real_space_key_bindings();
+    if (typeof document === 'undefined') return;  // for testing on node
+
+    try {
+      this.renderer = new THREE.WebGLRenderer({antialias: true});
+    } catch (e) {
+      this.hud('no WebGL in your browser?', 'ERR');
+      this.renderer = null;
+      return;
+    }
+
+    function get_elem(name) {
+      if (options[name] === null) return null;
+      return document.getElementById(options[name] || name);
+    }
+    this.container = get_elem('viewer');
+    this.hud_el = get_elem('hud');
+    this.help_el = get_elem('help');
+    if (this.hud_el) {
+      this.initial_hud_html = this.hud_el.innerHTML;
+      this.initial_hud_bg = this.hud_el.style['background-color'];
+    }
+
+    if (this.container == null) return; // can be null in headless tests
+    this.renderer.setClearColor(this.config.colors.bg, 1);
+    this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.resize();
+    this.camera.zoom = this.camera.right / 35.0;  // arbitrary choice
+    this.update_camera();
+    this.container.appendChild(this.renderer.domElement);
+    if (options.focusable) {
+      this.renderer.domElement.tabIndex = 0;
+    }
+    this.decor.zoom_grid.visible = false;
+    this.scene.add(this.decor.zoom_grid);
+    if (window.Stats) { // set by including three/examples/js/libs/stats.min.js
+      this.stats = new window.Stats();
+      this.container.appendChild(this.stats.dom);
+    }
+
+    window.addEventListener('resize', this.resize.bind(this));
+    let el = this.renderer.domElement;
+    let keydown_el = (options.focusable ? el : window);
+    keydown_el.addEventListener('keydown', this.keydown.bind(this));
+    el.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    el.addEventListener('mousewheel', this.mousewheel.bind(this));
+    el.addEventListener('MozMousePixelScroll', this.mousewheel.bind(this));
+    el.addEventListener('mousedown', this.mousedown.bind(this));
+    el.addEventListener('touchstart', this.touchstart.bind(this));
+    el.addEventListener('touchmove', this.touchmove.bind(this));
+    el.addEventListener('touchend', this.touchend.bind(this));
+    el.addEventListener('touchcancel', this.touchend.bind(this));
+    el.addEventListener('dblclick', this.dblclick.bind(this));
+
+    let self = this;
+
+    this.mousemove = function (event/*:MouseEvent*/) {
+      event.preventDefault();
+      //event.stopPropagation();
+      self.controls.move(self.relX(event), self.relY(event));
+    };
+
+    this.mouseup = function (event/*:MouseEvent*/) {
+      event.preventDefault();
+      event.stopPropagation();
+      document.removeEventListener('mousemove', self.mousemove);
+      document.removeEventListener('mouseup', self.mouseup);
+      self.decor.zoom_grid.visible = false;
+      const not_panned = self.controls.stop();
+      // special case - centering on atoms after action 'pan' with no shift
+      if (not_panned) {
+        const atom = self.pick_atom(not_panned, self.camera);
+        if (atom != null) {
+          self.select_atom(atom, {steps: 60});
+        }
+      }
+      self.redraw_maps();
+    };
+
+    this.scheduled = false;
+    this.request_render();
   }
-};
+
+  pick_atom(coords/*:THREE.Vector2*/, camera/*:THREE.OrthographicCamera*/) {
+    const bag = this.active_model_bag;
+    if (bag === null) return;
+    this.raycaster.setFromCamera(coords, camera);
+    this.raycaster.near = camera.near;
+    // '0.15' b/c the furthest 15% is hardly visible in the fog
+    this.raycaster.far = camera.far - 0.15 * (camera.far - camera.near);
+    this.raycaster.linePrecision = 0.3;
+    let intersects = this.raycaster.intersectObjects(bag.atomic_objects);
+    if (intersects.length < 1) return null;
+    intersects.sort(function (x) { return x.line_dist || Infinity; });
+    const p = intersects[0].point;
+    return bag.model.get_nearest_atom(p.x, p.y, p.z);
+  }
+
+  set_colors(scheme/*:?ColorScheme*/) {
+    function to_col(x) { return new THREE.Color(x); }
+    if (scheme == null) {
+      scheme = this.ColorSchemes[0];
+    } else if (typeof scheme === 'number') {
+      scheme = this.ColorSchemes[scheme % this.ColorSchemes.length];
+    } else if (typeof scheme === 'string') {
+      for (let i = 0; i !== this.ColorSchemes.length; i++) {
+        if (this.ColorSchemes[i].name === scheme) {
+          scheme = this.ColorSchemes[i];
+          break;
+        }
+      }
+    }
+    if (scheme.bg === undefined) return;
+    if (typeof scheme.bg === 'number') {
+      for (let key in scheme) {
+        if (key !== 'name') {
+          scheme[key] = scheme[key] instanceof Array ? scheme[key].map(to_col)
+                                                     : to_col(scheme[key]);
+        }
+      }
+    }
+    this.decor.zoom_grid.color_value.set(scheme.fg);
+    this.redraw_all();
+  }
+
+  // relative position on canvas in normalized device coordinates [-1, +1]
+  relX(evt/*:{pageX: number}*/) {
+    return 2 * (evt.pageX - this.window_offset[0]) / this.window_size[0] - 1;
+  }
+
+  relY(evt/*:{pageY: number}*/) {
+    return 1 - 2 * (evt.pageY - this.window_offset[1]) / this.window_size[1];
+  }
+
+  hud(text/*:?string*/, type/*:?string*/) {
+    if (typeof document === 'undefined') return;  // for testing on node
+    let el = this.hud_el;
+    if (el) {
+      if (text !== undefined) {
+        if (type === 'HTML') {
+          el.innerHTML = text;
+        } else {
+          el.textContent = text;
+        }
+      } else {
+        el.innerHTML = this.initial_hud_html;
+      }
+      const err = (type === 'ERR');
+      el.style['background-color'] = (err ? '#b00' : this.initial_hud_bg);
+      if (err) console.log('ERR: ' + text);
+    } else {
+      console.log('hud: ' + text);
+    }
+  }
+
+  redraw_center() {
+    if (this.target.distanceToSquared(this.last_ctr) > 0.0001) {
+      this.last_ctr.copy(this.target);
+      if (this.mark) {
+        this.scene.remove(this.mark);
+      }
+      this.mark = makeCube(0.1, this.target, {
+        color: this.config.colors.center,
+        linewidth: 2,
+        win_size: this.window_size,
+      });
+      this.scene.add(this.mark);
+    }
+  }
+
+  redraw_maps(force) {
+    this.redraw_center();
+    for (const map_bag of this.map_bags) {
+      if (force || this.target.distanceToSquared(map_bag.block_ctr) > 0.01) {
+        this.redraw_map(map_bag);
+      }
+    }
+  }
+
+  remove_and_dispose(obj, only_dispose) {
+    if (!only_dispose) this.scene.remove(obj);
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) {
+      if (obj.material.uniforms && obj.material.uniforms.map) {
+        obj.material.uniforms.map.value.dispose();
+      }
+      obj.material.dispose();
+    }
+    for (let o of obj.children) {
+      this.remove_and_dispose(o);
+    }
+  }
+
+  clear_el_objects(map_bag/*:MapBag*/) {
+    for (let o of map_bag.el_objects) {
+      this.remove_and_dispose(o);
+    }
+    map_bag.el_objects = [];
+  }
+
+  clear_atomic_objects(model) {
+    for (let o of model.atomic_objects) {
+      this.remove_and_dispose(o);
+    }
+    model.atomic_objects = [];
+  }
+
+  set_atomic_objects(model_bag/*:ModelBag*/) {
+    model_bag.atomic_objects = [];
+    switch (model_bag.conf.render_style) {
+      case 'lines':
+        model_bag.add_bonds();
+        break;
+      case 'ball&stick': {
+        const h_scale = this.camera.projectionMatrix.elements[5];
+        const ball_size = Math.max(1, 200 * h_scale);
+        model_bag.add_bonds(false, ball_size);
+        break;
+      }
+      case 'trace':  // + lines for ligands
+        model_bag.add_trace();
+        model_bag.add_bonds(true);
+        break;
+      case 'ribbon':
+        model_bag.add_ribbon(8);
+        model_bag.add_bonds(true);
+        break;
+    }
+    for (let o of model_bag.atomic_objects) {
+      this.scene.add(o);
+    }
+  }
+
+  // Add/remove label if `show` is specified, toggle otherwise.
+  toggle_label(atom, show) {
+    if (!atom) return;
+    const text = atom.short_label();
+    const uid = text; // we assume that the labels are unique - often true
+    const is_shown = (uid in this.labels);
+    if (show === undefined) show = !is_shown;
+    if (show) {
+      if (is_shown) return;
+      const label = makeLabel(text, {
+        pos: atom.xyz,
+        font: this.config.label_font,
+        color: '#' + this.config.colors.fg.getHexString(),
+        win_size: this.window_size,
+      });
+      if (!label) return;
+      this.labels[uid] = label;
+      this.scene.add(label);
+    } else {
+      if (!is_shown) return;
+      this.remove_and_dispose(this.labels[uid]);
+      delete this.labels[uid];
+    }
+  }
+
+  redraw_labels() {
+    for (let uid in this.labels) { // eslint-disable-line guard-for-in
+      const text = uid;
+      this.labels[uid].remake(text, {
+        font: this.config.label_font,
+        color: '#' + this.config.colors.fg.getHexString(),
+      });
+    }
+  }
+
+  toggle_map_visibility(map_bag/*:MapBag*/) {
+    if (typeof map_bag === 'number') {
+      map_bag = this.map_bags[map_bag];
+    }
+    map_bag.visible = !map_bag.visible;
+    this.redraw_map(map_bag);
+    this.request_render();
+  }
+
+  redraw_map(map_bag/*:MapBag*/) {
+    this.clear_el_objects(map_bag);
+    if (map_bag.visible) {
+      map_bag.map.block.clear();
+      this.add_el_objects(map_bag);
+    }
+  }
+
+  toggle_model_visibility(model_bag/*:?ModelBag*/) {
+    model_bag = model_bag || this.active_model_bag;
+    if (model_bag == null) return;
+    model_bag.visible = !model_bag.visible;
+    this.redraw_model(model_bag);
+    this.request_render();
+  }
+
+  redraw_model(model_bag/*:ModelBag*/) {
+    this.clear_atomic_objects(model_bag);
+    if (model_bag.visible) {
+      this.set_atomic_objects(model_bag);
+    }
+  }
+
+  redraw_models() {
+    for (const model_bag of this.model_bags) {
+      this.redraw_model(model_bag);
+    }
+  }
+
+  add_el_objects(map_bag/*:MapBag*/) {
+    if (!map_bag.visible || this.config.map_radius <= 0) return;
+    if (map_bag.map.block.empty()) {
+      const t = this.target;
+      map_bag.block_ctr.copy(t);
+      map_bag.map.extract_block(this.config.map_radius, [t.x, t.y, t.z]);
+    }
+    for (const mtype of map_bag.types) {
+      const isolevel = (mtype === 'map_neg' ? -1 : 1) * map_bag.isolevel;
+      const iso = map_bag.map.isomesh_in_block(isolevel, this.config.map_style);
+
+      const obj = makeChickenWire(iso, {
+        color: this.config.colors[mtype],
+        linewidth: this.config.map_line,
+      });
+      map_bag.el_objects.push(obj);
+      this.scene.add(obj);
+    }
+  }
+
+  change_isolevel_by(map_idx/*:number*/, delta/*:number*/) {
+    if (map_idx >= this.map_bags.length) return;
+    const map_bag = this.map_bags[map_idx];
+    map_bag.isolevel += delta;
+    //TODO: move slow part into update()
+    this.clear_el_objects(map_bag);
+    this.add_el_objects(map_bag);
+    const abs_level = map_bag.map.abs_level(map_bag.isolevel);
+    let abs_text = abs_level.toFixed(4);
+    let tied = this.tied_viewer;
+    if (tied && map_idx < tied.map_bags.length) {
+      let tied_bag = tied.map_bags[map_idx];
+      // Should we tie by sigma or absolute level? Now it's sigma.
+      tied_bag.isolevel = map_bag.isolevel;
+      abs_text += ' / ' + tied_bag.map.abs_level(tied_bag.isolevel).toFixed(4);
+      tied.clear_el_objects(tied_bag);
+      tied.add_el_objects(tied_bag);
+    }
+    this.hud('map ' + (map_idx+1) + ' level =  ' + abs_text +
+             ' e/\u212B\u00B3 (' + map_bag.isolevel.toFixed(2) + ' rmsd)');
+  }
+
+  change_map_radius(delta/*:number*/) {
+    const RMAX = 40;
+    const cf = this.config;
+    cf.map_radius = Math.min(Math.max(cf.map_radius + delta, 0), RMAX);
+    let info = 'map "radius": ' + cf.map_radius;
+    if (cf.map_radius === RMAX) info += ' (max)';
+    else if (cf.map_radius === 0) info += ' (hidden maps)';
+    this.hud(info);
+    this.redraw_maps(true);
+  }
+
+  change_slab_width_by(delta/*:number*/) {
+    let slab_width = this.controls.slab_width;
+    slab_width[0] = Math.max(slab_width[0] + delta, 0.01);
+    slab_width[1] = Math.max(slab_width[1] + delta, 0.01);
+    this.update_camera();
+    const final_width = this.camera.far-this.camera.near;
+    this.hud('clip width: ' + final_width.toPrecision(3));
+  }
+
+  change_zoom_by_factor(mult/*:number*/) {
+    this.camera.zoom *= mult;
+    this.update_camera();
+    this.hud('zoom: ' + this.camera.zoom.toPrecision(3));
+  }
+
+  change_bond_line(delta/*:number*/) {
+    this.config.bond_line = Math.max(this.config.bond_line + delta, 0.1);
+    this.redraw_models();
+    this.hud('bond width: ' + scale_by_height(this.config.bond_line,
+                                              this.window_size).toFixed(1));
+  }
+
+  change_map_line(delta/*:number*/) {
+    this.config.map_line = Math.max(this.config.map_line + delta, 0.1);
+    this.redraw_maps(true);
+    this.hud('wireframe width: ' + this.config.map_line.toFixed(1));
+  }
+
+  toggle_full_screen() {
+    let d = document;
+    if (d.fullscreenElement || d.mozFullScreenElement ||
+        d.webkitFullscreenElement || d.msFullscreenElement) {
+      let ex = d.exitFullscreen || d.webkitExitFullscreen ||
+      // $FlowFixMe: property `msExitFullscreen` not found in document
+               d.mozCancelFullScreen || d.msExitFullscreen;
+      // $FlowFixMe: cannot call property `exitFullscreen` of unknown type
+      if (ex) ex.call(d);
+    } else {
+      let el = this.container;
+      if (!el) return;
+      let req = el.requestFullscreen || el.webkitRequestFullscreen ||
+                el.mozRequestFullScreen || el.msRequestFullscreen;
+      if (req) req.call(el);
+    }
+  }
+
+  toggle_cell_box() {
+    if (this.decor.cell_box) {
+      this.scene.remove(this.decor.cell_box);
+      this.decor.cell_box = null;
+    } else {
+      let uc = null;
+      if (this.model_bags.length > 0) {
+        uc = this.model_bags[0].model.unit_cell;
+      }
+      // model may not have unit cell
+      if (!uc && this.map_bags.length > 0) {
+        uc = this.map_bags[0].map.unit_cell;
+      }
+      if (uc) {
+        this.decor.cell_box = makeRgbBox(uc.orthogonalize.bind(uc), {
+          color: this.config.colors.fg,
+        });
+        this.scene.add(this.decor.cell_box);
+      }
+    }
+  }
+
+  shift_clip(delta/*:number*/) {
+    let eye = this.camera.position.clone().sub(this.target);
+    eye.multiplyScalar(delta / eye.length());
+    this.target.add(eye);
+    this.camera.position.add(eye);
+    this.update_camera();
+    this.redraw_maps();
+    this.hud('clip shifted by [' + vec3_to_fixed(eye, 2).join(' ') + ']');
+  }
+
+  go_to_nearest_Ca() {
+    const t = this.target;
+    if (this.active_model_bag == null) return;
+    const a = this.active_model_bag.model.get_nearest_atom(t.x, t.y, t.z, 'CA');
+    if (a) {
+      this.select_atom(a, {steps: 30});
+    } else {
+      this.hud('no nearby CA');
+    }
+  }
+
+  permalink() {
+    if (typeof window === 'undefined') return;
+    window.location.hash = '#xyz=' + vec3_to_fixed(this.target, 1).join(',') +
+      '&eye=' + vec3_to_fixed(this.camera.position, 1).join(',') +
+      '&zoom=' + this.camera.zoom.toFixed(0);
+    this.hud('copy URL from the location bar');
+  }
+
+  redraw_all() {
+    if (!this.renderer) return;
+    this.scene.fog.color = this.config.colors.bg;
+    if (this.renderer) this.renderer.setClearColor(this.config.colors.bg, 1);
+    this.redraw_models();
+    this.redraw_maps(true);
+    this.redraw_labels();
+  }
+
+  toggle_help() {
+    let el = this.help_el;
+    if (!el) return;
+    el.style.display = el.style.display === 'block' ? 'none' : 'block';
+    if (el.innerHTML === '') {
+      el.innerHTML = [this.MOUSE_HELP, this.KEYBOARD_HELP,
+                      this.ABOUT_HELP].join('\n\n');
+    }
+  }
+
+  select_next(info/*:string*/, key/*:string*/, options/*:mixed[]*/,
+              back/*:boolean*/) {
+    const old_idx = options.indexOf(this.config[key]);
+    const len = options.length;
+    const new_idx = (old_idx + (back ? len - 1 : 1)) % len;
+    this.config[key] = options[new_idx];
+    let html = info + ':';
+    for (let i = 0; i < len; i++) {
+      const tag = (i === new_idx ? 'u' : 's');
+      const opt_name = options[i].name || options[i];
+      html += ' <' + tag + '>' + opt_name + '</' + tag + '>';
+    }
+    this.hud(html, 'HTML');
+  }
+
+  keydown(evt/*:KeyboardEvent*/) {
+    const action = this.key_bindings[evt.keyCode];
+    if (action) {
+      (action.bind(this))(evt);
+    } else {
+      if (action === false) evt.preventDefault();
+      if (this.help_el) this.hud('Nothing here. Press H for help.');
+    }
+    this.request_render();
+  }
+
+  set_common_key_bindings() {
+    let kb = new Array(256);
+    // b
+    kb[66] = function (evt) {
+      this.select_next('color scheme', 'colors', this.ColorSchemes,
+                       evt.shiftKey);
+      this.set_colors(this.config.colors);
+    };
+    // c
+    kb[67] = function (evt) {
+      this.select_next('coloring by', 'color_aim', COLOR_AIMS, evt.shiftKey);
+      this.redraw_models();
+    };
+    // d
+    kb[68] = function () { this.change_slab_width_by(-0.1); };
+    // f
+    kb[70] = function (evt) {
+      evt.shiftKey ? this.toggle_full_screen() : this.change_slab_width_by(0.1);
+    };
+    // h
+    kb[72] = this.toggle_help;
+    // i
+    kb[73] = function (evt) {
+      this.hud('toggled spinning');
+      this.controls.toggle_auto(evt.shiftKey);
+    };
+    // k
+    kb[75] = function () {
+      this.hud('toggled rocking');
+      this.controls.toggle_auto(0.0);
+    };
+    // m
+    kb[77] = function (evt) {
+      this.change_zoom_by_factor(evt.shiftKey ? 1.2 : 1.03);
+    };
+    // n
+    kb[78] = function (evt) {
+      this.change_zoom_by_factor(1 / (evt.shiftKey ? 1.2 : 1.03));
+    };
+    // q
+    kb[81] = function (evt) {
+      this.select_next('label font', 'label_font', LABEL_FONTS, evt.shiftKey);
+      this.redraw_labels();
+    };
+    // r
+    kb[82] = function (evt) {
+      if (evt.shiftKey) {
+        this.hud('redraw!');
+        this.redraw_all();
+      } else {
+        this.hud('recentered');
+        this.recenter();
+      }
+    };
+    // u
+    kb[85] = function () {
+      this.hud('toggled unit cell box');
+      this.toggle_cell_box();
+    };
+    // w
+    kb[87] = function (evt) {
+      this.select_next('map style', 'map_style', MAP_STYLES, evt.shiftKey);
+      this.redraw_maps(true);
+    };
+    // add, equals/firefox, equal sign
+    kb[107] = kb[61] = kb[187] = function (evt) {
+      this.change_isolevel_by(evt.shiftKey ? 1 : 0, 0.1);
+    };
+    // subtract, minus/firefox, dash
+    kb[109] = kb[173] = kb[189] = function (evt) {
+      this.change_isolevel_by(evt.shiftKey ? 1 : 0, -0.1);
+    };
+    // [
+    kb[219] = function () { this.change_map_radius(-2); };
+    // ]
+    kb[221] = function () { this.change_map_radius(2); };
+    // \ (backslash)
+    kb[220] = function (evt) {
+      this.select_next('bond lines', 'line_style', LINE_STYLES, evt.shiftKey);
+      this.redraw_models();
+    };
+    // 3, numpad 3
+    kb[51] = kb[99] = function () { this.shift_clip(1); };
+    // numpad period (Linux), decimal point (Mac)
+    kb[108] = kb[110] = function () { this.shift_clip(-1); };
+    // shift, ctrl, alt, altgr
+    kb[16] = kb[17] = kb[18] = kb[225] = function () {};
+    // slash, single quote
+    kb[191] = kb[222] = false;  // -> preventDefault()
+
+    this.key_bindings = kb;
+  }
+
+  set_real_space_key_bindings() {
+    let kb = this.key_bindings;
+    // Home
+    kb[36] = function (evt) {
+      evt.ctrlKey ? this.change_map_line(0.1) : this.change_bond_line(0.2);
+    };
+    // End
+    kb[35] = function (evt) {
+      evt.ctrlKey ? this.change_map_line(-0.1) : this.change_bond_line(-0.2);
+    };
+    // Space
+    kb[32] = function (evt) { this.center_next_residue(evt.shiftKey); };
+    // p
+    kb[80] = function (evt) {
+      evt.shiftKey ? this.permalink() : this.go_to_nearest_Ca();
+    };
+    // t
+    kb[84] = function (evt) {
+      this.select_next('rendering as', 'render_style', RENDER_STYLES,
+                       evt.shiftKey);
+      this.redraw_models();
+    };
+    // y
+    kb[89] = function (evt) {
+      this.config.hydrogens = !this.config.hydrogens;
+      this.hud((this.config.hydrogens ? 'show' : 'hide') +
+               ' hydrogens (if any)');
+      this.redraw_models();
+    };
+  }
+
+  mousedown(event/*:MouseEvent*/) {
+    //event.preventDefault(); // default involves setting focus, which we need
+    event.stopPropagation();
+    document.addEventListener('mouseup', this.mouseup);
+    document.addEventListener('mousemove', this.mousemove);
+    let state = STATE.NONE;
+    if (event.button === 1 || (event.button === 0 && event.ctrlKey)) {
+      state = STATE.PAN;
+    } else if (event.button === 0) {
+      // in Coot shift+Left is labeling atoms like dblclick, + rotation
+      if (event.shiftKey) {
+        this.dblclick(event);
+      }
+      state = STATE.ROTATE;
+    } else if (event.button === 2) {
+      if (event.ctrlKey) {
+        state = event.shiftKey ? STATE.ROLL : STATE.SLAB;
+      } else {
+        this.decor.zoom_grid.visible = true;
+        state = STATE.ZOOM;
+      }
+    }
+    this.controls.start(state, this.relX(event), this.relY(event));
+    this.request_render();
+  }
+
+  dblclick(event/*:MouseEvent*/) {
+    if (event.button !== 0) return;
+    if (this.decor.selection) {
+      this.remove_and_dispose(this.decor.selection);
+      this.decor.selection = null;
+    }
+    const mouse = new THREE.Vector2(this.relX(event), this.relY(event));
+    const atom = this.pick_atom(mouse, this.camera);
+    if (atom) {
+      this.hud(atom.long_label());
+      this.toggle_label(atom);
+      const color = this.config.colors[atom.element] || this.config.colors.def;
+      const size = 2.5 * scale_by_height(this.config.bond_line,
+                                         this.window_size);
+      this.decor.selection = makeWheels([atom], [color], size);
+      this.scene.add(this.decor.selection);
+    } else {
+      this.hud();
+    }
+    this.request_render();
+  }
+
+  touchstart(event/*:TouchEvent*/) {
+    const touches = event.touches;
+    if (touches.length === 1) {
+      this.controls.start(STATE.ROTATE,
+                          this.relX(touches[0]), this.relY(touches[0]));
+    } else { // for now using only two touches
+      const info = touch_info(event);
+      this.controls.start(STATE.PAN_ZOOM,
+                          this.relX(info), this.relY(info), info.dist);
+    }
+    this.request_render();
+  }
+
+  touchmove(event/*:TouchEvent*/) {
+    event.preventDefault();
+    event.stopPropagation();
+    const touches = event.touches;
+    if (touches.length === 1) {
+      this.controls.move(this.relX(touches[0]), this.relY(touches[0]));
+    } else { // for now using only two touches
+      const info = touch_info(event);
+      this.controls.move(this.relX(info), this.relY(info), info.dist);
+    }
+  }
+
+  touchend(/*event*/) {
+    this.controls.stop();
+    this.redraw_maps();
+  }
+
+  mousewheel(evt/*:WheelEvent*/) {
+    evt.preventDefault();
+    evt.stopPropagation();
+    // evt.wheelDelta for WebKit, evt.detail for Firefox
+    const delta = evt.wheelDelta || -2 * (evt.detail || 0);
+    this.mousewheel_action(delta, evt);
+    this.request_render();
+  }
+
+  mousewheel_action(delta/*number*/, evt/*:WheelEvent*/) {
+    this.change_isolevel_by(evt.shiftKey ? 1 : 0, 0.0005 * delta);
+  }
+
+  resize(/*evt*/) {
+    const el = this.container;
+    if (el == null) return;
+    const width = el.clientWidth;
+    const height = el.clientHeight;
+    this.window_offset[0] = el.offsetLeft;
+    this.window_offset[1] = el.offsetTop;
+    this.camera.left = -width;
+    this.camera.right = width;
+    this.camera.top = height;
+    this.camera.bottom = -height;
+    this.camera.updateProjectionMatrix();
+    this.renderer.setSize(width, height);
+    if (width !== this.window_size[0] || height !== this.window_size[1]) {
+      this.window_size[0] = width;
+      this.window_size[1] = height;
+      this.redraw_models(); // b/c bond_line is scaled by height
+    }
+    this.request_render();
+  }
+
+  // If xyz set recenter on it looking toward the model center.
+  // Otherwise recenter on the model center looking along the z axis.
+  recenter(xyz, cam, steps) {
+    const bag = this.active_model_bag;
+    let new_up;
+    if (xyz != null && cam == null && bag !== null) {
+      // look from specified point toward the center of the molecule,
+      // i.e. shift camera away from the molecule center.
+      xyz = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
+      const mc = bag.model.get_center();
+      let d = new THREE.Vector3(xyz[0] - mc[0], xyz[1] - mc[1], xyz[2] - mc[2]);
+      d.setLength(100);
+      new_up = d.y < 90 ? new THREE.Vector3(0, 1, 0)
+                        : new THREE.Vector3(1, 0, 0);
+      new_up.projectOnPlane(d).normalize();
+      cam = d.add(xyz);
+    } else {
+      xyz = xyz || (bag ? bag.model.get_center() : [0, 0, 0]);
+      if (cam != null) {
+        cam = new THREE.Vector3(cam[0], cam[1], cam[2]);
+        new_up = null; // preserve the up direction
+      } else {
+        const dc = this.default_camera_pos;
+        cam = new THREE.Vector3(xyz[0] + dc[0], xyz[1] + dc[1], xyz[2] + dc[2]);
+        new_up = THREE.Object3D.DefaultUp; // Vector3(0, 1, 0)
+      }
+    }
+    this.controls.go_to(xyz, cam, new_up, steps);
+  }
+
+  center_next_residue(back/*:boolean*/) {
+    const bag = this.active_model_bag;
+    if (!bag) return;
+    const a = bag.model.next_residue(this.selected_atom, back);
+    if (a) this.select_atom(a, {steps: 30});
+  }
+
+  select_atom(atom/*:AtomT*/, options = {}) {
+    this.hud('-> ' + atom.long_label());
+    this.controls.go_to(atom.xyz, null, null, options.steps);
+    this.toggle_label(this.selected_atom);
+    this.selected_atom = atom;
+    this.toggle_label(atom);
+  }
+
+  update_camera() {
+    const dxyz = this.camera.position.distanceTo(this.target);
+    const w = this.controls.slab_width;
+    const scale = w.length === 3 ? w[2] : this.camera.zoom;
+    this.camera.near = dxyz * (1 - w[0] / scale);
+    this.camera.far = dxyz * (1 + w[1] / scale);
+    //this.light.position.copy(this.camera.position);
+    this.camera.updateProjectionMatrix();
+  }
+
+  // The main loop. Running when a mouse button is pressed or when the view
+  // is moving (and run once more after the mouse button is released).
+  // It is also triggered by keydown events.
+  render() {
+    this.scheduled = true;
+    if (this.renderer === null) return;
+    if (this.controls.update()) {
+      this.update_camera();
+    }
+    const tied = this.tied_viewer;
+    if (!this.controls.is_going()) {
+      this.redraw_maps();
+      if (tied && !tied.scheduled) tied.redraw_maps();
+    }
+    this.renderer.render(this.scene, this.camera);
+    if (tied && !tied.scheduled) tied.renderer.render(tied.scene, tied.camera);
+    if (this.nav) {
+      this.nav.renderer.render(this.nav.scene, this.camera);
+    }
+    this.scheduled = false;
+    if (this.controls.is_moving()) {
+      this.request_render();
+    }
+    if (this.stats) {
+      this.stats.update();
+    }
+  }
+
+  request_render() {
+    if (typeof window !== 'undefined' && !this.scheduled) {
+      this.scheduled = true;
+      window.requestAnimationFrame(this.render.bind(this));
+    }
+  }
+
+  set_model(model/*:Model*/) {
+    const model_bag = new ModelBag(model, this.config, this.window_size);
+    this.model_bags.push(model_bag);
+    this.set_atomic_objects(model_bag);
+    this.active_model_bag = model_bag;
+    this.request_render();
+  }
+
+  add_map(map/*:Map*/, is_diff_map/*:boolean*/) {
+    //map.show_debug_info();
+    const map_bag = new MapBag(map, is_diff_map);
+    this.map_bags.push(map_bag);
+    this.add_el_objects(map_bag);
+    this.request_render();
+  }
+
+  load_file(url/*:string*/, options/*:{[id:string]: mixed}*/,
+            callback/*:Function*/) {
+    if (this.renderer === null) return;  // no WebGL detected
+    let req = new XMLHttpRequest();
+    req.open('GET', url, true);
+    if (options.binary) {
+      req.responseType = 'arraybuffer';
+    } else {
+      // http://stackoverflow.com/questions/7374911/
+      req.overrideMimeType('text/plain');
+    }
+    let self = this;
+    req.onreadystatechange = function () {
+      if (req.readyState === 4) {
+        // chrome --allow-file-access-from-files gives status 0
+        if (req.status === 200 || (req.status === 0 && req.response !== null)) {
+          try {
+            callback(req);
+          } catch (e) {
+            self.hud('Error: ' + e.message + '\nin ' + url, 'ERR');
+          }
+        } else {
+          self.hud('Failed to fetch ' + url, 'ERR');
+        }
+      }
+    };
+    if (options.progress) {
+      req.addEventListener('progress', function (evt /*:ProgressEvent*/) {
+        if (evt.lengthComputable && evt.loaded && evt.total) {
+          const fn = url.split('/').pop();
+          self.hud('loading ' + fn + ' ... ' +
+                   (evt.loaded >> 10) + ' / ' + (evt.total >> 10) + ' kB');
+          if (evt.loaded === evt.total) self.hud(); // clear progress message
+        }
+      });
+    }
+    try {
+      req.send(null);
+    } catch (e) {
+      self.hud('loading ' + url + ' failed:\n' + e, 'ERR');
+    }
+  }
+
+  set_view(options) {
+    const frag = parse_url_fragment();
+    if (frag.zoom) this.camera.zoom = frag.zoom;
+    this.recenter(frag.xyz || (options && options.center), frag.eye, 1);
+  }
+
+  // Load molecular model from PDB file and centers the view
+  load_pdb(url/*:string*/, options, callback) {
+    let self = this;
+    this.load_file(url, {binary: false}, function (req) {
+      let model = new Model();
+      model.from_pdb(req.responseText);
+      self.set_model(model);
+      self.set_view(options);
+      if (callback) callback();
+    });
+  }
+
+  load_map(url/*:string*/, options, callback) {
+    if (options.format !== 'ccp4' && options.format !== 'dsn6') {
+      throw Error('Unknown map format.');
+    }
+    let self = this;
+    this.load_file(url, {binary: true, progress: true}, function (req) {
+      self.load_map_from_buffer(req.response, options);
+      if (callback) callback();
+    });
+  }
+
+  load_map_from_buffer(buffer, options) {
+    let map = new ElMap();
+    if (options.format === 'dsn6') {
+      map.from_dsn6(buffer);
+    } else {
+      map.from_ccp4(buffer, true);
+    }
+    this.add_map(map, options.diff_map);
+  }
+
+  // Load a normal map and a difference map.
+  // To show the first map ASAP we do not download both maps in parallel.
+  load_ccp4_maps(url1/*:string*/, url2/*:string*/, callback) {
+    let self = this;
+    this.load_map(url1, {diff_map: false, format: 'ccp4'}, function () {
+      self.load_map(url2, {diff_map: true, format: 'ccp4'}, callback);
+    });
+  }
+
+  // Load a model (PDB), normal map and a difference map - in this order.
+  load_pdb_and_ccp4_maps(pdb, map1, map2, callback) {
+    let self = this;
+    this.load_pdb(pdb, {}, function () {
+      self.load_ccp4_maps(map1, map2, callback);
+    });
+  }
+
+  // TODO: navigation window like in gimp and mifit
+  /*
+  show_nav(inset_id) {
+    var inset = document.getElementById(inset_id);
+    if (!inset) return;
+    inset.style.display = 'block';
+    var nav = {};
+    nav.renderer = new THREE.WebGLRenderer();
+    nav.renderer.setClearColor(0x555555, 1);
+    nav.renderer.setSize(200, 200);
+    inset.appendChild(nav.renderer.domElement);
+    //nav.scene = new THREE.Scene();
+    nav.scene = this.scene;
+    //var light = new THREE.AmbientLight(0xffffff);
+    //nav.scene.add(light);
+    this.nav = nav;
+  };
+  */
+}
 
 Viewer.prototype.MOUSE_HELP = [
   '<b>mouse:</b>',
@@ -858,515 +1420,6 @@ Viewer.prototype.KEYBOARD_HELP = [
 
 Viewer.prototype.ABOUT_HELP =
   '<a href="https://uglymol.github.io">about uglymol</a>';
-
-Viewer.prototype.select_next = function (info, key, options, back) {
-  const old_idx = options.indexOf(this.config[key]);
-  const len = options.length;
-  const new_idx = (old_idx + (back ? len - 1 : 1)) % len;
-  this.config[key] = options[new_idx];
-  let html = info + ':';
-  for (let i = 0; i < len; i++) {
-    const tag = (i === new_idx ? 'u' : 's');
-    const opt_name = options[i].name || options[i];
-    html += ' <' + tag + '>' + opt_name + '</' + tag + '>';
-  }
-  this.hud(html, 'HTML');
-};
-
-Viewer.prototype.keydown = function (evt) {
-  const action = this.key_bindings[evt.keyCode];
-  if (action) {
-    (action.bind(this))(evt);
-  } else {
-    if (action === false) evt.preventDefault();
-    if (this.help_el) this.hud('Nothing here. Press H for help.');
-  }
-  this.request_render();
-};
-
-Viewer.prototype.set_common_key_bindings = function () {
-  let kb = new Array(256);
-  // b
-  kb[66] = function (evt) {
-    this.select_next('color scheme', 'colors', this.ColorSchemes, evt.shiftKey);
-    this.set_colors(this.config.colors);
-  };
-  // c
-  kb[67] = function (evt) {
-    this.select_next('coloring by', 'color_aim', COLOR_AIMS, evt.shiftKey);
-    this.redraw_models();
-  };
-  // d
-  kb[68] = function () { this.change_slab_width_by(-0.1); };
-  // f
-  kb[70] = function (evt) {
-    evt.shiftKey ? this.toggle_full_screen() : this.change_slab_width_by(0.1);
-  };
-  // h
-  kb[72] = this.toggle_help;
-  // i
-  kb[73] = function (evt) {
-    this.hud('toggled spinning');
-    this.controls.toggle_auto(evt.shiftKey);
-  };
-  // k
-  kb[75] = function () {
-    this.hud('toggled rocking');
-    this.controls.toggle_auto(0.0);
-  };
-  // m
-  kb[77] = function (evt) {
-    this.change_zoom_by_factor(evt.shiftKey ? 1.2 : 1.03);
-  };
-  // n
-  kb[78] = function (evt) {
-    this.change_zoom_by_factor(1 / (evt.shiftKey ? 1.2 : 1.03));
-  };
-  // q
-  kb[81] = function (evt) {
-    this.select_next('label font', 'label_font', LABEL_FONTS, evt.shiftKey);
-    this.redraw_labels();
-  };
-  // r
-  kb[82] = function (evt) {
-    if (evt.shiftKey) {
-      this.hud('redraw!');
-      this.redraw_all();
-    } else {
-      this.hud('recentered');
-      this.recenter();
-    }
-  };
-  // u
-  kb[85] = function () {
-    this.hud('toggled unit cell box');
-    this.toggle_cell_box();
-  };
-  // w
-  kb[87] = function (evt) {
-    this.select_next('map style', 'map_style', MAP_STYLES, evt.shiftKey);
-    this.redraw_maps(true);
-  };
-  // add, equals/firefox, equal sign
-  kb[107] = kb[61] = kb[187] = function (evt) {
-    this.change_isolevel_by(evt.shiftKey ? 1 : 0, 0.1);
-  };
-  // subtract, minus/firefox, dash
-  kb[109] = kb[173] = kb[189] = function (evt) {
-    this.change_isolevel_by(evt.shiftKey ? 1 : 0, -0.1);
-  };
-  // [
-  kb[219] = function () { this.change_map_radius(-2); };
-  // ]
-  kb[221] = function () { this.change_map_radius(2); };
-  // \ (backslash)
-  kb[220] = function (evt) {
-    this.select_next('bond lines', 'line_style', LINE_STYLES, evt.shiftKey);
-    this.redraw_models();
-  };
-  // 3, numpad 3
-  kb[51] = kb[99] = function () { this.shift_clip(1); };
-  // numpad period (Linux), decimal point (Mac)
-  kb[108] = kb[110] = function () { this.shift_clip(-1); };
-  // shift, ctrl, alt, altgr
-  kb[16] = kb[17] = kb[18] = kb[225] = function () {};
-  // slash, single quote
-  kb[191] = kb[222] = false;  // -> preventDefault()
-
-  this.key_bindings = kb;
-};
-
-Viewer.prototype.set_real_space_key_bindings = function () {
-  let kb = this.key_bindings;
-  // Home
-  kb[36] = function (evt) {
-    evt.ctrlKey ? this.change_map_line(0.1) : this.change_bond_line(0.2);
-  };
-  // End
-  kb[35] = function (evt) {
-    evt.ctrlKey ? this.change_map_line(-0.1) : this.change_bond_line(-0.2);
-  };
-  // Space
-  kb[32] = function (evt) { this.center_next_residue(evt.shiftKey); };
-  // p
-  kb[80] = function (evt) {
-    evt.shiftKey ? this.permalink() : this.go_to_nearest_Ca();
-  };
-  // t
-  kb[84] = function (evt) {
-    this.select_next('rendering as', 'render_style', RENDER_STYLES,
-                     evt.shiftKey);
-    this.redraw_models();
-  };
-  // y
-  kb[89] = function (evt) {
-    this.config.hydrogens = !this.config.hydrogens;
-    this.hud((this.config.hydrogens ? 'show' : 'hide') +
-             ' hydrogens (if any)');
-    this.redraw_models();
-  };
-};
-
-Viewer.prototype.mousedown = function (event) {
-  //event.preventDefault(); // default involves setting focus, which we need
-  event.stopPropagation();
-  document.addEventListener('mouseup', this.mouseup);
-  document.addEventListener('mousemove', this.mousemove);
-  let state = STATE.NONE;
-  if (event.button === 1 || (event.button === 0 && event.ctrlKey)) {
-    state = STATE.PAN;
-  } else if (event.button === 0) {
-    // in Coot shift+Left is labeling atoms like dblclick, + rotation
-    if (event.shiftKey) {
-      this.dblclick(event);
-    }
-    state = STATE.ROTATE;
-  } else if (event.button === 2) {
-    if (event.ctrlKey) {
-      state = event.shiftKey ? STATE.ROLL : STATE.SLAB;
-    } else {
-      this.decor.zoom_grid.visible = true;
-      state = STATE.ZOOM;
-    }
-  }
-  this.controls.start(state, this.relX(event), this.relY(event));
-  this.request_render();
-};
-
-Viewer.prototype.dblclick = function (event) {
-  if (event.button !== 0) return;
-  if (this.decor.selection) {
-    this.remove_and_dispose(this.decor.selection);
-    this.decor.selection = null;
-  }
-  const mouse = new THREE.Vector2(this.relX(event), this.relY(event));
-  const atom = this.pick_atom(mouse, this.camera);
-  if (atom) {
-    this.hud(atom.long_label());
-    this.toggle_label(atom);
-    const color = this.config.colors[atom.element] || this.config.colors.def;
-    const size = 2.5 * scale_by_height(this.config.bond_line, this.window_size);
-    this.decor.selection = makeWheels([atom], [color], size);
-    this.scene.add(this.decor.selection);
-  } else {
-    this.hud();
-  }
-  this.request_render();
-};
-
-// for two-finger touch events
-function touch_info(evt) {
-  const touches = evt.touches;
-  const dx = touches[0].pageX - touches[1].pageX;
-  const dy = touches[0].pageY - touches[1].pageY;
-  return {pageX: (touches[0].pageX + touches[1].pageX) / 2,
-          pageY: (touches[0].pageY + touches[1].pageY) / 2,
-          dist: Math.sqrt(dx * dx + dy * dy)};
-}
-
-Viewer.prototype.touchstart = function (event) {
-  const touches = event.touches;
-  if (touches.length === 1) {
-    this.controls.start(STATE.ROTATE,
-                        this.relX(touches[0]), this.relY(touches[0]));
-  } else { // for now using only two touches
-    const info = touch_info(event);
-    this.controls.start(STATE.PAN_ZOOM,
-                        this.relX(info), this.relY(info), info.dist);
-  }
-  this.request_render();
-};
-
-Viewer.prototype.touchmove = function (event) {
-  event.preventDefault();
-  event.stopPropagation();
-  const touches = event.touches;
-  if (touches.length === 1) {
-    this.controls.move(this.relX(touches[0]), this.relY(touches[0]));
-  } else { // for now using only two touches
-    const info = touch_info(event);
-    this.controls.move(this.relX(info), this.relY(info), info.dist);
-  }
-};
-
-Viewer.prototype.touchend = function (/*event*/) {
-  this.controls.stop();
-  this.redraw_maps();
-};
-
-Viewer.prototype.mousewheel = function (evt) {
-  evt.preventDefault();
-  evt.stopPropagation();
-  // evt.wheelDelta for WebKit, evt.detail for Firefox
-  const delta = evt.wheelDelta || -2 * (evt.detail || 0);
-  this.mousewheel_action(delta, evt);
-  this.request_render();
-};
-
-Viewer.prototype.mousewheel_action = function (delta, evt) {
-  this.change_isolevel_by(evt.shiftKey ? 1 : 0, 0.0005 * delta);
-};
-
-Viewer.prototype.resize = function (/*evt*/) {
-  const el = this.container;
-  const width = el.clientWidth;
-  const height = el.clientHeight;
-  this.window_offset[0] = el.offsetLeft;
-  this.window_offset[1] = el.offsetTop;
-  this.camera.left = -width;
-  this.camera.right = width;
-  this.camera.top = height;
-  this.camera.bottom = -height;
-  this.camera.updateProjectionMatrix();
-  this.renderer.setSize(width, height);
-  if (width !== this.window_size[0] || height !== this.window_size[1]) {
-    this.window_size[0] = width;
-    this.window_size[1] = height;
-    this.redraw_models(); // b/c bond_line is scaled by height
-  }
-  this.request_render();
-};
-
-// makes sense only for full-window viewer
-function parse_url_fragment() {
-  let ret = {};
-  if (typeof window === 'undefined') return ret;
-  const params = window.location.hash.substr(1).split('&');
-  for (let i = 0; i < params.length; i++) {
-    const kv = params[i].split('=');
-    let val = kv[1];
-    if (kv[0] === 'xyz' || kv[0] === 'eye') {
-      val = val.split(',').map(Number);
-    } else if (kv[0] === 'zoom') {
-      val = Number(val);
-    }
-    ret[kv[0]] = val;
-  }
-  return ret;
-}
-
-// If xyz set recenter on it looking toward the model center.
-// Otherwise recenter on the model center looking along the z axis.
-Viewer.prototype.recenter = function (xyz, cam, steps) {
-  const bag = this.active_model_bag;
-  let new_up;
-  if (xyz != null && cam == null && bag !== null) {
-    // look from specified point toward the center of the molecule,
-    // i.e. shift camera away from the molecule center.
-    xyz = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
-    const mc = bag.model.get_center();
-    let d = new THREE.Vector3(xyz[0] - mc[0], xyz[1] - mc[1], xyz[2] - mc[2]);
-    d.setLength(100);
-    new_up = d.y < 90 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
-    new_up.projectOnPlane(d).normalize();
-    cam = d.add(xyz);
-  } else {
-    xyz = xyz || (bag ? bag.model.get_center() : [0, 0, 0]);
-    if (cam != null) {
-      cam = new THREE.Vector3(cam[0], cam[1], cam[2]);
-      new_up = null; // preserve the up direction
-    } else {
-      const dc = this.default_camera_pos;
-      cam = new THREE.Vector3(xyz[0] + dc[0], xyz[1] + dc[1], xyz[2] + dc[2]);
-      new_up = THREE.Object3D.DefaultUp; // Vector3(0, 1, 0)
-    }
-  }
-  this.controls.go_to(xyz, cam, new_up, steps);
-};
-
-Viewer.prototype.center_next_residue = function (back) {
-  if (!this.active_model_bag) return;
-  const a = this.active_model_bag.model.next_residue(this.selected_atom, back);
-  if (a) this.select_atom(a, {steps: 30});
-};
-
-Viewer.prototype.select_atom = function (atom, options = {}) {
-  this.hud('-> ' + atom.long_label());
-  this.controls.go_to(atom.xyz, null, null, options.steps);
-  this.toggle_label(this.selected_atom);
-  this.selected_atom = atom;
-  this.toggle_label(atom);
-};
-
-Viewer.prototype.update_camera = function () {
-  const dxyz = this.camera.position.distanceTo(this.target);
-  const w = this.controls.slab_width;
-  const scale = w.length === 3 ? w[2] : this.camera.zoom;
-  this.camera.near = dxyz * (1 - w[0] / scale);
-  this.camera.far = dxyz * (1 + w[1] / scale);
-  //this.light.position.copy(this.camera.position);
-  this.camera.updateProjectionMatrix();
-};
-
-// The main loop. Running when a mouse button is pressed or when the view
-// is moving (and run once more after the mouse button is released).
-// It is also triggered by keydown events.
-Viewer.prototype.render = function () {
-  this.scheduled = true;
-  if (this.renderer === null) return;
-  if (this.controls.update()) {
-    this.update_camera();
-  }
-  const tied = this.tied_viewer;
-  if (!this.controls.is_going()) {
-    this.redraw_maps();
-    if (tied && !tied.scheduled) tied.redraw_maps();
-  }
-  this.renderer.render(this.scene, this.camera);
-  if (tied && !tied.scheduled) tied.renderer.render(tied.scene, tied.camera);
-  if (this.nav) {
-    this.nav.renderer.render(this.nav.scene, this.camera);
-  }
-  this.scheduled = false;
-  if (this.controls.is_moving()) {
-    this.request_render();
-  }
-  if (this.stats) {
-    this.stats.update();
-  }
-};
-
-Viewer.prototype.request_render = function () {
-  if (typeof window !== 'undefined' && !this.scheduled) {
-    this.scheduled = true;
-    window.requestAnimationFrame(this.render.bind(this));
-  }
-};
-
-Viewer.prototype.set_model = function (model) {
-  const model_bag = new ModelBag(model, this.config, this.window_size);
-  this.model_bags.push(model_bag);
-  this.set_atomic_objects(model_bag);
-  this.active_model_bag = model_bag;
-  this.request_render();
-};
-
-Viewer.prototype.add_map = function (map, is_diff_map) {
-  //map.show_debug_info();
-  const map_bag = new MapBag(map, is_diff_map);
-  this.map_bags.push(map_bag);
-  this.add_el_objects(map_bag);
-  this.request_render();
-};
-
-Viewer.prototype.load_file = function (url/*:string*/,
-                                       options/*:{[id:string]: mixed}*/,
-                                       callback/*:Function*/) {
-  if (this.renderer === null) return;  // no WebGL detected
-  let req = new XMLHttpRequest();
-  req.open('GET', url, true);
-  if (options.binary) {
-    req.responseType = 'arraybuffer';
-  } else {
-    // http://stackoverflow.com/questions/7374911/
-    req.overrideMimeType('text/plain');
-  }
-  let self = this;
-  req.onreadystatechange = function () {
-    if (req.readyState === 4) {
-      // chrome --allow-file-access-from-files gives status 0
-      if (req.status === 200 || (req.status === 0 && req.response !== null)) {
-        try {
-          callback(req);
-        } catch (e) {
-          self.hud('Error: ' + e.message + '\nin ' + url, 'ERR');
-        }
-      } else {
-        self.hud('Failed to fetch ' + url, 'ERR');
-      }
-    }
-  };
-  if (options.progress) {
-    req.addEventListener('progress', function (evt /*:ProgressEvent*/) {
-      if (evt.lengthComputable && evt.loaded && evt.total) {
-        const fn = url.split('/').pop();
-        self.hud('loading ' + fn + ' ... ' +
-                 (evt.loaded >> 10) + ' / ' + (evt.total >> 10) + ' kB');
-        if (evt.loaded === evt.total) self.hud(); // clear progress message
-      }
-    });
-  }
-  try {
-    req.send(null);
-  } catch (e) {
-    self.hud('loading ' + url + ' failed:\n' + e, 'ERR');
-  }
-};
-
-Viewer.prototype.set_view = function (options) {
-  const frag = parse_url_fragment();
-  if (frag.zoom) this.camera.zoom = frag.zoom;
-  this.recenter(frag.xyz || (options && options.center), frag.eye, 1);
-};
-
-// Load molecular model from PDB file and centers the view
-Viewer.prototype.load_pdb = function (url, options, callback) {
-  let self = this;
-  this.load_file(url, {binary: false}, function (req) {
-    let model = new Model();
-    model.from_pdb(req.responseText);
-    self.set_model(model);
-    self.set_view(options);
-    if (callback) callback();
-  });
-};
-
-Viewer.prototype.load_map = function (url, options, callback) {
-  if (options.format !== 'ccp4' && options.format !== 'dsn6') {
-    throw Error('Unknown map format.');
-  }
-  let self = this;
-  this.load_file(url, {binary: true, progress: true}, function (req) {
-    self.load_map_from_buffer(req.response, options);
-    if (callback) callback();
-  });
-};
-
-Viewer.prototype.load_map_from_buffer = function (buffer, options) {
-  let map = new ElMap();
-  if (options.format === 'dsn6') {
-    map.from_dsn6(buffer);
-  } else {
-    map.from_ccp4(buffer, true);
-  }
-  this.add_map(map, options.diff_map);
-};
-
-// Load a normal map and a difference map.
-// To show the first map ASAP we do not download both maps in parallel.
-Viewer.prototype.load_ccp4_maps = function (url1, url2, callback) {
-  let self = this;
-  this.load_map(url1, {diff_map: false, format: 'ccp4'}, function () {
-    self.load_map(url2, {diff_map: true, format: 'ccp4'}, callback);
-  });
-};
-
-// Load a model (PDB), normal map and a difference map - in this order.
-Viewer.prototype.load_pdb_and_ccp4_maps = function (pdb, map1, map2, callback) {
-  let self = this;
-  this.load_pdb(pdb, {}, function () {
-    self.load_ccp4_maps(map1, map2, callback);
-  });
-};
-
-// TODO: navigation window like in gimp and mifit
-/*
-Viewer.prototype.show_nav = function (inset_id) {
-  var inset = document.getElementById(inset_id);
-  if (!inset) return;
-  inset.style.display = 'block';
-  var nav = {};
-  nav.renderer = new THREE.WebGLRenderer();
-  nav.renderer.setClearColor(0x555555, 1);
-  nav.renderer.setSize(200, 200);
-  inset.appendChild(nav.renderer.domElement);
-  //nav.scene = new THREE.Scene();
-  nav.scene = this.scene;
-  //var light = new THREE.AmbientLight(0xffffff);
-  //nav.scene.add(light);
-  this.nav = nav;
-};
-*/
 
 Viewer.prototype.ColorSchemes = ColorSchemes;
 
