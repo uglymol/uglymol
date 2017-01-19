@@ -25,6 +25,10 @@ class GridArray {
     return this.dim[2] * (this.dim[1] * i + j) + k;
   }
 
+  grid2index_unchecked(i, j, k) {
+    return this.dim[2] * (this.dim[1] * i + j) + k;
+  }
+
   grid2frac(i, j, k) {
     return [i / this.dim[0], j / this.dim[1], k / this.dim[2]];
   }

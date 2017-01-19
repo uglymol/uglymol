@@ -1,5 +1,4 @@
 // @flow
-import { UnitCell } from './unitcell.js';
 import { ElMap } from './elmap.js';
 import { Viewer } from './viewer.js';
 import { addXyzCross, makeLineMaterial, makeLineSegments } from './lines.js';
@@ -11,19 +10,60 @@ const SPOT_SEL = ['all', 'unindexed', '#1']; //extended when needed
 const SHOW_AXES = ['three', 'two', 'none'];
 const SPOT_SHAPES = ['wheel', 'square'];
 
-// modified ElMap for handling output of dials.rs_mapper
+// Modified ElMap for handling output of dials.rs_mapper.
+// rs_mapper outputs map in ccp4 format, but we need to rescale it,
+// shift it so the box is centered at 0,0,0,
+// and the translational symmetry doesn't apply.
 class ReciprocalSpaceMap extends ElMap {
+  /*::
+    box_size: [number, number, number]
+   */
   constructor(buf /*:ArrayBuffer*/) {
     super();
+    this.box_size = [1, 1, 1];
     this.from_ccp4(buf, false);
     if (this.unit_cell == null) return;
     // unit of the map from dials.rs_mapper is (100A)^-1, we scale it to A^-1
+    // We assume the "unit cell" is cubic -- as it is in rs_mapper.
     const par = this.unit_cell.parameters;
-    const scale = 0.01;
-    this.unit_cell = new UnitCell(scale*par[0], scale*par[1], scale*par[2],
-                                  par[3], par[4], par[5]); // always ==90
-    // the map needs to be shifted, so it's centered at 0,0,0
-    // at last, avoid translational symmetry
+    this.box_size = [par[0]/ 100, par[1] / 100, par[2] / 100];
+    this.unit_cell = null;  // we won't use it
+  }
+
+  extract_block(radius/*:number*/, center/*:[number,number,number]*/) {
+    const grid = this.grid;
+    if (grid == null) return;
+    const b = this.box_size;
+    const lo_bounds = [];
+    const hi_bounds = [];
+    for (let n = 0; n < 3; n++) {
+      let lo = Math.floor(grid.dim[n] * ((center[n] - radius) / b[n] + 0.5));
+      let hi = Math.floor(grid.dim[n] * ((center[n] + radius) / b[n] + 0.5));
+      lo = Math.min(Math.max(0, lo), grid.dim[n] - 1);
+      hi = Math.min(Math.max(0, hi), grid.dim[n] - 1);
+      if (lo === hi) return;
+      lo_bounds.push(lo);
+      hi_bounds.push(hi);
+    }
+
+    const points = [];
+    const values = [];
+    for (let i = lo_bounds[0]; i <= hi_bounds[0]; i++) {
+      for (let j = lo_bounds[1]; j <= hi_bounds[1]; j++) {
+        for (let k = lo_bounds[2]; k <= hi_bounds[2]; k++) {
+          points.push([(i / grid.dim[0] - 0.5) * b[0],
+                       (j / grid.dim[1] - 0.5) * b[1],
+                       (k / grid.dim[2] - 0.5) * b[2]]);
+          const index = grid.grid2index_unchecked(i, j, k);
+          values.push(grid.values[index]);
+        }
+      }
+    }
+
+    const size = [hi_bounds[0] - lo_bounds[0] + 1,
+                  hi_bounds[1] - lo_bounds[1] + 1,
+                  hi_bounds[2] - lo_bounds[2] + 1];
+    this.block.set(points, values, size);
   }
 }
 
@@ -265,8 +305,9 @@ export class ReciprocalViewer extends Viewer {
       this.clear_el_objects(this.map_bags.pop());
     }
     let map = new ReciprocalSpaceMap(buffer);
-    if (map == null || map.unit_cell == null) return;
-    this.config.map_radius = map.unit_cell.parameters[0] / 2.;
+    if (map == null) return;
+    this.config.map_radius = map.box_size[0] / 4.;
+    this.config.default_isolevel = 0.5;
     this.add_map(map, false);
   }
 

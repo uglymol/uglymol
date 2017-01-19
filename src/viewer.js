@@ -157,10 +157,10 @@ function scale_by_height(value, size) { // for scaling bond_line
   return value * size[1] / 700;
 }
 
-function MapBag(map, is_diff_map) {
+function MapBag(map, config, is_diff_map) {
   this.map = map;
   this.name = '';
-  this.isolevel = is_diff_map ? 3.0 : 1.5;
+  this.isolevel = is_diff_map ? 3.0 : config.default_isolevel;
   this.visible = true;
   this.types = is_diff_map ? ['map_pos', 'map_neg'] : ['map_den'];
   this.block_ctr = new THREE.Vector3(Infinity, 0, 0);
@@ -388,6 +388,7 @@ export class Viewer {
       bond_line: 4.0, // ~ to height, like in Coot (see scale_by_height())
       map_line: 1.25,  // for any height
       map_radius: 10.0,
+      default_isolevel: 1.5,
       map_style: MAP_STYLES[0],
       render_style: RENDER_STYLES[0],
       color_aim: COLOR_AIMS[0],
@@ -1262,7 +1263,7 @@ export class Viewer {
 
   add_map(map/*:ElMap*/, is_diff_map/*:boolean*/) {
     //map.show_debug_info();
-    const map_bag = new MapBag(map, is_diff_map);
+    const map_bag = new MapBag(map, this.config, is_diff_map);
     this.map_bags.push(map_bag);
     this.add_el_objects(map_bag);
     this.request_render();

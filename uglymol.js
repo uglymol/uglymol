@@ -1207,6 +1207,10 @@ GridArray.prototype.grid2index = function grid2index (i, j, k) {
   return this.dim[2] * (this.dim[1] * i + j) + k;
 };
 
+GridArray.prototype.grid2index_unchecked = function grid2index_unchecked (i, j, k) {
+  return this.dim[2] * (this.dim[1] * i + j) + k;
+};
+
 GridArray.prototype.grid2frac = function grid2frac (i, j, k) {
   return [i / this.dim[0], j / this.dim[1], k / this.dim[2]];
 };
@@ -1439,20 +1443,16 @@ ElMap.prototype.show_debug_info = function show_debug_info () {
 
 // Extract a block of density for calculating an isosurface using the
 // separate marching cubes implementation.
-ElMap.prototype.extract_block = function extract_block (radius/*:number*/, center /*:?number[]*/) {
+ElMap.prototype.extract_block = function extract_block (radius/*:number*/, center /*:[number,number,number]*/) {
   var grid = this.grid;
   var unit_cell = this.unit_cell;
   if (grid == null || unit_cell == null) { return; }
-  var grid_min = [0, 0, 0];
-  var grid_max = grid.dim;
-  if (center) {
-    var xyz_min = [center[0]-radius, center[1]-radius, center[2]-radius];
-    var xyz_max = [center[0]+radius, center[1]+radius, center[2]+radius];
-    var frac_min = unit_cell.fractionalize(xyz_min);
-    var frac_max = unit_cell.fractionalize(xyz_max);
-    grid_min = grid.frac2grid(frac_min);
-    grid_max = grid.frac2grid(frac_max);
-  }
+  var xyz_min = [center[0]-radius, center[1]-radius, center[2]-radius];
+  var xyz_max = [center[0]+radius, center[1]+radius, center[2]+radius];
+  var frac_min = unit_cell.fractionalize(xyz_min);
+  var frac_max = unit_cell.fractionalize(xyz_max);
+  var grid_min = grid.frac2grid(frac_min);
+  var grid_max = grid.frac2grid(frac_max);
   var size = [grid_max[0] - grid_min[0] + 1,
                 grid_max[1] - grid_min[1] + 1,
                 grid_max[2] - grid_min[2] + 1];
@@ -2540,10 +2540,10 @@ function scale_by_height(value, size) { // for scaling bond_line
   return value * size[1] / 700;
 }
 
-function MapBag(map, is_diff_map) {
+function MapBag(map, config, is_diff_map) {
   this.map = map;
   this.name = '';
-  this.isolevel = is_diff_map ? 3.0 : 1.5;
+  this.isolevel = is_diff_map ? 3.0 : config.default_isolevel;
   this.visible = true;
   this.types = is_diff_map ? ['map_pos', 'map_neg'] : ['map_den'];
   this.block_ctr = new THREE.Vector3(Infinity, 0, 0);
@@ -2732,6 +2732,7 @@ var Viewer = function Viewer(options /*: {[key: string]: any}*/) {
     bond_line: 4.0, // ~ to height, like in Coot (see scale_by_height())
     map_line: 1.25,// for any height
     map_radius: 10.0,
+    default_isolevel: 1.5,
     map_style: MAP_STYLES[0],
     render_style: RENDER_STYLES[0],
     color_aim: COLOR_AIMS[0],
@@ -3624,7 +3625,7 @@ Viewer.prototype.set_model = function set_model (model/*:Model*/) {
 
 Viewer.prototype.add_map = function add_map (map/*:ElMap*/, is_diff_map/*:boolean*/) {
   //map.show_debug_info();
-  var map_bag = new MapBag(map, is_diff_map);
+  var map_bag = new MapBag(map, this.config, is_diff_map);
   this.map_bags.push(map_bag);
   this.add_el_objects(map_bag);
   this.request_render();
@@ -3774,25 +3775,64 @@ Viewer.prototype.ColorSchemes = ColorSchemes;
 // options handled by Viewer#select_next()
 var SPOT_SEL = ['all', 'unindexed', '#1']; //extended when needed
 var SHOW_AXES = ['three', 'two', 'none'];
+var SPOT_SHAPES = ['wheel', 'square'];
 
-// modified ElMap for handling output of dials.rs_mapper
+// Modified ElMap for handling output of dials.rs_mapper.
+// rs_mapper outputs map in ccp4 format, but we need to rescale it,
+// shift it so the box is centered at 0,0,0,
+// and the translational symmetry doesn't apply.
 var ReciprocalSpaceMap = (function (ElMap$$1) {
   function ReciprocalSpaceMap(buf /*:ArrayBuffer*/) {
     ElMap$$1.call(this);
+    this.box_size = [1, 1, 1];
     this.from_ccp4(buf, false);
     if (this.unit_cell == null) { return; }
     // unit of the map from dials.rs_mapper is (100A)^-1, we scale it to A^-1
+    // We assume the "unit cell" is cubic -- as it is in rs_mapper.
     var par = this.unit_cell.parameters;
-    var scale = 0.01;
-    this.unit_cell = new UnitCell(scale*par[0], scale*par[1], scale*par[2],
-                                  par[3], par[4], par[5]); // always ==90
-    // the map needs to be shifted, so it's centered at 0,0,0
-    // at last, avoid translational symmetry
+    this.box_size = [par[0]/ 100, par[1] / 100, par[2] / 100];
+    this.unit_cell = null;  // we won't use it
   }
 
   if ( ElMap$$1 ) ReciprocalSpaceMap.__proto__ = ElMap$$1;
   ReciprocalSpaceMap.prototype = Object.create( ElMap$$1 && ElMap$$1.prototype );
   ReciprocalSpaceMap.prototype.constructor = ReciprocalSpaceMap;
+
+  ReciprocalSpaceMap.prototype.extract_block = function extract_block (radius/*:number*/, center/*:[number,number,number]*/) {
+    var grid = this.grid;
+    if (grid == null) { return; }
+    var b = this.box_size;
+    var lo_bounds = [];
+    var hi_bounds = [];
+    for (var n = 0; n < 3; n++) {
+      var lo = Math.floor(grid.dim[n] * ((center[n] - radius) / b[n] + 0.5));
+      var hi = Math.floor(grid.dim[n] * ((center[n] + radius) / b[n] + 0.5));
+      lo = Math.min(Math.max(0, lo), grid.dim[n] - 1);
+      hi = Math.min(Math.max(0, hi), grid.dim[n] - 1);
+      if (lo === hi) { return; }
+      lo_bounds.push(lo);
+      hi_bounds.push(hi);
+    }
+
+    var points = [];
+    var values = [];
+    for (var i = lo_bounds[0]; i <= hi_bounds[0]; i++) {
+      for (var j = lo_bounds[1]; j <= hi_bounds[1]; j++) {
+        for (var k = lo_bounds[2]; k <= hi_bounds[2]; k++) {
+          points.push([(i / grid.dim[0] - 0.5) * b[0],
+                       (j / grid.dim[1] - 0.5) * b[1],
+                       (k / grid.dim[2] - 0.5) * b[2]]);
+          var index = grid.grid2index_unchecked(i, j, k);
+          values.push(grid.values[index]);
+        }
+      }
+    }
+
+    var size = [hi_bounds[0] - lo_bounds[0] + 1,
+                  hi_bounds[1] - lo_bounds[1] + 1,
+                  hi_bounds[2] - lo_bounds[2] + 1];
+    this.block.set(points, values, size);
+  };
 
   return ReciprocalSpaceMap;
 }(ElMap));
@@ -3852,23 +3892,39 @@ function parse_json(text) {
 
 var point_vert = "\nattribute float group;\nuniform float show_only;\nuniform float r2_max;\nuniform float r2_min;\nuniform float size;\nvarying vec3 vcolor;\nvoid main() {\n  vcolor = color;\n  float r2 = dot(position, position);\n  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n  if (r2 < r2_min || r2 >= r2_max || (show_only != -2.0 && show_only != group))\n    gl_Position.x = 2.0;\n  gl_PointSize = size;\n}";
 
-var point_frag = "\nvarying vec3 vcolor;\nvoid main() {\n  // not sure how reliable is such rounding of points\n  vec2 diff = gl_PointCoord - vec2(0.5, 0.5);\n  float dist_sq = 4.0 * dot(diff, diff);\n  if (dist_sq >= 1.0) discard;\n  gl_FragColor = vec4(vcolor, 1.0 - dist_sq * dist_sq * dist_sq);\n}";
+var point_frag = "\nvarying vec3 vcolor;\nvoid main() {\n  float alpha = 1.0;\n#ifdef ROUND\n  // not sure how reliable is such rounding of points\n  vec2 diff = gl_PointCoord - vec2(0.5, 0.5);\n  float dist_sq = 4.0 * dot(diff, diff);\n  if (dist_sq >= 1.0) discard;\n  alpha = 1.0 - dist_sq * dist_sq * dist_sq;\n#endif\n  gl_FragColor = vec4(vcolor, alpha);\n}";
 
 
 var ReciprocalViewer = (function (Viewer$$1) {
-  function ReciprocalViewer(options /*: {[key: string]: any}*/) {
+  function ReciprocalViewer(options/*:{[key:string]: any}*/) {
     Viewer$$1.call(this, options);
     this.default_camera_pos = [100, 0, 0];
     this.axes = null;
     this.points = null;
-    this.max_dist = null;
-    this.d_min = null;
+    this.max_dist = -1;
+    this.d_min = -1;
     this.d_max_inv = 0;
     this.data = {};
     this.config.show_only = SPOT_SEL[0];
     this.config.show_axes = SHOW_AXES[0];
+    this.config.spot_shape = SPOT_SHAPES[0];
     this.set_reciprocal_key_bindings();
     this.set_dropzone();
+    this.point_material = new THREE.ShaderMaterial({
+      uniforms: {
+        size: { value: 3 },
+        show_only: { value: -2 },
+        r2_max: { value: 100 },
+        r2_min: { value: 0 },
+      },
+      defines: {
+        ROUND: true,
+      },
+      vertexShader: point_vert,
+      fragmentShader: point_frag,
+      vertexColors: THREE.VertexColors,
+      transparent: true,
+    });
   }
 
   if ( Viewer$$1 ) ReciprocalViewer.__proto__ = Viewer$$1;
@@ -3884,11 +3940,17 @@ var ReciprocalViewer = (function (Viewer$$1) {
     };
     // p
     kb[80] = function (evt) { this.permalink(); };
+    // s
+    kb[83] = function (evt) {
+      this.select_next('spot shape', 'spot_shape', SPOT_SHAPES, evt.shiftKey);
+      this.point_material.defines.ROUND = (this.config.spot_shape === 'wheel');
+      this.point_material.needsUpdate = true;
+    };
     // v
     kb[86] = function (evt) {
       this.select_next('show', 'show_only', SPOT_SEL, evt.shiftKey);
       var idx = SPOT_SEL.indexOf(this.config.show_only);
-      this.points.material.uniforms.show_only.value = idx - 2;
+      this.point_material.uniforms.show_only.value = idx - 2;
     };
     // x
     kb[88] = function (evt) {
@@ -3950,7 +4012,7 @@ var ReciprocalViewer = (function (Viewer$$1) {
   };
 
   ReciprocalViewer.prototype.load_data = function load_data (url/*:string*/, options) {
-    if ( options === void 0 ) options /*:Object*/ = {};
+    if ( options === void 0 ) options/*:Object*/ = {};
 
     var self = this;
     this.load_file(url, {binary: false, progress: true}, function (req) {
@@ -3959,7 +4021,7 @@ var ReciprocalViewer = (function (Viewer$$1) {
     });
   };
 
-  ReciprocalViewer.prototype.load_from_string = function load_from_string (text/*:string*/, options /*:Object*/) {
+  ReciprocalViewer.prototype.load_from_string = function load_from_string (text/*:string*/, options/*:Object*/) {
     if (text[0] === '{') {
       this.data = parse_json(text);
     } else {
@@ -3986,8 +4048,9 @@ var ReciprocalViewer = (function (Viewer$$1) {
       this.clear_el_objects(this.map_bags.pop());
     }
     var map = new ReciprocalSpaceMap(buffer);
-    if (map == null || map.unit_cell == null) { return; }
-    this.config.map_radius = map.unit_cell.parameters[0] / 2.;
+    if (map == null) { return; }
+    this.config.map_radius = map.box_size[0] / 4.;
+    this.config.default_isolevel = 0.5;
     this.add_map(map, false);
   };
 
@@ -4020,7 +4083,7 @@ var ReciprocalViewer = (function (Viewer$$1) {
       this.remove_and_dispose(this.points);
       this.points = null;
     }
-    if (data.lattice_ids == null || data.pos == null) { return; }
+    if (data == null || data.lattice_ids == null || data.pos == null) { return; }
     var color_arr = new Float32Array(3 * data.lattice_ids.length);
     this.colorize_by_id(color_arr, data.lattice_ids);
     var geometry = new THREE.BufferGeometry();
@@ -4028,24 +4091,12 @@ var ReciprocalViewer = (function (Viewer$$1) {
     geometry.addAttribute('color', new THREE.BufferAttribute(color_arr, 3));
     var groups = new Float32Array(data.lattice_ids);
     geometry.addAttribute('group', new THREE.BufferAttribute(groups, 1));
-    var material = new THREE.ShaderMaterial({
-      uniforms: {
-        size: { value: 3 },
-        show_only: { value: -2 },
-        r2_max: { value: 100 },
-        r2_min: { value: 0 },
-      },
-      vertexShader: point_vert,
-      fragmentShader: point_frag,
-      vertexColors: THREE.VertexColors,
-    });
-    material.transparent = true;
-    this.points = new THREE.Points(geometry, material);
+    this.points = new THREE.Points(geometry, this.point_material);
     this.scene.add(this.points);
     this.request_render();
   };
 
-  ReciprocalViewer.prototype.colorize_by_id = function colorize_by_id (color_arr/*:THREE.Color[]*/, group_id/*:number[]*/) {
+  ReciprocalViewer.prototype.colorize_by_id = function colorize_by_id (color_arr/*:Float32Array*/, group_id/*:number[]*/) {
     var palette = this.config.colors.lattices;
     for (var i = 0; i < group_id.length; i++) {
       var c = palette[(group_id[i] + 1) % 4];
@@ -4062,28 +4113,25 @@ var ReciprocalViewer = (function (Viewer$$1) {
   };
 
   ReciprocalViewer.prototype.change_point_size = function change_point_size (delta/*:number*/) {
-    if (this.points === null) { return; }
-    var size = this.points.material.uniforms.size;
+    var size = this.point_material.uniforms.size;
     size.value = Math.max(size.value + delta, 0.5);
     this.hud('point size: ' + size.value.toFixed(1));
   };
 
   ReciprocalViewer.prototype.change_dmin = function change_dmin (delta/*:number*/) {
-    if (this.d_min == null) { return; }
     this.d_min = Math.max(this.d_min + delta, 0.1);
     var dmax = this.d_max_inv > 0 ? 1 / this.d_max_inv : null;
     if (dmax !== null && this.d_min > dmax) { this.d_min = dmax; }
-    this.points.material.uniforms.r2_max.value = 1 / (this.d_min * this.d_min);
+    this.point_material.uniforms.r2_max.value = 1 / (this.d_min * this.d_min);
     var low_res = dmax !== null ? dmax.toFixed(2) : '∞';
     this.hud('res. limit: ' + low_res + ' - ' + this.d_min.toFixed(2) + 'Å');
   };
 
   ReciprocalViewer.prototype.change_dmax = function change_dmax (delta/*:number*/) {
-    if (this.d_min == null) { return; }
     var v = Math.min(this.d_max_inv + delta, 1 / this.d_min);
     if (v < 1e-6) { v = 0; }
     this.d_max_inv = v;
-    this.points.material.uniforms.r2_min.value = v * v;
+    this.point_material.uniforms.r2_min.value = v * v;
     var low_res = v > 0 ? (1 / v).toFixed(2) : '∞';
     this.hud('res. limit: ' + low_res + ' - ' + this.d_min.toFixed(2) + 'Å');
   };
@@ -4125,6 +4173,7 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
   'D/F = clip width',
   'R = center view',
   'Z/X = point size',
+  'S = point shape',
   'Shift+P = permalink',
   'Shift+F = full screen',
   '←/→ = max resol.',
