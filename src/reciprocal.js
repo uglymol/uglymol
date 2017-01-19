@@ -9,6 +9,7 @@ import * as THREE from 'three';
 // options handled by Viewer#select_next()
 const SPOT_SEL = ['all', 'unindexed', '#1']; //extended when needed
 const SHOW_AXES = ['three', 'two', 'none'];
+const SPOT_SHAPES = ['wheel', 'square'];
 
 // modified ElMap for handling output of dials.rs_mapper
 class ReciprocalSpaceMap extends ElMap {
@@ -98,11 +99,15 @@ void main() {
 const point_frag = `
 varying vec3 vcolor;
 void main() {
+  float alpha = 1.0;
+#ifdef ROUND
   // not sure how reliable is such rounding of points
   vec2 diff = gl_PointCoord - vec2(0.5, 0.5);
   float dist_sq = 4.0 * dot(diff, diff);
   if (dist_sq >= 1.0) discard;
-  gl_FragColor = vec4(vcolor, 1.0 - dist_sq * dist_sq * dist_sq);
+  alpha = 1.0 - dist_sq * dist_sq * dist_sq;
+#endif
+  gl_FragColor = vec4(vcolor, alpha);
 }`;
 
 
@@ -114,8 +119,9 @@ export class ReciprocalViewer extends Viewer {
   d_min: ?number
   d_max_inv: number
   data: Object
+  point_material: THREE.ShaderMaterial
   */
-  constructor(options /*: {[key: string]: any}*/) {
+  constructor(options/*:{[key:string]: any}*/) {
     super(options);
     this.default_camera_pos = [100, 0, 0];
     this.axes = null;
@@ -126,8 +132,24 @@ export class ReciprocalViewer extends Viewer {
     this.data = {};
     this.config.show_only = SPOT_SEL[0];
     this.config.show_axes = SHOW_AXES[0];
+    this.config.spot_shape = SPOT_SHAPES[0];
     this.set_reciprocal_key_bindings();
     this.set_dropzone();
+    this.point_material = new THREE.ShaderMaterial({
+      uniforms: {
+        size: { value: 3 },
+        show_only: { value: -2 },
+        r2_max: { value: 100 },
+        r2_min: { value: 0 },
+      },
+      defines: {
+        ROUND: true,
+      },
+      vertexShader: point_vert,
+      fragmentShader: point_frag,
+      vertexColors: THREE.VertexColors,
+      transparent: true,
+    });
   }
 
   set_reciprocal_key_bindings() {
@@ -139,11 +161,17 @@ export class ReciprocalViewer extends Viewer {
     };
     // p
     kb[80] = function (evt) { this.permalink(); };
+    // s
+    kb[83] = function (evt) {
+      this.select_next('spot shape', 'spot_shape', SPOT_SHAPES, evt.shiftKey);
+      this.point_material.defines.ROUND = (this.config.spot_shape === 'wheel');
+      this.point_material.needsUpdate = true;
+    };
     // v
     kb[86] = function (evt) {
       this.select_next('show', 'show_only', SPOT_SEL, evt.shiftKey);
       const idx = SPOT_SEL.indexOf(this.config.show_only);
-      this.points.material.uniforms.show_only.value = idx - 2;
+      this.point_material.uniforms.show_only.value = idx - 2;
     };
     // x
     kb[88] = function (evt) {
@@ -202,7 +230,7 @@ export class ReciprocalViewer extends Viewer {
     });
   }
 
-  load_data(url/*:string*/, options /*:Object*/ = {}) {
+  load_data(url/*:string*/, options/*:Object*/ = {}) {
     let self = this;
     this.load_file(url, {binary: false, progress: true}, function (req) {
       self.load_from_string(req.responseText, options);
@@ -210,7 +238,7 @@ export class ReciprocalViewer extends Viewer {
     });
   }
 
-  load_from_string(text/*:string*/, options /*:Object*/) {
+  load_from_string(text/*:string*/, options/*:Object*/) {
     if (text[0] === '{') {
       this.data = parse_json(text);
     } else {
@@ -271,7 +299,7 @@ export class ReciprocalViewer extends Viewer {
       this.remove_and_dispose(this.points);
       this.points = null;
     }
-    if (data.lattice_ids == null || data.pos == null) return;
+    if (data == null || data.lattice_ids == null || data.pos == null) return;
     let color_arr = new Float32Array(3 * data.lattice_ids.length);
     this.colorize_by_id(color_arr, data.lattice_ids);
     let geometry = new THREE.BufferGeometry();
@@ -279,19 +307,7 @@ export class ReciprocalViewer extends Viewer {
     geometry.addAttribute('color', new THREE.BufferAttribute(color_arr, 3));
     const groups = new Float32Array(data.lattice_ids);
     geometry.addAttribute('group', new THREE.BufferAttribute(groups, 1));
-    let material = new THREE.ShaderMaterial({
-      uniforms: {
-        size: { value: 3 },
-        show_only: { value: -2 },
-        r2_max: { value: 100 },
-        r2_min: { value: 0 },
-      },
-      vertexShader: point_vert,
-      fragmentShader: point_frag,
-      vertexColors: THREE.VertexColors,
-    });
-    material.transparent = true;
-    this.points = new THREE.Points(geometry, material);
+    this.points = new THREE.Points(geometry, this.point_material);
     this.scene.add(this.points);
     this.request_render();
   }
@@ -313,8 +329,7 @@ export class ReciprocalViewer extends Viewer {
   }
 
   change_point_size(delta/*:number*/) {
-    if (this.points === null) return;
-    let size = this.points.material.uniforms.size;
+    let size = this.point_material.uniforms.size;
     size.value = Math.max(size.value + delta, 0.5);
     this.hud('point size: ' + size.value.toFixed(1));
   }
@@ -324,8 +339,7 @@ export class ReciprocalViewer extends Viewer {
     this.d_min = Math.max(this.d_min + delta, 0.1);
     const dmax = this.d_max_inv > 0 ? 1 / this.d_max_inv : null;
     if (dmax !== null && this.d_min > dmax) this.d_min = dmax;
-    if (this.points === null) return;
-    this.points.material.uniforms.r2_max.value = 1 / (this.d_min * this.d_min);
+    this.point_material.uniforms.r2_max.value = 1 / (this.d_min * this.d_min);
     const low_res = dmax !== null ? dmax.toFixed(2) : '∞';
     this.hud('res. limit: ' + low_res + ' - ' + this.d_min.toFixed(2) + 'Å');
   }
@@ -335,8 +349,7 @@ export class ReciprocalViewer extends Viewer {
     let v = Math.min(this.d_max_inv + delta, 1 / this.d_min);
     if (v < 1e-6) v = 0;
     this.d_max_inv = v;
-    if (this.points === null) return;
-    this.points.material.uniforms.r2_min.value = v * v;
+    this.point_material.uniforms.r2_min.value = v * v;
     const low_res = v > 0 ? (1 / v).toFixed(2) : '∞';
     this.hud('res. limit: ' + low_res + ' - ' + this.d_min.toFixed(2) + 'Å');
   }
@@ -377,6 +390,7 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
   'D/F = clip width',
   'R = center view',
   'Z/X = point size',
+  'S = point shape',
   'Shift+P = permalink',
   'Shift+F = full screen',
   '←/→ = max resol.',
