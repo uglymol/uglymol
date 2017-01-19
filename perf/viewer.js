@@ -37,4 +37,9 @@ util.bench('add_map+clear', function () {
   viewer.add_map(emap, false);
   viewer.clear_el_objects(viewer.map_bags.pop());
 });
+
+// makes sense only when pdb has hydrogens
+//util.bench('get_visible_atoms', function () {
+//  viewer.model_bags[0].get_visible_atoms();
+//});
 })();

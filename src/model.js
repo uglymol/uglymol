@@ -221,7 +221,7 @@ export class Model {
   }
 
   get_nearest_atom(x /*:number*/, y /*:number*/, z /*:number*/,
-                   atom_name /*:string*/) {
+                   atom_name /*:?string*/) {
     const cubes = this.cubes;
     if (cubes == null) throw Error('Missing Cubicles');
     const box_id = cubes.find_box_id(x, y, z);
@@ -230,8 +230,7 @@ export class Model {
     let min_d2 = Infinity;
     for (let i = 0; i < indices.length; i++) {
       const atom = this.atoms[indices[i]];
-      if (atom_name !== undefined && atom_name !== null &&
-          atom_name !== atom.name) continue;
+      if (atom_name != null && atom_name !== atom.name) continue;
       const dx = atom.xyz[0] - x;
       const dy = atom.xyz[1] - y;
       const dz = atom.xyz[2] - z;

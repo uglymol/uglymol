@@ -13,8 +13,9 @@ import { Model } from './model.js';
    name: string,
    bg: number,
    fg: number,
-   [name:string]: number
+   [name:string]: number | number[],
  };
+ type Num3 = [number, number, number];
  */
 
 const ColorSchemes /*:ColorScheme[]*/ = [ // Viewer.prototype.ColorSchemes
@@ -341,7 +342,8 @@ export class Viewer {
   /*::
   model_bags: ModelBag[]
   map_bags: MapBag[]
-  decor: {cell_box: ?Object , selection: ?Object, zoom_grid: Object}
+  decor: {cell_box: ?Object , selection: ?Object, zoom_grid: Object,
+          mark: ?Object}
   labels: {[id:string]: THREE.Mesh}
   nav: ?Object
   config: Object
@@ -349,7 +351,7 @@ export class Viewer {
   window_offset: [number, number]
   last_ctr: THREE.Vector3
   selected_atom: ?AtomT
-  active_model_bag: ?ModelBag
+  active_model_bag: ModelBag | null
   scene: THREE.Scene
   light: THREE.Light
   default_camera_pos: [number, number, number]
@@ -363,7 +365,6 @@ export class Viewer {
   hud_el: ?HTMLElement
   help_el: ?HTMLElement
   initial_hud_html: string
-  initial_hud_bg: string
   scheduled: boolean
   ColorSchemes: ColorScheme[]
   MOUSE_HELP: string
@@ -372,12 +373,14 @@ export class Viewer {
   stats: ?Object
   mousemove: (MouseEvent) => void
   mouseup: (MouseEvent) => void
+  key_bindings: Array<Function|false>
   */
   constructor(options /*: {[key: string]: any}*/) {
     // rendered objects
     this.model_bags = [];
     this.map_bags = [];
-    this.decor = {cell_box: null, selection: null, zoom_grid: makeGrid() };
+    this.decor = { cell_box: null, selection: null, zoom_grid: makeGrid(),
+                   mark: null };
     this.labels = {};
     this.nav = null;
 
@@ -393,7 +396,7 @@ export class Viewer {
       colors: this.ColorSchemes[0],
       hydrogens: false,
     };
-    this.set_colors();
+    this.set_colors(0);
     this.window_size = [1, 1]; // it will be set in resize()
     this.window_offset = [0, 0];
 
@@ -439,7 +442,6 @@ export class Viewer {
     this.help_el = get_elem('help');
     if (this.hud_el) {
       this.initial_hud_html = this.hud_el.innerHTML;
-      this.initial_hud_bg = this.hud_el.style['background-color'];
     }
 
     if (this.container == null) return; // can be null in headless tests
@@ -448,19 +450,21 @@ export class Viewer {
     this.resize();
     this.camera.zoom = this.camera.right / 35.0;  // arbitrary choice
     this.update_camera();
-    this.container.appendChild(this.renderer.domElement);
+    const el = this.renderer.domElement;
+    // $FlowFixMe: flow can't figure out that this.container != null
+    this.container.appendChild(el);
     if (options.focusable) {
-      this.renderer.domElement.tabIndex = 0;
+      el.tabIndex = 0;
     }
     this.decor.zoom_grid.visible = false;
     this.scene.add(this.decor.zoom_grid);
     if (window.Stats) { // set by including three/examples/js/libs/stats.min.js
       this.stats = new window.Stats();
+      // $FlowFixMe: flow can't figure out that this.container != null
       this.container.appendChild(this.stats.dom);
     }
 
     window.addEventListener('resize', this.resize.bind(this));
-    let el = this.renderer.domElement;
     let keydown_el = (options.focusable ? el : window);
     keydown_el.addEventListener('keydown', this.keydown.bind(this));
     el.addEventListener('contextmenu', function (e) { e.preventDefault(); });
@@ -517,23 +521,21 @@ export class Viewer {
     return bag.model.get_nearest_atom(p.x, p.y, p.z);
   }
 
-  set_colors(scheme/*:?ColorScheme*/) {
+  set_colors(scheme/*:number|string|ColorScheme*/) {
     function to_col(x) { return new THREE.Color(x); }
-    if (scheme == null) {
-      scheme = this.ColorSchemes[0];
-    } else if (typeof scheme === 'number') {
+    if (typeof scheme === 'number') {
       scheme = this.ColorSchemes[scheme % this.ColorSchemes.length];
     } else if (typeof scheme === 'string') {
-      for (let i = 0; i !== this.ColorSchemes.length; i++) {
-        if (this.ColorSchemes[i].name === scheme) {
-          scheme = this.ColorSchemes[i];
+      for (const sc of this.ColorSchemes) {
+        if (sc.name === scheme) {
+          scheme = sc;
           break;
         }
       }
+      throw Error('Unknown color scheme.');
     }
-    if (scheme.bg === undefined) return;
     if (typeof scheme.bg === 'number') {
-      for (let key in scheme) {
+      for (const key in scheme) {
         if (key !== 'name') {
           scheme[key] = scheme[key] instanceof Array ? scheme[key].map(to_col)
                                                      : to_col(scheme[key]);
@@ -557,7 +559,7 @@ export class Viewer {
     if (typeof document === 'undefined') return;  // for testing on node
     let el = this.hud_el;
     if (el) {
-      if (text !== undefined) {
+      if (text != null) {
         if (type === 'HTML') {
           el.innerHTML = text;
         } else {
@@ -567,29 +569,29 @@ export class Viewer {
         el.innerHTML = this.initial_hud_html;
       }
       const err = (type === 'ERR');
-      el.style['background-color'] = (err ? '#b00' : this.initial_hud_bg);
-      if (err) console.log('ERR: ' + text);
+      el.style.backgroundColor = (err ? '#b00' : '');
+      if (err && text) console.log('ERR: ' + text);
     } else {
-      console.log('hud: ' + text);
+      console.log('hud:', text);
     }
   }
 
   redraw_center() {
     if (this.target.distanceToSquared(this.last_ctr) > 0.0001) {
       this.last_ctr.copy(this.target);
-      if (this.mark) {
-        this.scene.remove(this.mark);
+      if (this.decor.mark) {
+        this.scene.remove(this.decor.mark);
       }
-      this.mark = makeCube(0.1, this.target, {
+      this.decor.mark = makeCube(0.1, this.target, {
         color: this.config.colors.center,
         linewidth: 2,
         win_size: this.window_size,
       });
-      this.scene.add(this.mark);
+      this.scene.add(this.decor.mark);
     }
   }
 
-  redraw_maps(force) {
+  redraw_maps(force/*:?boolean*/) {
     this.redraw_center();
     for (const map_bag of this.map_bags) {
       if (force || this.target.distanceToSquared(map_bag.block_ctr) > 0.01) {
@@ -598,8 +600,8 @@ export class Viewer {
     }
   }
 
-  remove_and_dispose(obj, only_dispose) {
-    if (!only_dispose) this.scene.remove(obj);
+  remove_and_dispose(obj/*:Object*/) {
+    this.scene.remove(obj);
     if (obj.geometry) obj.geometry.dispose();
     if (obj.material) {
       if (obj.material.uniforms && obj.material.uniforms.map) {
@@ -619,11 +621,11 @@ export class Viewer {
     map_bag.el_objects = [];
   }
 
-  clear_atomic_objects(model) {
-    for (let o of model.atomic_objects) {
+  clear_atomic_objects(model_bag/*:ModelBag*/) {
+    for (let o of model_bag.atomic_objects) {
       this.remove_and_dispose(o);
     }
-    model.atomic_objects = [];
+    model_bag.atomic_objects = [];
   }
 
   set_atomic_objects(model_bag/*:ModelBag*/) {
@@ -653,8 +655,8 @@ export class Viewer {
   }
 
   // Add/remove label if `show` is specified, toggle otherwise.
-  toggle_label(atom, show) {
-    if (!atom) return;
+  toggle_label(atom/*:?AtomT*/, show/*:?boolean*/) {
+    if (atom == null) return;
     const text = atom.short_label();
     const uid = text; // we assume that the labels are unique - often true
     const is_shown = (uid in this.labels);
@@ -783,7 +785,7 @@ export class Viewer {
     slab_width[0] = Math.max(slab_width[0] + delta, 0.01);
     slab_width[1] = Math.max(slab_width[1] + delta, 0.01);
     this.update_camera();
-    const final_width = this.camera.far-this.camera.near;
+    const final_width = this.camera.far - this.camera.near;
     this.hud('clip width: ' + final_width.toPrecision(3));
   }
 
@@ -819,7 +821,9 @@ export class Viewer {
       let el = this.container;
       if (!el) return;
       let req = el.requestFullscreen || el.webkitRequestFullscreen ||
+      // $FlowFixMe: property `msRequestFullscreen` not found in HTMLElement
                 el.mozRequestFullScreen || el.msRequestFullscreen;
+      // $FlowFixMe
       if (req) req.call(el);
     }
   }
@@ -894,8 +898,8 @@ export class Viewer {
     }
   }
 
-  select_next(info/*:string*/, key/*:string*/, options/*:mixed[]*/,
-              back/*:boolean*/) {
+  select_next(info/*:string*/, key/*:string*/,
+              options/*:Array<string|ColorScheme>*/, back/*:boolean*/) {
     const old_idx = options.indexOf(this.config[key]);
     const len = options.length;
     const new_idx = (old_idx + (back ? len - 1 : 1)) % len;
@@ -903,7 +907,8 @@ export class Viewer {
     let html = info + ':';
     for (let i = 0; i < len; i++) {
       const tag = (i === new_idx ? 'u' : 's');
-      const opt_name = options[i].name || options[i];
+      const opt_name = typeof options[i] === 'string' ? options[i]
+                                                      : options[i].name;
       html += ' <' + tag + '>' + opt_name + '</' + tag + '>';
     }
     this.hud(html, 'HTML');
@@ -1122,7 +1127,8 @@ export class Viewer {
     this.redraw_maps();
   }
 
-  mousewheel(evt/*:WheelEvent*/) {
+  //TODO: wheel and WheelEvent are more standard
+  mousewheel(evt/*:MouseWheelEvent*/) {
     evt.preventDefault();
     evt.stopPropagation();
     // evt.wheelDelta for WebKit, evt.detail for Firefox
@@ -1131,7 +1137,7 @@ export class Viewer {
     this.request_render();
   }
 
-  mousewheel_action(delta/*number*/, evt/*:WheelEvent*/) {
+  mousewheel_action(delta/*:number*/, evt/*:WheelEvent*/) {
     this.change_isolevel_by(evt.shiftKey ? 1 : 0, 0.0005 * delta);
   }
 
@@ -1158,7 +1164,7 @@ export class Viewer {
 
   // If xyz set recenter on it looking toward the model center.
   // Otherwise recenter on the model center looking along the z axis.
-  recenter(xyz, cam, steps) {
+  recenter(xyz/*:?Num3*/, cam/*:?Num3*/, steps/*:number*/) {
     const bag = this.active_model_bag;
     let new_up;
     if (xyz != null && cam == null && bag !== null) {
@@ -1193,7 +1199,7 @@ export class Viewer {
     if (a) this.select_atom(a, {steps: 30});
   }
 
-  select_atom(atom/*:AtomT*/, options = {}) {
+  select_atom(atom/*:AtomT*/, options/*:Object*/ = {}) {
     this.hud('-> ' + atom.long_label());
     this.controls.go_to(atom.xyz, null, null, options.steps);
     this.toggle_label(this.selected_atom);
@@ -1204,7 +1210,7 @@ export class Viewer {
   update_camera() {
     const dxyz = this.camera.position.distanceTo(this.target);
     const w = this.controls.slab_width;
-    const scale = w.length === 3 ? w[2] : this.camera.zoom;
+    const scale = w[2] || this.camera.zoom;
     this.camera.near = dxyz * (1 - w[0] / scale);
     this.camera.far = dxyz * (1 + w[1] / scale);
     //this.light.position.copy(this.camera.position);
@@ -1254,7 +1260,7 @@ export class Viewer {
     this.request_render();
   }
 
-  add_map(map/*:Map*/, is_diff_map/*:boolean*/) {
+  add_map(map/*:ElMap*/, is_diff_map/*:boolean*/) {
     //map.show_debug_info();
     const map_bag = new MapBag(map, is_diff_map);
     this.map_bags.push(map_bag);
@@ -1305,14 +1311,14 @@ export class Viewer {
     }
   }
 
-  set_view(options) {
+  set_view(options/*:?Object*/) {
     const frag = parse_url_fragment();
     if (frag.zoom) this.camera.zoom = frag.zoom;
     this.recenter(frag.xyz || (options && options.center), frag.eye, 1);
   }
 
   // Load molecular model from PDB file and centers the view
-  load_pdb(url/*:string*/, options, callback) {
+  load_pdb(url/*:string*/, options/*:?Object*/, callback/*:?Function*/) {
     let self = this;
     this.load_file(url, {binary: false}, function (req) {
       let model = new Model();
@@ -1323,7 +1329,7 @@ export class Viewer {
     });
   }
 
-  load_map(url/*:string*/, options, callback) {
+  load_map(url/*:string*/, options/*:Object*/, callback/*:?Function*/) {
     if (options.format !== 'ccp4' && options.format !== 'dsn6') {
       throw Error('Unknown map format.');
     }
@@ -1334,7 +1340,7 @@ export class Viewer {
     });
   }
 
-  load_map_from_buffer(buffer, options) {
+  load_map_from_buffer(buffer/*:ArrayBuffer*/, options/*:Object*/) {
     let map = new ElMap();
     if (options.format === 'dsn6') {
       map.from_dsn6(buffer);
@@ -1346,7 +1352,7 @@ export class Viewer {
 
   // Load a normal map and a difference map.
   // To show the first map ASAP we do not download both maps in parallel.
-  load_ccp4_maps(url1/*:string*/, url2/*:string*/, callback) {
+  load_ccp4_maps(url1/*:string*/, url2/*:string*/, callback/*:?Function*/) {
     let self = this;
     this.load_map(url1, {diff_map: false, format: 'ccp4'}, function () {
       self.load_map(url2, {diff_map: true, format: 'ccp4'}, callback);
@@ -1354,7 +1360,8 @@ export class Viewer {
   }
 
   // Load a model (PDB), normal map and a difference map - in this order.
-  load_pdb_and_ccp4_maps(pdb, map1, map2, callback) {
+  load_pdb_and_ccp4_maps(pdb/*:string*/, map1/*:string*/, map2/*:string*/,
+                         callback/*:?Function*/) {
     let self = this;
     this.load_pdb(pdb, {}, function () {
       self.load_ccp4_maps(map1, map2, callback);

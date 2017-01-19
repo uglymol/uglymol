@@ -22,14 +22,14 @@ export const STATE = { NONE: -1, ROTATE: 0, PAN: 1, ZOOM: 2, PAN_ZOOM: 3,
 // based on three.js/examples/js/controls/OrthographicTrackballControls.js
 export class Controls {
   /*::
-    slab_width: [number, number]
+    slab_width: [number, number, ?number]
     go_to: Function
     toggle_auto: Function
     is_going: () => boolean
     is_moving: () => boolean
     update: () => boolean
     start: Function
-    move: (number, number, number) => void
+    move: (number, number, ?number) => void
     stop: () => any
    */
   constructor(camera /*:THREE.Camera*/, target /*:THREE.Vector3*/) {
@@ -49,7 +49,7 @@ export class Controls {
     let _go_func = null;
 
     // the far plane is more distant from the target than the near plane (3:1)
-    this.slab_width = [2.5, 7.5];
+    this.slab_width = [2.5, 7.5, null];
 
     function rotate_camera(eye) {
       let quat = new THREE.Quaternion();
@@ -200,6 +200,7 @@ export class Controls {
           _pan_end.set(x, y);
           break;
         case STATE.PAN_ZOOM:
+          if (dist == null) return; // should not happen
           _pan_end.set(x, y);
           _pinch_end = dist;
           break;
