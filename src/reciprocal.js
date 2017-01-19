@@ -116,7 +116,7 @@ export class ReciprocalViewer extends Viewer {
   axes: Object | null
   points: THREE.Points | null
   max_dist: number
-  d_min: ?number
+  d_min: number
   d_max_inv: number
   data: Object
   point_material: THREE.ShaderMaterial
@@ -127,7 +127,7 @@ export class ReciprocalViewer extends Viewer {
     this.axes = null;
     this.points = null;
     this.max_dist = -1;
-    this.d_min = null;
+    this.d_min = -1;
     this.d_max_inv = 0;
     this.data = {};
     this.config.show_only = SPOT_SEL[0];
@@ -335,7 +335,6 @@ export class ReciprocalViewer extends Viewer {
   }
 
   change_dmin(delta/*:number*/) {
-    if (this.d_min == null) return;
     this.d_min = Math.max(this.d_min + delta, 0.1);
     const dmax = this.d_max_inv > 0 ? 1 / this.d_max_inv : null;
     if (dmax !== null && this.d_min > dmax) this.d_min = dmax;
@@ -345,7 +344,6 @@ export class ReciprocalViewer extends Viewer {
   }
 
   change_dmax(delta/*:number*/) {
-    if (this.d_min == null) return;
     let v = Math.min(this.d_max_inv + delta, 1 / this.d_min);
     if (v < 1e-6) v = 0;
     this.d_max_inv = v;

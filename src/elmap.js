@@ -265,20 +265,16 @@ export class ElMap {
 
   // Extract a block of density for calculating an isosurface using the
   // separate marching cubes implementation.
-  extract_block(radius/*:number*/, center /*:?number[]*/) {
+  extract_block(radius/*:number*/, center /*:[number,number,number]*/) {
     const grid = this.grid;
     const unit_cell = this.unit_cell;
     if (grid == null || unit_cell == null) return;
-    let grid_min = [0, 0, 0];
-    let grid_max = grid.dim;
-    if (center) {
-      const xyz_min = [center[0]-radius, center[1]-radius, center[2]-radius];
-      const xyz_max = [center[0]+radius, center[1]+radius, center[2]+radius];
-      const frac_min = unit_cell.fractionalize(xyz_min);
-      const frac_max = unit_cell.fractionalize(xyz_max);
-      grid_min = grid.frac2grid(frac_min);
-      grid_max = grid.frac2grid(frac_max);
-    }
+    const xyz_min = [center[0]-radius, center[1]-radius, center[2]-radius];
+    const xyz_max = [center[0]+radius, center[1]+radius, center[2]+radius];
+    const frac_min = unit_cell.fractionalize(xyz_min);
+    const frac_max = unit_cell.fractionalize(xyz_max);
+    const grid_min = grid.frac2grid(frac_min);
+    const grid_max = grid.frac2grid(frac_max);
     const size = [grid_max[0] - grid_min[0] + 1,
                   grid_max[1] - grid_min[1] + 1,
                   grid_max[2] - grid_min[2] + 1];
