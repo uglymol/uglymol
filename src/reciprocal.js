@@ -67,6 +67,8 @@ export class ReciprocalSpaceMap extends ElMap {
   }
 }
 
+ReciprocalSpaceMap.prototype.unit = '';
+
 function find_max_dist(pos) {
   let max_sq = 0;
   for (let i = 0; i < pos.length; i += 3) {
@@ -335,10 +337,18 @@ export class ReciprocalViewer extends Viewer {
     }
     let map = new ReciprocalSpaceMap(buffer);
     if (map == null) return;
-    this.config.map_radius = Math.round(map.box_size[0] / 4 * 100) / 100;
-    this.config.max_map_radius = Math.round(map.box_size[0] * 100) / 100;
+    const map_range = map.box_size[0] / 2;
+    this.config.map_radius = Math.round(map_range / 2 * 100) / 100;
+    this.config.max_map_radius = Math.round(1.5 * map_range * 100) / 100;
     this.config.default_isolevel = 0.3;
     this.add_map(map, false);
+    const map_dmin = 1 / map_range;
+    let msg = 'Loaded density map (' + map_dmin.toFixed(2) + 'Å).\n';
+    if (this.points !== null && map_dmin > this.d_min) {
+      msg += 'Adjusted spot clipping. ';
+      this.change_dmin(map_dmin - this.d_min);
+    }
+    this.hud(msg + 'Use +/- to change the isolevel.');
   }
 
   set_axes() {

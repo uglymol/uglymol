@@ -72,6 +72,7 @@ export class ElMap {
   grid: ?GridArray
   stats: { mean: number, rms: number }
   block: Block
+  unit: string
   */
   constructor() {
     this.unit_cell = null;
@@ -303,6 +304,8 @@ export class ElMap {
     return this.block.isosurface(abs_level, method);
   }
 }
+
+ElMap.prototype.unit = 'e/\u212B\u00B3';
 
 // symop -> matrix ([x,y,z] = matrix * [x,y,z,1])
 function parse_symop(symop) {

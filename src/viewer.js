@@ -782,8 +782,8 @@ export class Viewer {
       tied.clear_el_objects(tied_bag);
       tied.add_el_objects(tied_bag);
     }
-    this.hud('map ' + (map_idx+1) + ' level =  ' + abs_text +
-             ' e/\u212B\u00B3 (' + map_bag.isolevel.toFixed(2) + ' rmsd)');
+    this.hud('map ' + (map_idx+1) + ' level =  ' + abs_text + ' ' +
+             map_bag.map.unit + ' (' + map_bag.isolevel.toFixed(2) + ' rmsd)');
   }
 
   change_map_radius(delta/*:number*/) {
