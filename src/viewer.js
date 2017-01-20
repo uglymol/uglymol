@@ -388,6 +388,7 @@ export class Viewer {
       bond_line: 4.0, // ~ to height, like in Coot (see scale_by_height())
       map_line: 1.25,  // for any height
       map_radius: 10.0,
+      max_map_radius: 40,
       default_isolevel: 1.5,
       map_style: MAP_STYLES[0],
       render_style: RENDER_STYLES[0],
@@ -594,8 +595,9 @@ export class Viewer {
 
   redraw_maps(force/*:?boolean*/) {
     this.redraw_center();
+    const r = this.config.map_radius;
     for (const map_bag of this.map_bags) {
-      if (force || this.target.distanceToSquared(map_bag.block_ctr) > 0.01) {
+      if (force || this.target.distanceToSquared(map_bag.block_ctr) > r/100) {
         this.redraw_map(map_bag);
       }
     }
@@ -771,11 +773,11 @@ export class Viewer {
   }
 
   change_map_radius(delta/*:number*/) {
-    const RMAX = 40;
+    const rmax = this.config.max_map_radius;
     const cf = this.config;
-    cf.map_radius = Math.min(Math.max(cf.map_radius + delta, 0), RMAX);
+    cf.map_radius = Math.min(Math.max(cf.map_radius + delta, 0), rmax);
     let info = 'map "radius": ' + cf.map_radius;
-    if (cf.map_radius === RMAX) info += ' (max)';
+    if (cf.map_radius === rmax) info += ' (max)';
     else if (cf.map_radius === 0) info += ' (hidden maps)';
     this.hud(info);
     this.redraw_maps(true);
@@ -1128,7 +1130,7 @@ export class Viewer {
     this.redraw_maps();
   }
 
-  //TODO: wheel and WheelEvent are more standard
+  // $FlowFixMe TODO: wheel()+WheelEvent are more standard
   mousewheel(evt/*:MouseWheelEvent*/) {
     evt.preventDefault();
     evt.stopPropagation();

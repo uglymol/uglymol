@@ -7,7 +7,7 @@ import * as THREE from 'three';
 
 // options handled by Viewer#select_next()
 const SPOT_SEL = ['all', 'unindexed', '#1']; //extended when needed
-const SHOW_AXES = ['three', 'two', 'none'];
+const SHOW_AXES = ['two', 'three', 'none'];
 const SPOT_SHAPES = ['wheel', 'square'];
 
 // Modified ElMap for handling output of dials.rs_mapper.
@@ -199,6 +199,13 @@ export class ReciprocalViewer extends Viewer {
       this.select_next('axes', 'show_axes', SHOW_AXES, evt.shiftKey);
       this.set_axes();
     };
+    // d
+    kb[68] = function () { this.change_slab_width_by(-0.01); };
+    // f
+    kb[70] = function (evt) {
+      evt.shiftKey ? this.toggle_full_screen()
+                   : this.change_slab_width_by(0.01);
+    };
     // p
     kb[80] = function (evt) { this.permalink(); };
     // s
@@ -233,6 +240,18 @@ export class ReciprocalViewer extends Viewer {
     kb[38] = function () { this.change_dmax(0.025); };
     // down arrow
     kb[40] = function () { this.change_dmax(-0.025); };
+    // add, equals/firefox, equal sign
+    kb[107] = kb[61] = kb[187] = function (evt) {
+      this.change_isolevel_by(0, 0.01);
+    };
+    // subtract, minus/firefox, dash
+    kb[109] = kb[173] = kb[189] = function (evt) {
+      this.change_isolevel_by(0, -0.01);
+    };
+    // [
+    kb[219] = function () { this.change_map_radius(-0.001); };
+    // ]
+    kb[221] = function () { this.change_map_radius(0.001); };
   }
 
   set_dropzone() {
@@ -306,8 +325,9 @@ export class ReciprocalViewer extends Viewer {
     }
     let map = new ReciprocalSpaceMap(buffer);
     if (map == null) return;
-    this.config.map_radius = map.box_size[0] / 4.;
-    this.config.default_isolevel = 0.5;
+    this.config.map_radius = Math.round(map.box_size[0] / 4 * 100) / 100;
+    this.config.max_map_radius = Math.round(map.box_size[0] * 100) / 100;
+    this.config.default_isolevel = 0.3;
     this.add_map(map, false);
   }
 
