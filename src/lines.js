@@ -261,7 +261,7 @@ function interpolate_directions(dirs, smooth) {
   return ret;
 }
 
-export function makeUniforms(params) {
+export function makeUniforms(params/*:{[id:string]:mixed}*/) {
   let uniforms = {
     fogNear: { value: null },  // will be updated in setProgram()
     fogFar: { value: null },

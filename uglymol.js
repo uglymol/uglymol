@@ -1477,6 +1477,8 @@ ElMap.prototype.isomesh_in_block = function isomesh_in_block (sigma/*:number*/, 
   return this.block.isosurface(abs_level, method);
 };
 
+ElMap.prototype.unit = 'e/\u212B\u00B3';
+
 // symop -> matrix ([x,y,z] = matrix * [x,y,z,1])
 function parse_symop(symop) {
   var ops = symop.toLowerCase().replace(/\s+/g, '').split(',');
@@ -1763,7 +1765,7 @@ function interpolate_directions(dirs, smooth) {
   return ret;
 }
 
-function make_uniforms(params) {
+function makeUniforms(params) {
   var uniforms = {
     fogNear: { value: null },  // will be updated in setProgram()
     fogFar: { value: null },
@@ -1807,7 +1809,7 @@ function makeRibbon(vertices /*:AtomT[]*/,
   // it's not 'normal', but it doesn't matter
   geometry.addAttribute('normal', new THREE.BufferAttribute(tan, 3));
   var material0 = new THREE.ShaderMaterial({
-    uniforms: make_uniforms({shift: 0}),
+    uniforms: makeUniforms({shift: 0}),
     vertexShader: ribbon_vert,
     fragmentShader: ribbon_frag,
     fog: true,
@@ -1880,7 +1882,7 @@ function makeGrid() {
   geom.addAttribute('position',
                     new THREE.BufferAttribute(new Float32Array(pos), 3));
   var material = new THREE.ShaderMaterial({
-    uniforms: make_uniforms({ucolor: new THREE.Color(0x888888)}),
+    uniforms: makeUniforms({ucolor: new THREE.Color(0x888888)}),
     //linewidth: 3,
     vertexShader: grid_vert,
     fragmentShader: grid_frag,
@@ -1906,7 +1908,7 @@ function makeSimpleLineMaterial(options) {
 }
 
 function makeThickLineMaterial(options) {
-  var uniforms = make_uniforms({
+  var uniforms = makeUniforms({
     linewidth: options.linewidth,
     win_size: options.win_size,
   });
@@ -2019,7 +2021,7 @@ function makeWheels(atom_arr /*:AtomT[]*/,
                            size /*:number*/) {
   var geometry = makeSimpleGeometry(atom_arr, color_arr);
   var material = new THREE.ShaderMaterial({
-    uniforms: make_uniforms({size: size}),
+    uniforms: makeUniforms({size: size}),
     vertexShader: wheel_vert,
     fragmentShader: wheel_frag,
     fog: true,
@@ -2121,9 +2123,9 @@ function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
   geometry.addAttribute('uv', new THREE.BufferAttribute(uvs, 2));
 
   var material = new THREE.ShaderMaterial({
-    uniforms: make_uniforms({map: texture,
-                             canvas_size: [canvas.width, canvas.height],
-                             win_size: options.win_size}),
+    uniforms: makeUniforms({map: texture,
+                            canvas_size: [canvas.width, canvas.height],
+                            win_size: options.win_size}),
     vertexShader: label_vert,
     fragmentShader: label_frag,
     fog: true,
@@ -2540,7 +2542,7 @@ function scale_by_height(value, size) { // for scaling bond_line
   return value * size[1] / 700;
 }
 
-function MapBag(map, config, is_diff_map) {
+var MapBag = function MapBag(map, config, is_diff_map) {
   this.map = map;
   this.name = '';
   this.isolevel = is_diff_map ? 3.0 : config.default_isolevel;
@@ -2548,7 +2550,7 @@ function MapBag(map, config, is_diff_map) {
   this.types = is_diff_map ? ['map_pos', 'map_neg'] : ['map_den'];
   this.block_ctr = new THREE.Vector3(Infinity, 0, 0);
   this.el_objects = []; // three.js objects
-}
+};
 
 
 var ModelBag = function ModelBag(model, config, win_size) {
@@ -2732,7 +2734,9 @@ var Viewer = function Viewer(options /*: {[key: string]: any}*/) {
     bond_line: 4.0, // ~ to height, like in Coot (see scale_by_height())
     map_line: 1.25,// for any height
     map_radius: 10.0,
+    max_map_radius: 40,
     default_isolevel: 1.5,
+    center_cube_size: 0.1,
     map_style: MAP_STYLES[0],
     render_style: RENDER_STYLES[0],
     color_aim: COLOR_AIMS[0],
@@ -2924,12 +2928,14 @@ Viewer.prototype.hud = function hud (text/*:?string*/, type/*:?string*/) {
 };
 
 Viewer.prototype.redraw_center = function redraw_center () {
-  if (this.target.distanceToSquared(this.last_ctr) > 0.0001) {
+  var size = this.config.center_cube_size;
+  if (!size) { return; }
+  if (this.target.distanceToSquared(this.last_ctr) > 0.001 * size) {
     this.last_ctr.copy(this.target);
     if (this.decor.mark) {
       this.scene.remove(this.decor.mark);
     }
-    this.decor.mark = makeCube(0.1, this.target, {
+    this.decor.mark = makeCube(size, this.target, {
       color: this.config.colors.center,
       linewidth: 2,
       win_size: this.window_size,
@@ -2940,10 +2946,11 @@ Viewer.prototype.redraw_center = function redraw_center () {
 
 Viewer.prototype.redraw_maps = function redraw_maps (force/*:?boolean*/) {
   this.redraw_center();
+  var r = this.config.map_radius;
   for (var i = 0, list = this.map_bags; i < list.length; i += 1) {
     var map_bag = list[i];
 
-      if (force || this.target.distanceToSquared(map_bag.block_ctr) > 0.01) {
+      if (force || this.target.distanceToSquared(map_bag.block_ctr) > r/100) {
       this.redraw_map(map_bag);
     }
   }
@@ -3098,7 +3105,7 @@ Viewer.prototype.add_el_objects = function add_el_objects (map_bag/*:MapBag*/) {
 
       var isolevel = (mtype === 'map_neg' ? -1 : 1) * map_bag.isolevel;
     var iso = map_bag.map.isomesh_in_block(isolevel, this.config.map_style);
-
+    if (iso == null) { continue; }
     var obj = makeChickenWire(iso, {
       color: this.config.colors[mtype],
       linewidth: this.config.map_line,
@@ -3126,17 +3133,19 @@ Viewer.prototype.change_isolevel_by = function change_isolevel_by (map_idx/*:num
     tied.clear_el_objects(tied_bag);
     tied.add_el_objects(tied_bag);
   }
-  this.hud('map ' + (map_idx+1) + ' level =  ' + abs_text +
-           ' e/\u212B\u00B3 (' + map_bag.isolevel.toFixed(2) + ' rmsd)');
+  this.hud('map ' + (map_idx+1) + ' level =  ' + abs_text + ' ' +
+           map_bag.map.unit + ' (' + map_bag.isolevel.toFixed(2) + ' rmsd)');
 };
 
 Viewer.prototype.change_map_radius = function change_map_radius (delta/*:number*/) {
-  var RMAX = 40;
+  var rmax = this.config.max_map_radius;
   var cf = this.config;
-  cf.map_radius = Math.min(Math.max(cf.map_radius + delta, 0), RMAX);
+  cf.map_radius = Math.min(Math.max(cf.map_radius + delta, 0), rmax);
+  cf.map_radius = Math.round(cf.map_radius * 1e9) / 1e9;
   var info = 'map "radius": ' + cf.map_radius;
-  if (cf.map_radius === RMAX) { info += ' (max)'; }
+  if (cf.map_radius === rmax) { info += ' (max)'; }
   else if (cf.map_radius === 0) { info += ' (hidden maps)'; }
+  if (this.map_bags.length === 0) { info += '\nNB: no map is loaded.'; }
   this.hud(info);
   this.redraw_maps(true);
 };
@@ -3194,21 +3203,26 @@ Viewer.prototype.toggle_cell_box = function toggle_cell_box () {
     this.scene.remove(this.decor.cell_box);
     this.decor.cell_box = null;
   } else {
-    var uc = null;
-    if (this.model_bags.length > 0) {
-      uc = this.model_bags[0].model.unit_cell;
-    }
-    // model may not have unit cell
-    if (!uc && this.map_bags.length > 0) {
-      uc = this.map_bags[0].map.unit_cell;
-    }
-    if (uc) {
-      this.decor.cell_box = makeRgbBox(uc.orthogonalize.bind(uc), {
+    var uc_func = this.get_cell_box_func();
+    if (uc_func) {
+      this.decor.cell_box = makeRgbBox(uc_func, {
         color: this.config.colors.fg,
       });
       this.scene.add(this.decor.cell_box);
     }
   }
+};
+
+Viewer.prototype.get_cell_box_func = function get_cell_box_func () /*:?Function*/ {
+  var uc = null;
+  if (this.active_model_bag !== null) {
+    uc = this.active_model_bag.model.unit_cell;
+  }
+  // note: model may not have unit cell
+  if (uc == null && this.map_bags.length > 0) {
+    uc = this.map_bags[0].map.unit_cell;
+  }
+  return uc && uc.orthogonalize.bind(uc);
 };
 
 Viewer.prototype.shift_clip = function shift_clip (delta/*:number*/) {
@@ -3299,11 +3313,13 @@ Viewer.prototype.set_common_key_bindings = function set_common_key_bindings () {
     this.select_next('coloring by', 'color_aim', COLOR_AIMS, evt.shiftKey);
     this.redraw_models();
   };
-  // d
-  kb[68] = function () { this.change_slab_width_by(-0.1); };
-  // f
-  kb[70] = function (evt) {
-    evt.shiftKey ? this.toggle_full_screen() : this.change_slab_width_by(0.1);
+  // e
+  kb[69] = function toggle_fog() {
+    var fog = this.scene.fog;
+    var has_fog = (fog.far === 1);
+    fog.far = (has_fog ? 1e9 : 1);
+    this.hud((has_fog ? 'dis': 'en') + 'able fog');
+    this.redraw_all();
   };
   // h
   kb[72] = this.toggle_help;
@@ -3339,11 +3355,6 @@ Viewer.prototype.set_common_key_bindings = function set_common_key_bindings () {
       this.hud('recentered');
       this.recenter();
     }
-  };
-  // u
-  kb[85] = function () {
-    this.hud('toggled unit cell box');
-    this.toggle_cell_box();
   };
   // w
   kb[87] = function (evt) {
@@ -3391,6 +3402,12 @@ Viewer.prototype.set_real_space_key_bindings = function set_real_space_key_bindi
   };
   // Space
   kb[32] = function (evt) { this.center_next_residue(evt.shiftKey); };
+  // d
+  kb[68] = function () { this.change_slab_width_by(-0.1); };
+  // f
+  kb[70] = function (evt) {
+    evt.shiftKey ? this.toggle_full_screen() : this.change_slab_width_by(0.1);
+  };
   // p
   kb[80] = function (evt) {
     evt.shiftKey ? this.permalink() : this.go_to_nearest_Ca();
@@ -3400,6 +3417,11 @@ Viewer.prototype.set_real_space_key_bindings = function set_real_space_key_bindi
     this.select_next('rendering as', 'render_style', RENDER_STYLES,
                      evt.shiftKey);
     this.redraw_models();
+  };
+  // u
+  kb[85] = function () {
+    this.hud('toggled unit cell box');
+    this.toggle_cell_box();
   };
   // y
   kb[89] = function (evt) {
@@ -3488,7 +3510,7 @@ Viewer.prototype.touchend = function touchend (/*event*/) {
   this.redraw_maps();
 };
 
-//TODO: wheel and WheelEvent are more standard
+// $FlowFixMe TODO: wheel()+WheelEvent are more standard
 Viewer.prototype.mousewheel = function mousewheel (evt/*:MouseWheelEvent*/) {
   evt.preventDefault();
   evt.stopPropagation();
@@ -3747,6 +3769,7 @@ Viewer.prototype.KEYBOARD_HELP = [
   'T = representation',
   'C = coloring',
   'B = bg color',
+  'E = toggle fog',
   'Q = label font',
   '+/- = sigma level',
   ']/[ = map radius',
@@ -3774,7 +3797,7 @@ Viewer.prototype.ColorSchemes = ColorSchemes;
 // @flow
 // options handled by Viewer#select_next()
 var SPOT_SEL = ['all', 'unindexed', '#1']; //extended when needed
-var SHOW_AXES = ['three', 'two', 'none'];
+var SHOW_AXES = ['two', 'three', 'none'];
 var SPOT_SHAPES = ['wheel', 'square'];
 
 // Modified ElMap for handling output of dials.rs_mapper.
@@ -3791,7 +3814,7 @@ var ReciprocalSpaceMap = (function (ElMap$$1) {
     // We assume the "unit cell" is cubic -- as it is in rs_mapper.
     var par = this.unit_cell.parameters;
     this.box_size = [par[0]/ 100, par[1] / 100, par[2] / 100];
-    this.unit_cell = null;  // we won't use it
+    this.unit_cell = null;
   }
 
   if ( ElMap$$1 ) ReciprocalSpaceMap.__proto__ = ElMap$$1;
@@ -3836,6 +3859,8 @@ var ReciprocalSpaceMap = (function (ElMap$$1) {
 
   return ReciprocalSpaceMap;
 }(ElMap));
+
+ReciprocalSpaceMap.prototype.unit = '';
 
 function find_max_dist(pos) {
   var max_sq = 0;
@@ -3892,7 +3917,7 @@ function parse_json(text) {
 
 var point_vert = "\nattribute float group;\nuniform float show_only;\nuniform float r2_max;\nuniform float r2_min;\nuniform float size;\nvarying vec3 vcolor;\nvoid main() {\n  vcolor = color;\n  float r2 = dot(position, position);\n  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n  if (r2 < r2_min || r2 >= r2_max || (show_only != -2.0 && show_only != group))\n    gl_Position.x = 2.0;\n  gl_PointSize = size;\n}";
 
-var point_frag = "\nvarying vec3 vcolor;\nvoid main() {\n  float alpha = 1.0;\n#ifdef ROUND\n  // not sure how reliable is such rounding of points\n  vec2 diff = gl_PointCoord - vec2(0.5, 0.5);\n  float dist_sq = 4.0 * dot(diff, diff);\n  if (dist_sq >= 1.0) discard;\n  alpha = 1.0 - dist_sq * dist_sq * dist_sq;\n#endif\n  gl_FragColor = vec4(vcolor, alpha);\n}";
+var point_frag = "\n#include <fog_pars_fragment>\nvarying vec3 vcolor;\nvoid main() {\n  float alpha = 1.0;\n#ifdef ROUND\n  // not sure how reliable is such rounding of points\n  vec2 diff = gl_PointCoord - vec2(0.5, 0.5);\n  float dist_sq = 4.0 * dot(diff, diff);\n  if (dist_sq >= 1.0) discard;\n  alpha = 1.0 - dist_sq * dist_sq * dist_sq;\n#endif\n  gl_FragColor = vec4(vcolor, alpha);\n#include <fog_fragment>\n}";
 
 
 var ReciprocalViewer = (function (Viewer$$1) {
@@ -3908,21 +3933,23 @@ var ReciprocalViewer = (function (Viewer$$1) {
     this.config.show_only = SPOT_SEL[0];
     this.config.show_axes = SHOW_AXES[0];
     this.config.spot_shape = SPOT_SHAPES[0];
+    this.config.center_cube_size = 0.001;
     this.set_reciprocal_key_bindings();
     this.set_dropzone();
     this.point_material = new THREE.ShaderMaterial({
-      uniforms: {
-        size: { value: 3 },
-        show_only: { value: -2 },
-        r2_max: { value: 100 },
-        r2_min: { value: 0 },
-      },
+      uniforms: makeUniforms({
+        size: 3,
+        show_only: -2,
+        r2_max: 100,
+        r2_min: 0,
+      }),
       defines: {
         ROUND: true,
       },
       vertexShader: point_vert,
       fragmentShader: point_frag,
       vertexColors: THREE.VertexColors,
+      fog: true,
       transparent: true,
     });
   }
@@ -3938,6 +3965,13 @@ var ReciprocalViewer = (function (Viewer$$1) {
       this.select_next('axes', 'show_axes', SHOW_AXES, evt.shiftKey);
       this.set_axes();
     };
+    // d
+    kb[68] = function () { this.change_slab_width_by(-0.01); };
+    // f
+    kb[70] = function (evt) {
+      evt.shiftKey ? this.toggle_full_screen()
+                   : this.change_slab_width_by(0.01);
+    };
     // p
     kb[80] = function (evt) { this.permalink(); };
     // s
@@ -3945,6 +3979,15 @@ var ReciprocalViewer = (function (Viewer$$1) {
       this.select_next('spot shape', 'spot_shape', SPOT_SHAPES, evt.shiftKey);
       this.point_material.defines.ROUND = (this.config.spot_shape === 'wheel');
       this.point_material.needsUpdate = true;
+    };
+    // u
+    kb[85] = function () {
+      if (this.map_bags.length == 0) {
+        this.hud('Reciprocal-space density map not loaded.');
+        return;
+      }
+      this.hud('toggled map box');
+      this.toggle_cell_box();
     };
     // v
     kb[86] = function (evt) {
@@ -3972,6 +4015,18 @@ var ReciprocalViewer = (function (Viewer$$1) {
     kb[38] = function () { this.change_dmax(0.025); };
     // down arrow
     kb[40] = function () { this.change_dmax(-0.025); };
+    // add, equals/firefox, equal sign
+    kb[107] = kb[61] = kb[187] = function (evt) {
+      this.change_isolevel_by(0, 0.01);
+    };
+    // subtract, minus/firefox, dash
+    kb[109] = kb[173] = kb[189] = function (evt) {
+      this.change_isolevel_by(0, -0.01);
+    };
+    // [
+    kb[219] = function () { this.change_map_radius(-0.001); };
+    // ]
+    kb[221] = function () { this.change_map_radius(0.001); };
   };
 
   ReciprocalViewer.prototype.set_dropzone = function set_dropzone () {
@@ -4049,9 +4104,18 @@ var ReciprocalViewer = (function (Viewer$$1) {
     }
     var map = new ReciprocalSpaceMap(buffer);
     if (map == null) { return; }
-    this.config.map_radius = map.box_size[0] / 4.;
-    this.config.default_isolevel = 0.5;
+    var map_range = map.box_size[0] / 2;
+    this.config.map_radius = Math.round(map_range / 2 * 100) / 100;
+    this.config.max_map_radius = Math.round(1.5 * map_range * 100) / 100;
+    this.config.default_isolevel = 0.3;
     this.add_map(map, false);
+    var map_dmin = 1 / map_range;
+    var msg = 'Loaded density map (' + map_dmin.toFixed(2) + 'Å).\n';
+    if (this.points !== null && map_dmin > this.d_min) {
+      msg += 'Adjusted spot clipping. ';
+      this.change_dmin(map_dmin - this.d_min);
+    }
+    this.hud(msg + 'Use +/- to change the isolevel.');
   };
 
   ReciprocalViewer.prototype.set_axes = function set_axes () {
@@ -4106,8 +4170,6 @@ var ReciprocalViewer = (function (Viewer$$1) {
     }
   };
 
-  ReciprocalViewer.prototype.redraw_center = function redraw_center () {};
-
   ReciprocalViewer.prototype.mousewheel_action = function mousewheel_action (delta/*:number*/, evt/*:Event*/) {
     this.change_zoom_by_factor(1 + 0.0005 * delta);
   };
@@ -4140,6 +4202,15 @@ var ReciprocalViewer = (function (Viewer$$1) {
     this.set_points(this.data);
   };
 
+  ReciprocalViewer.prototype.get_cell_box_func = function get_cell_box_func () {
+    if (this.map_bags.size === 0) { return null; }
+    // $FlowFixMe: here the map is ReciprocalSpaceMap not ElMap
+    var a = this.map_bags[0].map.box_size;
+    return function (xyz/*:[number,number,number]*/) {
+      return [(xyz[0]-0.5) * a[0], (xyz[1]-0.5) * a[1], (xyz[2]-0.5) * a[2]];
+    };
+  };
+
   return ReciprocalViewer;
 }(Viewer));
 
@@ -4149,6 +4220,7 @@ ReciprocalViewer.prototype.ColorSchemes = [
     bg: 0x002b36,
     fg: 0xfdf6e3,
     map_den: 0xeee8d5,
+    center: 0xfdf6e3,
     lattices: [0xdc322f, 0x2aa198, 0x268bd2, 0x859900,
                0xd33682, 0xb58900, 0x6c71c4, 0xcb4b16],
     axes: [0xffaaaa, 0xaaffaa, 0xaaaaff],
@@ -4158,6 +4230,7 @@ ReciprocalViewer.prototype.ColorSchemes = [
     bg: 0xfdf6e3,
     fg: 0x002b36,
     map_den: 0x073642,
+    center: 0x002b36,
     lattices: [0xdc322f, 0x2aa198, 0x268bd2, 0x859900,
                0xd33682, 0xb58900, 0x6c71c4, 0xcb4b16],
     axes: [0xffaaaa, 0xaaffaa, 0xaaaaff],
@@ -4168,7 +4241,9 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
   'H = toggle help',
   'V = show (un)indexed',
   'A = toggle axes',
+  'U = toggle map box',
   'B = bg color',
+  'E = toggle fog',
   'M/N = zoom',
   'D/F = clip width',
   'R = center view',
@@ -4188,6 +4263,7 @@ exports.Block = Block;
 exports.ElMap = ElMap;
 exports.makeCube = makeCube;
 exports.makeRgbBox = makeRgbBox;
+exports.makeUniforms = makeUniforms;
 exports.makeRibbon = makeRibbon;
 exports.makeChickenWire = makeChickenWire;
 exports.makeGrid = makeGrid;
@@ -4200,6 +4276,7 @@ exports.addXyzCross = addXyzCross;
 exports.STATE = STATE;
 exports.Controls = Controls;
 exports.Viewer = Viewer;
+exports.ReciprocalSpaceMap = ReciprocalSpaceMap;
 exports.ReciprocalViewer = ReciprocalViewer;
 
 Object.defineProperty(exports, '__esModule', { value: true });
