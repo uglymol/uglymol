@@ -14,7 +14,7 @@ const SPOT_SHAPES = ['wheel', 'square'];
 // rs_mapper outputs map in ccp4 format, but we need to rescale it,
 // shift it so the box is centered at 0,0,0,
 // and the translational symmetry doesn't apply.
-class ReciprocalSpaceMap extends ElMap {
+export class ReciprocalSpaceMap extends ElMap {
   /*::
     box_size: [number, number, number]
    */
@@ -27,7 +27,7 @@ class ReciprocalSpaceMap extends ElMap {
     // We assume the "unit cell" is cubic -- as it is in rs_mapper.
     const par = this.unit_cell.parameters;
     this.box_size = [par[0]/ 100, par[1] / 100, par[2] / 100];
-    this.unit_cell = null;  // we won't use it
+    this.unit_cell = null;
   }
 
   extract_block(radius/*:number*/, center/*:[number,number,number]*/) {
@@ -214,6 +214,15 @@ export class ReciprocalViewer extends Viewer {
       this.select_next('spot shape', 'spot_shape', SPOT_SHAPES, evt.shiftKey);
       this.point_material.defines.ROUND = (this.config.spot_shape === 'wheel');
       this.point_material.needsUpdate = true;
+    };
+    // u
+    kb[85] = function () {
+      if (this.map_bags.length == 0) {
+        this.hud('Reciprocal-space density map not loaded.');
+        return;
+      }
+      this.hud('toggled map box');
+      this.toggle_cell_box();
     };
     // v
     kb[86] = function (evt) {
@@ -415,6 +424,15 @@ export class ReciprocalViewer extends Viewer {
   redraw_models() {
     this.set_points(this.data);
   }
+
+  get_cell_box_func() {
+    if (this.map_bags.size === 0) return null;
+    // $FlowFixMe: here the map is ReciprocalSpaceMap not ElMap
+    const a = this.map_bags[0].map.box_size;
+    return function (xyz/*:[number,number,number]*/) {
+      return [(xyz[0]-0.5) * a[0], (xyz[1]-0.5) * a[1], (xyz[2]-0.5) * a[2]];
+    };
+  }
 }
 
 ReciprocalViewer.prototype.ColorSchemes = [
@@ -445,6 +463,7 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
   'H = toggle help',
   'V = show (un)indexed',
   'A = toggle axes',
+  'U = toggle map box',
   'B = bg color',
   'M/N = zoom',
   'D/F = clip width',

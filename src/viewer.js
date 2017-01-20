@@ -157,14 +157,25 @@ function scale_by_height(value, size) { // for scaling bond_line
   return value * size[1] / 700;
 }
 
-function MapBag(map, config, is_diff_map) {
-  this.map = map;
-  this.name = '';
-  this.isolevel = is_diff_map ? 3.0 : config.default_isolevel;
-  this.visible = true;
-  this.types = is_diff_map ? ['map_pos', 'map_neg'] : ['map_den'];
-  this.block_ctr = new THREE.Vector3(Infinity, 0, 0);
-  this.el_objects = []; // three.js objects
+class MapBag {
+  /*::
+  map: ElMap
+  name: string
+  isolevel: number
+  visible: boolean
+  types: string[]
+  block_ctr: THREE.Vector3
+  el_objects: Object[]
+  */
+  constructor(map, config, is_diff_map) {
+    this.map = map;
+    this.name = '';
+    this.isolevel = is_diff_map ? 3.0 : config.default_isolevel;
+    this.visible = true;
+    this.types = is_diff_map ? ['map_pos', 'map_neg'] : ['map_den'];
+    this.block_ctr = new THREE.Vector3(Infinity, 0, 0);
+    this.el_objects = []; // three.js objects
+  }
 }
 
 
@@ -743,7 +754,7 @@ export class Viewer {
     for (const mtype of map_bag.types) {
       const isolevel = (mtype === 'map_neg' ? -1 : 1) * map_bag.isolevel;
       const iso = map_bag.map.isomesh_in_block(isolevel, this.config.map_style);
-
+      if (iso == null) continue;
       const obj = makeChickenWire(iso, {
         color: this.config.colors[mtype],
         linewidth: this.config.map_line,
@@ -839,21 +850,26 @@ export class Viewer {
       this.scene.remove(this.decor.cell_box);
       this.decor.cell_box = null;
     } else {
-      let uc = null;
-      if (this.model_bags.length > 0) {
-        uc = this.model_bags[0].model.unit_cell;
-      }
-      // model may not have unit cell
-      if (!uc && this.map_bags.length > 0) {
-        uc = this.map_bags[0].map.unit_cell;
-      }
-      if (uc) {
-        this.decor.cell_box = makeRgbBox(uc.orthogonalize.bind(uc), {
+      const uc_func = this.get_cell_box_func();
+      if (uc_func) {
+        this.decor.cell_box = makeRgbBox(uc_func, {
           color: this.config.colors.fg,
         });
         this.scene.add(this.decor.cell_box);
       }
     }
+  }
+
+  get_cell_box_func() /*:?Function*/ {
+    let uc = null;
+    if (this.active_model_bag !== null) {
+      uc = this.active_model_bag.model.unit_cell;
+    }
+    // note: model may not have unit cell
+    if (uc == null && this.map_bags.length > 0) {
+      uc = this.map_bags[0].map.unit_cell;
+    }
+    return uc && uc.orthogonalize.bind(uc);
   }
 
   shift_clip(delta/*:number*/) {
