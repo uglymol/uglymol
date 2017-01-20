@@ -963,7 +963,13 @@ export class Viewer {
       this.redraw_models();
     };
     // e
-    kb[69] = function () { this.change_slab_width_by(-0.1); };
+    kb[69] = function toggle_fog() {
+      const fog = this.scene.fog;
+      const has_fog = (fog.far === 1);
+      fog.far = (has_fog ? 1e9 : 1);
+      this.hud((has_fog ? 'dis': 'en') + 'able fog');
+      this.redraw_all();
+    };
     // h
     kb[72] = this.toggle_help;
     // i
@@ -1431,6 +1437,7 @@ Viewer.prototype.KEYBOARD_HELP = [
   'T = representation',
   'C = coloring',
   'B = bg color',
+  'E = toggle fog',
   'Q = label font',
   '+/- = sigma level',
   ']/[ = map radius',

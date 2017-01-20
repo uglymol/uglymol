@@ -475,6 +475,7 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
   'A = toggle axes',
   'U = toggle map box',
   'B = bg color',
+  'E = toggle fog',
   'M/N = zoom',
   'D/F = clip width',
   'R = center view',
