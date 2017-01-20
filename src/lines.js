@@ -261,7 +261,7 @@ function interpolate_directions(dirs, smooth) {
   return ret;
 }
 
-function make_uniforms(params) {
+export function makeUniforms(params) {
   let uniforms = {
     fogNear: { value: null },  // will be updated in setProgram()
     fogFar: { value: null },
@@ -305,7 +305,7 @@ export function makeRibbon(vertices /*:AtomT[]*/,
   // it's not 'normal', but it doesn't matter
   geometry.addAttribute('normal', new THREE.BufferAttribute(tan, 3));
   const material0 = new THREE.ShaderMaterial({
-    uniforms: make_uniforms({shift: 0}),
+    uniforms: makeUniforms({shift: 0}),
     vertexShader: ribbon_vert,
     fragmentShader: ribbon_frag,
     fog: true,
@@ -379,7 +379,7 @@ export function makeGrid() {
   geom.addAttribute('position',
                     new THREE.BufferAttribute(new Float32Array(pos), 3));
   let material = new THREE.ShaderMaterial({
-    uniforms: make_uniforms({ucolor: new THREE.Color(0x888888)}),
+    uniforms: makeUniforms({ucolor: new THREE.Color(0x888888)}),
     //linewidth: 3,
     vertexShader: grid_vert,
     fragmentShader: grid_frag,
@@ -405,7 +405,7 @@ function makeSimpleLineMaterial(options) {
 }
 
 function makeThickLineMaterial(options) {
-  let uniforms = make_uniforms({
+  let uniforms = makeUniforms({
     linewidth: options.linewidth,
     win_size: options.win_size,
   });
@@ -518,7 +518,7 @@ export function makeWheels(atom_arr /*:AtomT[]*/,
                            size /*:number*/) {
   let geometry = makeSimpleGeometry(atom_arr, color_arr);
   let material = new THREE.ShaderMaterial({
-    uniforms: make_uniforms({size: size}),
+    uniforms: makeUniforms({size: size}),
     vertexShader: wheel_vert,
     fragmentShader: wheel_frag,
     fog: true,
@@ -620,9 +620,9 @@ export function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
   geometry.addAttribute('uv', new THREE.BufferAttribute(uvs, 2));
 
   let material = new THREE.ShaderMaterial({
-    uniforms: make_uniforms({map: texture,
-                             canvas_size: [canvas.width, canvas.height],
-                             win_size: options.win_size}),
+    uniforms: makeUniforms({map: texture,
+                            canvas_size: [canvas.width, canvas.height],
+                            win_size: options.win_size}),
     vertexShader: label_vert,
     fragmentShader: label_frag,
     fog: true,

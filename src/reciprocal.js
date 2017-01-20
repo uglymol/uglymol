@@ -1,7 +1,8 @@
 // @flow
 import { ElMap } from './elmap.js';
 import { Viewer } from './viewer.js';
-import { addXyzCross, makeLineMaterial, makeLineSegments } from './lines.js';
+import { addXyzCross, makeLineMaterial, makeLineSegments,
+         makeUniforms} from './lines.js';
 import * as THREE from 'three';
 
 
@@ -139,6 +140,7 @@ void main() {
 }`;
 
 const point_frag = `
+#include <fog_pars_fragment>
 varying vec3 vcolor;
 void main() {
   float alpha = 1.0;
@@ -150,6 +152,7 @@ void main() {
   alpha = 1.0 - dist_sq * dist_sq * dist_sq;
 #endif
   gl_FragColor = vec4(vcolor, alpha);
+#include <fog_fragment>
 }`;
 
 
@@ -179,18 +182,19 @@ export class ReciprocalViewer extends Viewer {
     this.set_reciprocal_key_bindings();
     this.set_dropzone();
     this.point_material = new THREE.ShaderMaterial({
-      uniforms: {
-        size: { value: 3 },
-        show_only: { value: -2 },
-        r2_max: { value: 100 },
-        r2_min: { value: 0 },
-      },
+      uniforms: makeUniforms({
+        size: 3,
+        show_only: -2,
+        r2_max: 100,
+        r2_min: 0,
+      }),
       defines: {
         ROUND: true,
       },
       vertexShader: point_vert,
       fragmentShader: point_frag,
       vertexColors: THREE.VertexColors,
+      fog: true,
       transparent: true,
     });
   }
