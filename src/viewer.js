@@ -790,9 +790,11 @@ export class Viewer {
     const rmax = this.config.max_map_radius;
     const cf = this.config;
     cf.map_radius = Math.min(Math.max(cf.map_radius + delta, 0), rmax);
+    cf.map_radius = Math.round(cf.map_radius * 1e9) / 1e9;
     let info = 'map "radius": ' + cf.map_radius;
     if (cf.map_radius === rmax) info += ' (max)';
     else if (cf.map_radius === 0) info += ' (hidden maps)';
+    if (this.map_bags.length === 0) info += '\nNB: no map is loaded.';
     this.hud(info);
     this.redraw_maps(true);
   }
@@ -960,12 +962,8 @@ export class Viewer {
       this.select_next('coloring by', 'color_aim', COLOR_AIMS, evt.shiftKey);
       this.redraw_models();
     };
-    // d
-    kb[68] = function () { this.change_slab_width_by(-0.1); };
-    // f
-    kb[70] = function (evt) {
-      evt.shiftKey ? this.toggle_full_screen() : this.change_slab_width_by(0.1);
-    };
+    // e
+    kb[69] = function () { this.change_slab_width_by(-0.1); };
     // h
     kb[72] = this.toggle_help;
     // i
@@ -1000,11 +998,6 @@ export class Viewer {
         this.hud('recentered');
         this.recenter();
       }
-    };
-    // u
-    kb[85] = function () {
-      this.hud('toggled unit cell box');
-      this.toggle_cell_box();
     };
     // w
     kb[87] = function (evt) {
@@ -1052,6 +1045,12 @@ export class Viewer {
     };
     // Space
     kb[32] = function (evt) { this.center_next_residue(evt.shiftKey); };
+    // d
+    kb[68] = function () { this.change_slab_width_by(-0.1); };
+    // f
+    kb[70] = function (evt) {
+      evt.shiftKey ? this.toggle_full_screen() : this.change_slab_width_by(0.1);
+    };
     // p
     kb[80] = function (evt) {
       evt.shiftKey ? this.permalink() : this.go_to_nearest_Ca();
@@ -1061,6 +1060,11 @@ export class Viewer {
       this.select_next('rendering as', 'render_style', RENDER_STYLES,
                        evt.shiftKey);
       this.redraw_models();
+    };
+    // u
+    kb[85] = function () {
+      this.hud('toggled unit cell box');
+      this.toggle_cell_box();
     };
     // y
     kb[89] = function (evt) {
