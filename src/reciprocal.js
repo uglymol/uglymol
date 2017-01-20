@@ -173,6 +173,7 @@ export class ReciprocalViewer extends Viewer {
     this.config.show_only = SPOT_SEL[0];
     this.config.show_axes = SHOW_AXES[0];
     this.config.spot_shape = SPOT_SHAPES[0];
+    this.config.center_cube_size = 0.001;
     this.set_reciprocal_key_bindings();
     this.set_dropzone();
     this.point_material = new THREE.ShaderMaterial({
@@ -383,8 +384,6 @@ export class ReciprocalViewer extends Viewer {
     }
   }
 
-  redraw_center() {}
-
   mousewheel_action(delta/*:number*/, evt/*:Event*/) {
     this.change_zoom_by_factor(1 + 0.0005 * delta);
   }
@@ -424,6 +423,7 @@ ReciprocalViewer.prototype.ColorSchemes = [
     bg: 0x002b36,
     fg: 0xfdf6e3,
     map_den: 0xeee8d5,
+    center: 0xfdf6e3,
     lattices: [0xdc322f, 0x2aa198, 0x268bd2, 0x859900,
                0xd33682, 0xb58900, 0x6c71c4, 0xcb4b16],
     axes: [0xffaaaa, 0xaaffaa, 0xaaaaff],
@@ -433,6 +433,7 @@ ReciprocalViewer.prototype.ColorSchemes = [
     bg: 0xfdf6e3,
     fg: 0x002b36,
     map_den: 0x073642,
+    center: 0x002b36,
     lattices: [0xdc322f, 0x2aa198, 0x268bd2, 0x859900,
                0xd33682, 0xb58900, 0x6c71c4, 0xcb4b16],
     axes: [0xffaaaa, 0xaaffaa, 0xaaaaff],

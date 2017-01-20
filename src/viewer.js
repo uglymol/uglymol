@@ -390,6 +390,7 @@ export class Viewer {
       map_radius: 10.0,
       max_map_radius: 40,
       default_isolevel: 1.5,
+      center_cube_size: 0.1,
       map_style: MAP_STYLES[0],
       render_style: RENDER_STYLES[0],
       color_aim: COLOR_AIMS[0],
@@ -579,12 +580,14 @@ export class Viewer {
   }
 
   redraw_center() {
-    if (this.target.distanceToSquared(this.last_ctr) > 0.0001) {
+    const size = this.config.center_cube_size;
+    if (!size) return;
+    if (this.target.distanceToSquared(this.last_ctr) > 0.001 * size) {
       this.last_ctr.copy(this.target);
       if (this.decor.mark) {
         this.scene.remove(this.decor.mark);
       }
-      this.decor.mark = makeCube(0.1, this.target, {
+      this.decor.mark = makeCube(size, this.target, {
         color: this.config.colors.center,
         linewidth: 2,
         win_size: this.window_size,
