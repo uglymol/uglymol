@@ -1765,7 +1765,7 @@ function interpolate_directions(dirs, smooth) {
   return ret;
 }
 
-function makeUniforms(params) {
+function makeUniforms(params/*:{[id:string]:mixed}*/) {
   var uniforms = {
     fogNear: { value: null },  // will be updated in setProgram()
     fogFar: { value: null },
@@ -2927,10 +2927,10 @@ Viewer.prototype.hud = function hud (text/*:?string*/, type/*:?string*/) {
   }
 };
 
-Viewer.prototype.redraw_center = function redraw_center () {
+Viewer.prototype.redraw_center = function redraw_center (force/*:?boolean*/) {
   var size = this.config.center_cube_size;
-  if (!size) { return; }
-  if (this.target.distanceToSquared(this.last_ctr) > 0.001 * size) {
+  if (force ||
+      this.target.distanceToSquared(this.last_ctr) > 0.01 * size * size) {
     this.last_ctr.copy(this.target);
     if (this.decor.mark) {
       this.scene.remove(this.decor.mark);
@@ -2945,7 +2945,7 @@ Viewer.prototype.redraw_center = function redraw_center () {
 };
 
 Viewer.prototype.redraw_maps = function redraw_maps (force/*:?boolean*/) {
-  this.redraw_center();
+  this.redraw_center(force);
   var r = this.config.map_radius;
   for (var i = 0, list = this.map_bags; i < list.length; i += 1) {
     var map_bag = list[i];
@@ -3248,7 +3248,9 @@ Viewer.prototype.go_to_nearest_Ca = function go_to_nearest_Ca () {
 
 Viewer.prototype.permalink = function permalink () {
   if (typeof window === 'undefined') { return; }
-  window.location.hash = '#xyz=' + vec3_to_fixed(this.target, 1).join(',') +
+  var xyz_prec = Math.round(-Math.log10(0.001));
+  window.location.hash =
+    '#xyz=' + vec3_to_fixed(this.target, xyz_prec).join(',') +
     '&eye=' + vec3_to_fixed(this.camera.position, 1).join(',') +
     '&zoom=' + this.camera.zoom.toFixed(0);
   this.hud('copy URL from the location bar');
@@ -3905,11 +3907,16 @@ function minus_ones(n) {
 function parse_json(text) {
   var d = JSON.parse(text);
   var n = d.rlp.length;
-  var pos = new Float32Array(3*n);
-  for (var i = 0; i < n; i++) {
-    for (var j = 0; j < 3; j++) {
-      pos[3*i+j] = d.rlp[i][j];
+  var pos;
+  if (n > 0 && d.rlp[0] instanceof Array) { // deprecated format
+    pos = new Float32Array(3*n);
+    for (var i = 0; i < n; i++) {
+      for (var j = 0; j < 3; j++) {
+        pos[3*i+j] = d.rlp[i][j];
+      }
     }
+  } else { // flat array - new format
+    pos = new Float32Array(d.rlp);
   }
   var lattice_ids = d.experiment_id || minus_ones(n);
   return { pos: pos, lattice_ids: lattice_ids };
@@ -4096,6 +4103,7 @@ var ReciprocalViewer = (function (Viewer$$1) {
     var d = 1.01 * this.max_dist;
     this.controls.slab_width = [d, d, 100];
     this.set_view(options);
+    this.hud('Loaded ' + this.data.pos.length + ' spots.');
   };
 
   ReciprocalViewer.prototype.load_map_from_ab = function load_map_from_ab (buffer/*:ArrayBuffer*/) {
