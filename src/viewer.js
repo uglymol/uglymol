@@ -590,10 +590,10 @@ export class Viewer {
     }
   }
 
-  redraw_center() {
+  redraw_center(force/*:?boolean*/) {
     const size = this.config.center_cube_size;
-    if (!size) return;
-    if (this.target.distanceToSquared(this.last_ctr) > 0.001 * size) {
+    if (force ||
+        this.target.distanceToSquared(this.last_ctr) > 0.01 * size * size) {
       this.last_ctr.copy(this.target);
       if (this.decor.mark) {
         this.scene.remove(this.decor.mark);
@@ -608,7 +608,7 @@ export class Viewer {
   }
 
   redraw_maps(force/*:?boolean*/) {
-    this.redraw_center();
+    this.redraw_center(force);
     const r = this.config.map_radius;
     for (const map_bag of this.map_bags) {
       if (force || this.target.distanceToSquared(map_bag.block_ctr) > r/100) {
@@ -897,7 +897,9 @@ export class Viewer {
 
   permalink() {
     if (typeof window === 'undefined') return;
-    window.location.hash = '#xyz=' + vec3_to_fixed(this.target, 1).join(',') +
+    const xyz_prec = Math.round(-Math.log10(0.001));
+    window.location.hash =
+      '#xyz=' + vec3_to_fixed(this.target, xyz_prec).join(',') +
       '&eye=' + vec3_to_fixed(this.camera.position, 1).join(',') +
       '&zoom=' + this.camera.zoom.toFixed(0);
     this.hud('copy URL from the location bar');
