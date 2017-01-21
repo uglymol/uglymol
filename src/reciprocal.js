@@ -113,11 +113,16 @@ function minus_ones(n) {
 function parse_json(text) {
   const d = JSON.parse(text);
   const n = d.rlp.length;
-  let pos = new Float32Array(3*n);
-  for (let i = 0; i < n; i++) {
-    for (let j = 0; j < 3; j++) {
-      pos[3*i+j] = d.rlp[i][j];
+  let pos;
+  if (n > 0 && d.rlp[0] instanceof Array) { // deprecated format
+    pos = new Float32Array(3*n);
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < 3; j++) {
+        pos[3*i+j] = d.rlp[i][j];
+      }
     }
+  } else { // flat array - new format
+    pos = new Float32Array(d.rlp);
   }
   const lattice_ids = d.experiment_id || minus_ones(n);
   return { pos, lattice_ids };
@@ -333,6 +338,7 @@ export class ReciprocalViewer extends Viewer {
     const d = 1.01 * this.max_dist;
     this.controls.slab_width = [d, d, 100];
     this.set_view(options);
+    this.hud('Loaded ' + this.data.pos.length + ' spots.');
   }
 
   load_map_from_ab(buffer/*:ArrayBuffer*/) {
