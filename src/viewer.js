@@ -118,7 +118,7 @@ function rainbow_value(v/*:number*/, vmin/*:number*/, vmax/*:number*/) {
 /*::
  import type {AtomT} from './model.js'
  */
-function color_by(style, atoms /*:AtomT[]*/, elem_colors) {
+function color_by(style, atoms /*:AtomT[]*/, elem_colors, hue_shift) {
   let color_func;
   const last_atom = atoms[atoms.length-1];
   if (style === 'index') {
@@ -146,9 +146,17 @@ function color_by(style, atoms /*:AtomT[]*/, elem_colors) {
       return rainbow_value(atom.chain_index, 0, last_atom.chain_index);
     };
   } else { // element
-    color_func = function (atom) {
-      return elem_colors[atom.element] || elem_colors.def;
-    };
+    if (hue_shift === 0) {
+      color_func = function (atom) {
+        return elem_colors[atom.element] || elem_colors.def;
+      };
+    } else {
+      const c_col = elem_colors['C'].clone().offsetHSL(hue_shift, 0, 0);
+      color_func = function (atom) {
+        const el = atom.element;
+        return el === 'C' ? c_col : (elem_colors[el] || elem_colors.def);
+      };
+    }
   }
   return atoms.map(color_func);
 }
@@ -184,6 +192,7 @@ class ModelBag {
   model: Model
   name: string
   visible: boolean
+  hue_shift: number
   conf: Object
   win_size: [number, number]
   atomic_objects: Object[]
@@ -192,6 +201,7 @@ class ModelBag {
     this.model = model;
     this.name = '';
     this.visible = true;
+    this.hue_shift = 0;
     this.conf = config;
     this.win_size = win_size;
     this.atomic_objects = []; // list of three.js objects
@@ -214,7 +224,8 @@ class ModelBag {
   add_bonds(ligands_only, ball_size) {
     const visible_atoms = this.get_visible_atoms();
     const color_style = ligands_only ? 'element' : this.conf.color_aim;
-    const colors = color_by(color_style, visible_atoms, this.conf.colors);
+    const colors = color_by(color_style, visible_atoms,
+                            this.conf.colors, this.hue_shift);
     let vertex_arr /*:THREE.Vector3[]*/ = [];
     let color_arr = [];
     const opt = { hydrogens: this.conf.hydrogens,
@@ -271,7 +282,7 @@ class ModelBag {
     const segments = this.model.extract_trace();
     const visible_atoms = [].concat.apply([], segments);
     const colors = color_by(this.conf.color_aim, visible_atoms,
-                            this.conf.colors);
+                            this.conf.colors, this.hue_shift);
     const material = makeLineMaterial({
       gl_lines: this.conf.line_style === 'simplistic',
       linewidth: scale_by_height(this.conf.bond_line, this.win_size),
@@ -291,7 +302,7 @@ class ModelBag {
     const res_map = this.model.get_residues();
     const visible_atoms = [].concat.apply([], segments);
     const colors = color_by(this.conf.color_aim, visible_atoms,
-                            this.conf.colors);
+                            this.conf.colors, this.hue_shift);
     let k = 0;
     for (const seg of segments) {
       let tangents = [];
@@ -410,7 +421,7 @@ export class Viewer {
       colors: this.ColorSchemes[0],
       hydrogens: false,
     };
-    this.set_colors(0);
+    this.set_colors();
     this.window_size = [1, 1]; // it will be set in resize()
     this.window_offset = [0, 0];
 
@@ -535,9 +546,11 @@ export class Viewer {
     return bag.model.get_nearest_atom(p.x, p.y, p.z);
   }
 
-  set_colors(scheme/*:number|string|ColorScheme*/) {
+  set_colors(scheme/*:?number|string|ColorScheme*/) {
     function to_col(x) { return new THREE.Color(x); }
-    if (typeof scheme === 'number') {
+    if (scheme == null) {
+      scheme = this.config.colors;
+    } else if (typeof scheme === 'number') {
       scheme = this.ColorSchemes[scheme % this.ColorSchemes.length];
     } else if (typeof scheme === 'string') {
       for (const sc of this.ColorSchemes) {
@@ -557,6 +570,7 @@ export class Viewer {
       }
     }
     this.decor.zoom_grid.color_value.set(scheme.fg);
+    this.config.config = scheme;
     this.redraw_all();
   }
 
@@ -957,7 +971,7 @@ export class Viewer {
     kb[66] = function (evt) {
       this.select_next('color scheme', 'colors', this.ColorSchemes,
                        evt.shiftKey);
-      this.set_colors(this.config.colors);
+      this.set_colors();
     };
     // c
     kb[67] = function (evt) {
@@ -1286,8 +1300,9 @@ export class Viewer {
     }
   }
 
-  set_model(model/*:Model*/) {
+  add_model(model/*:Model*/, options/*:Object*/={}) {
     const model_bag = new ModelBag(model, this.config, this.window_size);
+    model_bag.hue_shift = options.hue_shift || 0.06 * this.model_bags.length;
     this.model_bags.push(model_bag);
     this.set_atomic_objects(model_bag);
     this.active_model_bag = model_bag;
@@ -1357,7 +1372,7 @@ export class Viewer {
     this.load_file(url, {binary: false}, function (req) {
       let model = new Model();
       model.from_pdb(req.responseText);
-      self.set_model(model);
+      self.add_model(model);
       self.set_view(options);
       if (callback) callback();
     });

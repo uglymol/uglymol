@@ -21,7 +21,7 @@ describe('Viewer', function () {
     viewer.shift_clip();
     viewer.change_isolevel_by(0, 0.1);
     viewer.center_next_residue();
-    viewer.set_model(model);
+    viewer.add_model(model);
     viewer.center_next_residue();
     viewer.recenter();
     viewer.recenter([11, 22, 33]);
@@ -31,7 +31,7 @@ describe('Viewer', function () {
   pdb_string = util.open_as_utf8('1yk4.pdb');
   model.from_pdb(pdb_string);
   it('misc calls (1yk4)', function () {
-    viewer.set_model(model);
+    viewer.add_model(model);
     viewer.config.hydrogens = true;
     viewer.recenter();
   });

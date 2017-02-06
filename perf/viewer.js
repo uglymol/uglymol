@@ -11,7 +11,7 @@ const cmap_buf = util.open_as_array_buffer('1mru.map');
 let viewer = new UM.Viewer({});
 let model = new UM.Model();
 model.from_pdb(pdb_string);
-viewer.set_model(model);
+viewer.add_model(model);
 let emap = new UM.ElMap();
 emap.from_ccp4(cmap_buf);
 
