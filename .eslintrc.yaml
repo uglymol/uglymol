@@ -10,7 +10,8 @@ extends: ['eslint:recommended', 'google']
 rules:
   # eslint@3.9.0 started enforcing indention of continuation lines for array
   # we stick with 3.8.1 for now
-  indent: [1, 2, {'SwitchCase': 1, 'outerIIFEBody': 0}]
+  indent: [1, 2, {SwitchCase: 1, outerIIFEBody: 0,
+                  ArrayExpression: 'first', ObjectExpression: 'first'}]
   brace-style: [2, '1tbs', {'allowSingleLine': true}]
   space-before-function-paren: [2, {'anonymous': 'always', 'named': 'never'}]
   curly: [2, 'multi-line', 'consistent']
