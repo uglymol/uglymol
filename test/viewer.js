@@ -9,8 +9,7 @@ describe('Viewer', function () {
   var cmap_buf = util.open_as_array_buffer('1mru.map');
   emap.from_ccp4(cmap_buf);
   var pdb_string = util.open_as_utf8('1mru.pdb');
-  var model = new UM.Model();
-  model.from_pdb(pdb_string);
+  var model = UM.modelsFromPDB(pdb_string)[0];
   it('misc calls (1mru)', function () {
     viewer.add_map(emap, false);
     viewer.toggle_map_visibility(viewer.map_bags[0], false);
@@ -29,9 +28,10 @@ describe('Viewer', function () {
   });
 
   pdb_string = util.open_as_utf8('1yk4.pdb');
-  model.from_pdb(pdb_string);
+  var model2 = new UM.Model();
+  model2.from_pdb(pdb_string.split('\n'));
   it('misc calls (1yk4)', function () {
-    viewer.add_model(model);
+    viewer.add_model(model2);
     viewer.config.hydrogens = true;
     viewer.recenter();
   });

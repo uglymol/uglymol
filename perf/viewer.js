@@ -9,8 +9,7 @@ const pdb_string = util.open_as_utf8('1mru.pdb');
 const cmap_buf = util.open_as_array_buffer('1mru.map');
 
 let viewer = new UM.Viewer({});
-let model = new UM.Model();
-model.from_pdb(pdb_string);
+let model = UM.modelsFromPDB(pdb_string)[0];
 viewer.add_model(model);
 let emap = new UM.ElMap();
 emap.from_ccp4(cmap_buf);

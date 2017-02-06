@@ -62,7 +62,7 @@ exports.bench = function (name, fn, options) {
 if (bench_to_run === 'download-data') {
   (function () {
     const files = ['1mru.pdb', '1mru.map', '1mru_diff.map', '1mru_m0.map',
-                   '1mru.omap', '1mru_diff.omap'];
+                   '1mru.omap', '1mru_diff.omap', 'pdb2mru.ent'];
     for (let i = 0; i < files.length; i++) {
       data_path(files[i]);
     }

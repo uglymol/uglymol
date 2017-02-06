@@ -13,6 +13,17 @@ const NUCLEIC_ACIDS = [
 
 const NOT_LIGANDS = ['HOH'].concat(AMINO_ACIDS, NUCLEIC_ACIDS);
 
+export function modelsFromPDB(pdb_string/*:string*/) {
+  const models = [new Model()];
+  let pdb_tail = models[0].from_pdb(pdb_string.split('\n'));
+  while (pdb_tail != null) {
+    const model = new Model();
+    pdb_tail = model.from_pdb(pdb_tail);
+    if (model.atoms.length > 0) models.push(model);
+  }
+  return models;
+}
+
 export class Model {
   /*::
   atoms: Atom[]
@@ -35,15 +46,15 @@ export class Model {
     this.cubes = null;
   }
 
-  from_pdb(pdb_string /*:string*/) {
-    const lines = pdb_string.split('\n');
+  from_pdb(pdb_lines /*:string[]*/) {
     let chain_index = 0;  // will be ++'ed for the first atom
     let last_chain = null;
     let atom_i_seq = 0;
-    //var last_atom = null;
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      const rec_type = line.substring(0, 6);
+    //let last_atom = null;
+    let continuation = null;
+    for (let i = 0; i < pdb_lines.length; i++) {
+      const line = pdb_lines[i];
+      const rec_type = line.substring(0, 6).toUpperCase();
       if (rec_type === 'ATOM  ' || rec_type === 'HETATM') {
         let new_atom = new Atom();
         new_atom.from_pdb_line(line);
@@ -67,17 +78,24 @@ export class Model {
         const alpha = parseFloat(line.substring(33, 40));
         const beta = parseFloat(line.substring(40, 47));
         const gamma = parseFloat(line.substring(47, 54));
-        //var sg_symbol = line.substring(55, 66);
+        //const sg_symbol = line.substring(55, 66);
         this.unit_cell = new UnitCell(a, b, c, alpha, beta, gamma);
       } else if (rec_type.substring(0, 3) === 'TER') {
         last_chain = null;
+      } else if (rec_type === 'ENDMDL') {
+        for (; i < pdb_lines.length; i++) {
+          if (pdb_lines[i].substring(0, 6).toUpperCase() === 'MODEL ') {
+            continuation = pdb_lines.slice(i);
+            break;
+          }
+        }
+        break;
       }
     }
-    if (this.atoms.length === 0) {
-      throw Error('No atom records found.');
-    }
+    if (this.atoms.length === 0) throw Error('No atom records found.');
     this.calculate_bounds();
     this.calculate_connectivity();
+    return continuation;
   }
 
   calculate_bounds() {

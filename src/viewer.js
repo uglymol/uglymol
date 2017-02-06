@@ -6,9 +6,11 @@ import { makeLineMaterial, makeLineSegments, makeLine, makeRibbon,
          makeRgbBox, makeLabel, addXyzCross } from './lines.js';
 import { STATE, Controls } from './controls.js';
 import { ElMap } from './elmap.js';
-import { Model } from './model.js';
+import { modelsFromPDB } from './model.js';
 
 /*::
+ import type {AtomT, Model} from './model.js'
+
  type ColorScheme = {
    name: string,
    bg: number,
@@ -115,9 +117,6 @@ function rainbow_value(v/*:number*/, vmin/*:number*/, vmax/*:number*/) {
   return c;
 }
 
-/*::
- import type {AtomT} from './model.js'
- */
 function color_by(style, atoms /*:AtomT[]*/, elem_colors, hue_shift) {
   let color_func;
   const last_atom = atoms[atoms.length-1];
@@ -1305,7 +1304,6 @@ export class Viewer {
     model_bag.hue_shift = options.hue_shift || 0.06 * this.model_bags.length;
     this.model_bags.push(model_bag);
     this.set_atomic_objects(model_bag);
-    this.active_model_bag = model_bag;
     this.request_render();
   }
 
@@ -1370,9 +1368,12 @@ export class Viewer {
   load_pdb(url/*:string*/, options/*:?Object*/, callback/*:?Function*/) {
     let self = this;
     this.load_file(url, {binary: false}, function (req) {
-      let model = new Model();
-      model.from_pdb(req.responseText);
-      self.add_model(model);
+      const len = self.model_bags.length;
+      const models = modelsFromPDB(req.responseText);
+      for (const model of models) {
+        self.add_model(model);
+      }
+      self.active_model_bag = self.model_bags[len];
       self.set_view(options);
       if (callback) callback();
     });

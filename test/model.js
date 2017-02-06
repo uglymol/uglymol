@@ -1,7 +1,7 @@
 
 var assert = require('chai').assert;
 var util = require('../perf/util');
-var Model = require('../uglymol').Model;
+var modelsFromPDB = require('../uglymol').modelsFromPDB;
 
 // O(n^2) loop, for testing purposes only
 function get_connectivity_simple(atoms) {
@@ -24,9 +24,8 @@ function get_connectivity_simple(atoms) {
 
 describe('Model', function () {
   'use strict';
-  var model = new Model();
   var pdb_string = util.open_as_utf8('1YJP.pdb');
-  model.from_pdb(pdb_string);
+  var model = modelsFromPDB(pdb_string)[0];
   it('atoms', function () {
     for (var i = 0; i < model.atoms.length; i++) {
       var atom = model.atoms[i];
