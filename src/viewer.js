@@ -1432,7 +1432,7 @@ export class Viewer {
     const url = window.location.href;
     const match = url.match(/[?&]id=([^&#]+)/);
     if (match == null) return;
-    const id = match[1];
+    const id = match[1].toLowerCase();
     this.load_pdb('https://www.ebi.ac.uk/pdbe/entry-files/pdb' + id + '.ent');
   }
 
