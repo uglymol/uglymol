@@ -1418,6 +1418,15 @@ export class Viewer {
     });
   }
 
+  load_from_pdbe() {
+    if (typeof window === 'undefined') return;
+    const url = window.location.href;
+    const match = url.match(/[?&]id=([^&#]+)/);
+    if (match == null) return;
+    const id = match[1];
+    this.load_pdb('https://www.ebi.ac.uk/pdbe/entry-files/pdb' + id + '.ent');
+  }
+
   // TODO: navigation window like in gimp and mifit
   /*
   show_nav(inset_id) {

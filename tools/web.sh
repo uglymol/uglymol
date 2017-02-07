@@ -31,6 +31,8 @@ sed -e s/1mru/4un4_final/g -e s/\\.map/_m0.map/g <$outdir/1mru.html \
     >$outdir/4un4.html
 sed -e s/1mru/dimple_thaum/g \
     < $outdir/1mru.html > $outdir/dimple_thaum.html
+sed -e 's/load_pdb.*/load_from_pdbe()/' -e 's/^.*load_ccp4_maps.*//' \
+    < $outdir/1mru.html > $outdir/pdbe.html
 
 cd $outdir
 echo "=== $(pwd) ==="
