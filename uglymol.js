@@ -74,6 +74,7 @@ UnitCell.prototype.orthogonalize = function orthogonalize (xyz /*:[number,number
 // This function is only used with matrices frac and orth, which have 3 zeros.
 // We skip these elements, but it doesn't affect performance (on FF50 and V8).
 function multiply(xyz, mat) {
+  /* eslint-disable indent */
   return [mat[0] * xyz[0]  + mat[1] * xyz[1]  + mat[2] * xyz[2],
         /*mat[3] * xyz[0]*/+ mat[4] * xyz[1]  + mat[5] * xyz[2],
         /*mat[6] * xyz[0]  + mat[7] * xyz[1]*/+ mat[8] * xyz[2]];
@@ -90,6 +91,17 @@ var NUCLEIC_ACIDS = [
 
 var NOT_LIGANDS = ['HOH'].concat(AMINO_ACIDS, NUCLEIC_ACIDS);
 
+function modelsFromPDB(pdb_string/*:string*/) {
+  var models = [new Model()];
+  var pdb_tail = models[0].from_pdb(pdb_string.split('\n'));
+  while (pdb_tail != null) {
+    var model = new Model();
+    pdb_tail = model.from_pdb(pdb_tail);
+    if (model.atoms.length > 0) { models.push(model); }
+  }
+  return models;
+}
+
 var Model = function Model() {
   this.atoms = [];
   this.unit_cell = null;
@@ -101,15 +113,15 @@ var Model = function Model() {
   this.cubes = null;
 };
 
-Model.prototype.from_pdb = function from_pdb (pdb_string /*:string*/) {
-  var lines = pdb_string.split('\n');
+Model.prototype.from_pdb = function from_pdb (pdb_lines /*:string[]*/) {
   var chain_index = 0;// will be ++'ed for the first atom
   var last_chain = null;
   var atom_i_seq = 0;
-  //var last_atom = null;
-  for (var i = 0; i < lines.length; i++) {
-    var line = lines[i];
-    var rec_type = line.substring(0, 6);
+  //let last_atom = null;
+  var continuation = null;
+  for (var i = 0; i < pdb_lines.length; i++) {
+    var line = pdb_lines[i];
+    var rec_type = line.substring(0, 6).toUpperCase();
     if (rec_type === 'ATOM  ' || rec_type === 'HETATM') {
       var new_atom = new Atom();
       new_atom.from_pdb_line(line);
@@ -133,17 +145,24 @@ Model.prototype.from_pdb = function from_pdb (pdb_string /*:string*/) {
       var alpha = parseFloat(line.substring(33, 40));
       var beta = parseFloat(line.substring(40, 47));
       var gamma = parseFloat(line.substring(47, 54));
-      //var sg_symbol = line.substring(55, 66);
+      //const sg_symbol = line.substring(55, 66);
       this.unit_cell = new UnitCell(a, b, c, alpha, beta, gamma);
     } else if (rec_type.substring(0, 3) === 'TER') {
       last_chain = null;
+    } else if (rec_type === 'ENDMDL') {
+      for (; i < pdb_lines.length; i++) {
+        if (pdb_lines[i].substring(0, 6).toUpperCase() === 'MODEL ') {
+          continuation = pdb_lines.slice(i);
+          break;
+        }
+      }
+      break;
     }
   }
-  if (this.atoms.length === 0) {
-    throw Error('No atom records found.');
-  }
+  if (this.atoms.length === 0) { throw Error('No atom records found.'); }
   this.calculate_bounds();
   this.calculate_connectivity();
+  return continuation;
 };
 
 Model.prototype.calculate_bounds = function calculate_bounds () {
@@ -2093,7 +2112,7 @@ var label_vert = [
   '  vec2 rel_offset = vec2(0.02, -0.3);',
   '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
   '  gl_Position.xy += (uv + rel_offset) * 2.0 * canvas_size / win_size;',
-  '  gl_Position.z += 1.0 * projectionMatrix[2][2];',
+  '  gl_Position.z += 0.2 * projectionMatrix[2][2];',
   '}'].join('\n');
 
 var label_frag = [
@@ -2395,6 +2414,8 @@ var Controls = function Controls(camera /*:THREE.Camera*/, target /*:THREE.Vecto
 // @flow
 
 /*::
+ import type {AtomT, Model} from './model.js'
+
  type ColorScheme = {
    name: string,
    bg: number,
@@ -2500,10 +2521,7 @@ function rainbow_value(v/*:number*/, vmin/*:number*/, vmax/*:number*/) {
   return c;
 }
 
-/*::
- import type {AtomT} from './model.js'
- */
-function color_by(style, atoms /*:AtomT[]*/, elem_colors) {
+function color_by(style, atoms /*:AtomT[]*/, elem_colors, hue_shift) {
   var color_func;
   var last_atom = atoms[atoms.length-1];
   if (style === 'index') {
@@ -2531,9 +2549,17 @@ function color_by(style, atoms /*:AtomT[]*/, elem_colors) {
       return rainbow_value(atom.chain_index, 0, last_atom.chain_index);
     };
   } else { // element
-    color_func = function (atom) {
-      return elem_colors[atom.element] || elem_colors.def;
-    };
+    if (hue_shift === 0) {
+      color_func = function (atom) {
+        return elem_colors[atom.element] || elem_colors.def;
+      };
+    } else {
+      var c_col = elem_colors['C'].clone().offsetHSL(hue_shift, 0, 0);
+      color_func = function (atom) {
+        var el = atom.element;
+        return el === 'C' ? c_col : (elem_colors[el] || elem_colors.def);
+      };
+    }
   }
   return atoms.map(color_func);
 }
@@ -2557,6 +2583,7 @@ var ModelBag = function ModelBag(model, config, win_size) {
   this.model = model;
   this.name = '';
   this.visible = true;
+  this.hue_shift = 0;
   this.conf = config;
   this.win_size = win_size;
   this.atomic_objects = []; // list of three.js objects
@@ -2581,7 +2608,8 @@ ModelBag.prototype.get_visible_atoms = function get_visible_atoms () {
 ModelBag.prototype.add_bonds = function add_bonds (ligands_only, ball_size) {
   var visible_atoms = this.get_visible_atoms();
   var color_style = ligands_only ? 'element' : this.conf.color_aim;
-  var colors = color_by(color_style, visible_atoms, this.conf.colors);
+  var colors = color_by(color_style, visible_atoms,
+                          this.conf.colors, this.hue_shift);
   var vertex_arr /*:THREE.Vector3[]*/ = [];
   var color_arr = [];
   var opt = { hydrogens: this.conf.hydrogens,
@@ -2616,7 +2644,7 @@ ModelBag.prototype.add_bonds = function add_bonds (ligands_only, ball_size) {
       }
     }
   }
-  //console.log('add_bonds() vertex count: ' + vertex_arr.length);
+  if (vertex_arr.length === 0) { return; }
   var linewidth = scale_by_height(this.conf.bond_line, this.win_size);
   var use_gl_lines = this.conf.line_style === 'simplistic';
   var material = makeLineMaterial({
@@ -2638,7 +2666,7 @@ ModelBag.prototype.add_trace = function add_trace () {
   var segments = this.model.extract_trace();
   var visible_atoms = [].concat.apply([], segments);
   var colors = color_by(this.conf.color_aim, visible_atoms,
-                          this.conf.colors);
+                          this.conf.colors, this.hue_shift);
   var material = makeLineMaterial({
     gl_lines: this.conf.line_style === 'simplistic',
     linewidth: scale_by_height(this.conf.bond_line, this.win_size),
@@ -2660,7 +2688,7 @@ ModelBag.prototype.add_ribbon = function add_ribbon (smoothness) {
   var res_map = this.model.get_residues();
   var visible_atoms = [].concat.apply([], segments);
   var colors = color_by(this.conf.color_aim, visible_atoms,
-                          this.conf.colors);
+                          this.conf.colors, this.hue_shift);
   var k = 0;
   for (var i = 0, list = segments; i < list.length; i += 1) {
     var seg = list[i];
@@ -2745,13 +2773,12 @@ var Viewer = function Viewer(options /*: {[key: string]: any}*/) {
     colors: this.ColorSchemes[0],
     hydrogens: false,
   };
-  this.set_colors(0);
+  this.set_colors();
   this.window_size = [1, 1]; // it will be set in resize()
   this.window_offset = [0, 0];
 
   this.last_ctr = new THREE.Vector3(Infinity, 0, 0);
-  this.selected_atom = null;
-  this.active_model_bag = null;
+  this.selected = {bag: null, atom: null};
   this.scene = new THREE.Scene();
   this.scene.fog = new THREE.Fog(this.config.colors.bg, 0, 1);
   this.light = new THREE.AmbientLight(0xffffff);
@@ -2843,9 +2870,9 @@ var Viewer = function Viewer(options /*: {[key: string]: any}*/) {
     var not_panned = self.controls.stop();
     // special case - centering on atoms after action 'pan' with no shift
     if (not_panned) {
-      var atom = self.pick_atom(not_panned, self.camera);
-      if (atom != null) {
-        self.select_atom(atom, {steps: 60});
+      var pick = self.pick_atom(not_panned, self.camera);
+      if (pick != null) {
+        self.select_atom(pick, {steps: 60});
       }
     }
     self.redraw_maps();
@@ -2856,23 +2883,32 @@ var Viewer = function Viewer(options /*: {[key: string]: any}*/) {
 };
 
 Viewer.prototype.pick_atom = function pick_atom (coords/*:THREE.Vector2*/, camera/*:THREE.OrthographicCamera*/) {
-  var bag = this.active_model_bag;
-  if (bag === null) { return; }
-  this.raycaster.setFromCamera(coords, camera);
-  this.raycaster.near = camera.near;
-  // '0.15' b/c the furthest 15% is hardly visible in the fog
-  this.raycaster.far = camera.far - 0.15 * (camera.far - camera.near);
-  this.raycaster.linePrecision = 0.3;
-  var intersects = this.raycaster.intersectObjects(bag.atomic_objects);
-  if (intersects.length < 1) { return null; }
-  intersects.sort(function (x) { return x.line_dist || Infinity; });
-  var p = intersects[0].point;
-  return bag.model.get_nearest_atom(p.x, p.y, p.z);
+  for (var i = 0, list = this.model_bags; i < list.length; i += 1) {
+    var bag = list[i];
+
+      if (!bag.visible) { continue; }
+    this.raycaster.setFromCamera(coords, camera);
+    this.raycaster.near = camera.near;
+    // '0.15' b/c the furthest 15% is hardly visible in the fog
+    this.raycaster.far = camera.far - 0.15 * (camera.far - camera.near);
+    this.raycaster.linePrecision = 0.3;
+    var intersects = this.raycaster.intersectObjects(bag.atomic_objects);
+    if (intersects.length > 0) {
+      intersects.sort(function (x) { return x.line_dist || Infinity; });
+      var p = intersects[0].point;
+      var atom = bag.model.get_nearest_atom(p.x, p.y, p.z);
+      if (atom != null) {
+        return {bag: bag, atom: atom};
+      }
+    }
+  }
 };
 
-Viewer.prototype.set_colors = function set_colors (scheme/*:number|string|ColorScheme*/) {
+Viewer.prototype.set_colors = function set_colors (scheme/*:?number|string|ColorScheme*/) {
   function to_col(x) { return new THREE.Color(x); }
-  if (typeof scheme === 'number') {
+  if (scheme == null) {
+    scheme = this.config.colors;
+  } else if (typeof scheme === 'number') {
     scheme = this.ColorSchemes[scheme % this.ColorSchemes.length];
   } else if (typeof scheme === 'string') {
     for (var i = 0, list = this.ColorSchemes; i < list.length; i += 1) {
@@ -2894,6 +2930,7 @@ Viewer.prototype.set_colors = function set_colors (scheme/*:number|string|ColorS
     }
   }
   this.decor.zoom_grid.color_value.set(scheme.fg);
+  this.config.config = scheme;
   this.redraw_all();
 };
 
@@ -3019,26 +3056,28 @@ Viewer.prototype.set_atomic_objects = function set_atomic_objects (model_bag/*:M
 };
 
 // Add/remove label if `show` is specified, toggle otherwise.
-Viewer.prototype.toggle_label = function toggle_label (atom/*:?AtomT*/, show/*:?boolean*/) {
-  if (atom == null) { return; }
-  var text = atom.short_label();
-  var uid = text; // we assume that the labels are unique - often true
+Viewer.prototype.toggle_label = function toggle_label (pick/*:{bag:?ModelBag, atom:?AtomT}*/, show/*:?boolean*/) {
+  if (pick.atom == null) { return; }
+  var text = pick.atom.short_label();
+  var uid = text; // we assume that the labels inside one model are unique
   var is_shown = (uid in this.labels);
   if (show === undefined) { show = !is_shown; }
   if (show) {
     if (is_shown) { return; }
+    if (pick.atom == null) { return; } // silly flow
     var label = makeLabel(text, {
-      pos: atom.xyz,
+      pos: pick.atom.xyz,
       font: this.config.label_font,
       color: '#' + this.config.colors.fg.getHexString(),
       win_size: this.window_size,
     });
     if (!label) { return; }
-    this.labels[uid] = label;
+    if (pick.bag == null) { return; }
+    this.labels[uid] = { o: label, bag: pick.bag };
     this.scene.add(label);
   } else {
     if (!is_shown) { return; }
-    this.remove_and_dispose(this.labels[uid]);
+    this.remove_and_dispose(this.labels[uid].o);
     delete this.labels[uid];
   }
 };
@@ -3046,7 +3085,7 @@ Viewer.prototype.toggle_label = function toggle_label (atom/*:?AtomT*/, show/*:?
 Viewer.prototype.redraw_labels = function redraw_labels () {
   for (var uid in this.labels) { // eslint-disable-line guard-for-in
     var text = uid;
-    this.labels[uid].remake(text, {
+    this.labels[uid].o.remake(text, {
       font: this.config.label_font,
       color: '#' + this.config.colors.fg.getHexString(),
     });
@@ -3071,7 +3110,7 @@ Viewer.prototype.redraw_map = function redraw_map (map_bag/*:MapBag*/) {
 };
 
 Viewer.prototype.toggle_model_visibility = function toggle_model_visibility (model_bag/*:?ModelBag*/) {
-  model_bag = model_bag || this.active_model_bag;
+  model_bag = model_bag || this.selected.bag;
   if (model_bag == null) { return; }
   model_bag.visible = !model_bag.visible;
   this.redraw_model(model_bag);
@@ -3215,8 +3254,8 @@ Viewer.prototype.toggle_cell_box = function toggle_cell_box () {
 
 Viewer.prototype.get_cell_box_func = function get_cell_box_func () /*:?Function*/ {
   var uc = null;
-  if (this.active_model_bag !== null) {
-    uc = this.active_model_bag.model.unit_cell;
+  if (this.selected.bag != null) {
+    uc = this.selected.bag.model.unit_cell;
   }
   // note: model may not have unit cell
   if (uc == null && this.map_bags.length > 0) {
@@ -3237,10 +3276,11 @@ Viewer.prototype.shift_clip = function shift_clip (delta/*:number*/) {
 
 Viewer.prototype.go_to_nearest_Ca = function go_to_nearest_Ca () {
   var t = this.target;
-  if (this.active_model_bag == null) { return; }
-  var a = this.active_model_bag.model.get_nearest_atom(t.x, t.y, t.z, 'CA');
-  if (a) {
-    this.select_atom(a, {steps: 30});
+  var bag = this.selected.bag;
+  if (bag == null) { return; }
+  var atom = bag.model.get_nearest_atom(t.x, t.y, t.z, 'CA');
+  if (atom != null) {
+    this.select_atom({bag: bag, atom: atom}, {steps: 30});
   } else {
     this.hud('no nearby CA');
   }
@@ -3308,7 +3348,7 @@ Viewer.prototype.set_common_key_bindings = function set_common_key_bindings () {
   kb[66] = function (evt) {
     this.select_next('color scheme', 'colors', this.ColorSchemes,
                      evt.shiftKey);
-    this.set_colors(this.config.colors);
+    this.set_colors();
   };
   // c
   kb[67] = function (evt) {
@@ -3467,10 +3507,11 @@ Viewer.prototype.dblclick = function dblclick (event/*:MouseEvent*/) {
     this.decor.selection = null;
   }
   var mouse = new THREE.Vector2(this.relX(event), this.relY(event));
-  var atom = this.pick_atom(mouse, this.camera);
-  if (atom) {
+  var pick = this.pick_atom(mouse, this.camera);
+  if (pick) {
+    var atom = pick.atom;
     this.hud(atom.long_label());
-    this.toggle_label(atom);
+    this.toggle_label(pick);
     var color = this.config.colors[atom.element] || this.config.colors.def;
     var size = 2.5 * scale_by_height(this.config.bond_line,
                                        this.window_size);
@@ -3550,9 +3591,9 @@ Viewer.prototype.resize = function resize (/*evt*/) {
 // If xyz set recenter on it looking toward the model center.
 // Otherwise recenter on the model center looking along the z axis.
 Viewer.prototype.recenter = function recenter (xyz/*:?Num3*/, cam/*:?Num3*/, steps/*:number*/) {
-  var bag = this.active_model_bag;
+  var bag = this.selected.bag;
   var new_up;
-  if (xyz != null && cam == null && bag !== null) {
+  if (xyz != null && cam == null && bag != null) {
     // look from specified point toward the center of the molecule,
     // i.e. shift camera away from the molecule center.
     xyz = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
@@ -3578,20 +3619,22 @@ Viewer.prototype.recenter = function recenter (xyz/*:?Num3*/, cam/*:?Num3*/, ste
 };
 
 Viewer.prototype.center_next_residue = function center_next_residue (back/*:boolean*/) {
-  var bag = this.active_model_bag;
-  if (!bag) { return; }
-  var a = bag.model.next_residue(this.selected_atom, back);
-  if (a) { this.select_atom(a, {steps: 30}); }
+  var bag = this.selected.bag;
+  if (bag == null) { return; }
+  var atom = bag.model.next_residue(this.selected.atom, back);
+  if (atom != null) {
+    this.select_atom({bag: bag, atom: atom}, {steps: 30});
+  }
 };
 
-Viewer.prototype.select_atom = function select_atom (atom/*:AtomT*/, options) {
-    if ( options === void 0 ) options/*:Object*/ = {};
+Viewer.prototype.select_atom = function select_atom (pick/*:{bag:ModelBag, atom:AtomT}*/, options) {
+    if ( options === void 0 ) options/*:Object*/={};
 
-  this.hud('-> ' + atom.long_label());
-  this.controls.go_to(atom.xyz, null, null, options.steps);
-  this.toggle_label(this.selected_atom);
-  this.selected_atom = atom;
-  this.toggle_label(atom);
+  this.hud('-> ' + pick.atom.long_label());
+  this.controls.go_to(pick.atom.xyz, null, null, options.steps);
+  this.toggle_label(this.selected, false);
+  this.selected = {bag: pick.bag, atom: pick.atom}; // not ...=pick b/c flow
+  this.toggle_label(this.selected, true);
 };
 
 Viewer.prototype.update_camera = function update_camera () {
@@ -3639,11 +3682,13 @@ Viewer.prototype.request_render = function request_render () {
   }
 };
 
-Viewer.prototype.set_model = function set_model (model/*:Model*/) {
+Viewer.prototype.add_model = function add_model (model/*:Model*/, options) {
+    if ( options === void 0 ) options/*:Object*/={};
+
   var model_bag = new ModelBag(model, this.config, this.window_size);
+  model_bag.hue_shift = options.hue_shift || 0.06 * this.model_bags.length;
   this.model_bags.push(model_bag);
   this.set_atomic_objects(model_bag);
-  this.active_model_bag = model_bag;
   this.request_render();
 };
 
@@ -3708,9 +3753,14 @@ Viewer.prototype.set_view = function set_view (options/*:?Object*/) {
 Viewer.prototype.load_pdb = function load_pdb (url/*:string*/, options/*:?Object*/, callback/*:?Function*/) {
   var self = this;
   this.load_file(url, {binary: false}, function (req) {
-    var model = new Model();
-    model.from_pdb(req.responseText);
-    self.set_model(model);
+    var len = self.model_bags.length;
+    var models = modelsFromPDB(req.responseText);
+    for (var i = 0, list = models; i < list.length; i += 1) {
+      var model = list[i];
+
+        self.add_model(model);
+    }
+    self.selected.bag = self.model_bags[len];
     self.set_view(options);
     if (callback) { callback(); }
   });
@@ -3753,6 +3803,15 @@ Viewer.prototype.load_pdb_and_ccp4_maps = function load_pdb_and_ccp4_maps (pdb/*
   this.load_pdb(pdb, {}, function () {
     self.load_ccp4_maps(map1, map2, callback);
   });
+};
+
+Viewer.prototype.load_from_pdbe = function load_from_pdbe () {
+  if (typeof window === 'undefined') { return; }
+  var url = window.location.href;
+  var match = url.match(/[?&]id=([^&#]+)/);
+  if (match == null) { return; }
+  var id = match[1];
+  this.load_pdb('https://www.ebi.ac.uk/pdbe/entry-files/pdb' + id + '.ent');
 };
 
 Viewer.prototype.MOUSE_HELP = [
@@ -4266,6 +4325,7 @@ ReciprocalViewer.prototype.MOUSE_HELP = Viewer.prototype.MOUSE_HELP
                                         .split('\n').slice(0, -2).join('\n');
 
 exports.UnitCell = UnitCell;
+exports.modelsFromPDB = modelsFromPDB;
 exports.Model = Model;
 exports.Block = Block;
 exports.ElMap = ElMap;

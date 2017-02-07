@@ -365,14 +365,13 @@ export class Viewer {
   map_bags: MapBag[]
   decor: {cell_box: ?Object , selection: ?Object, zoom_grid: Object,
           mark: ?Object}
-  labels: {[id:string]: THREE.Mesh}
+  labels: {[id:string]: {o: THREE.Mesh, bag: ModelBag}}
   nav: ?Object
   config: Object
   window_size: [number, number]
   window_offset: [number, number]
   last_ctr: THREE.Vector3
-  selected_atom: ?AtomT
-  active_model_bag: ModelBag | null
+  selected: {bag: ?ModelBag, atom: ?AtomT}
   scene: THREE.Scene
   light: THREE.Light
   default_camera_pos: [number, number, number]
@@ -425,8 +424,7 @@ export class Viewer {
     this.window_offset = [0, 0];
 
     this.last_ctr = new THREE.Vector3(Infinity, 0, 0);
-    this.selected_atom = null;
-    this.active_model_bag = null;
+    this.selected = {bag: null, atom: null};
     this.scene = new THREE.Scene();
     this.scene.fog = new THREE.Fog(this.config.colors.bg, 0, 1);
     this.light = new THREE.AmbientLight(0xffffff);
@@ -518,9 +516,9 @@ export class Viewer {
       const not_panned = self.controls.stop();
       // special case - centering on atoms after action 'pan' with no shift
       if (not_panned) {
-        const atom = self.pick_atom(not_panned, self.camera);
-        if (atom != null) {
-          self.select_atom(atom, {steps: 60});
+        const pick = self.pick_atom(not_panned, self.camera);
+        if (pick != null) {
+          self.select_atom(pick, {steps: 60});
         }
       }
       self.redraw_maps();
@@ -531,18 +529,23 @@ export class Viewer {
   }
 
   pick_atom(coords/*:THREE.Vector2*/, camera/*:THREE.OrthographicCamera*/) {
-    const bag = this.active_model_bag;
-    if (bag === null) return;
-    this.raycaster.setFromCamera(coords, camera);
-    this.raycaster.near = camera.near;
-    // '0.15' b/c the furthest 15% is hardly visible in the fog
-    this.raycaster.far = camera.far - 0.15 * (camera.far - camera.near);
-    this.raycaster.linePrecision = 0.3;
-    let intersects = this.raycaster.intersectObjects(bag.atomic_objects);
-    if (intersects.length < 1) return null;
-    intersects.sort(function (x) { return x.line_dist || Infinity; });
-    const p = intersects[0].point;
-    return bag.model.get_nearest_atom(p.x, p.y, p.z);
+    for (const bag of this.model_bags) {
+      if (!bag.visible) continue;
+      this.raycaster.setFromCamera(coords, camera);
+      this.raycaster.near = camera.near;
+      // '0.15' b/c the furthest 15% is hardly visible in the fog
+      this.raycaster.far = camera.far - 0.15 * (camera.far - camera.near);
+      this.raycaster.linePrecision = 0.3;
+      let intersects = this.raycaster.intersectObjects(bag.atomic_objects);
+      if (intersects.length > 0) {
+        intersects.sort(function (x) { return x.line_dist || Infinity; });
+        const p = intersects[0].point;
+        const atom = bag.model.get_nearest_atom(p.x, p.y, p.z);
+        if (atom != null) {
+          return {bag, atom};
+        }
+      }
+    }
   }
 
   set_colors(scheme/*:?number|string|ColorScheme*/) {
@@ -685,26 +688,28 @@ export class Viewer {
   }
 
   // Add/remove label if `show` is specified, toggle otherwise.
-  toggle_label(atom/*:?AtomT*/, show/*:?boolean*/) {
-    if (atom == null) return;
-    const text = atom.short_label();
-    const uid = text; // we assume that the labels are unique - often true
+  toggle_label(pick/*:{bag:?ModelBag, atom:?AtomT}*/, show/*:?boolean*/) {
+    if (pick.atom == null) return;
+    const text = pick.atom.short_label();
+    const uid = text; // we assume that the labels inside one model are unique
     const is_shown = (uid in this.labels);
     if (show === undefined) show = !is_shown;
     if (show) {
       if (is_shown) return;
+      if (pick.atom == null) return; // silly flow
       const label = makeLabel(text, {
-        pos: atom.xyz,
+        pos: pick.atom.xyz,
         font: this.config.label_font,
         color: '#' + this.config.colors.fg.getHexString(),
         win_size: this.window_size,
       });
       if (!label) return;
-      this.labels[uid] = label;
+      if (pick.bag == null) return;
+      this.labels[uid] = { o: label, bag: pick.bag };
       this.scene.add(label);
     } else {
       if (!is_shown) return;
-      this.remove_and_dispose(this.labels[uid]);
+      this.remove_and_dispose(this.labels[uid].o);
       delete this.labels[uid];
     }
   }
@@ -712,7 +717,7 @@ export class Viewer {
   redraw_labels() {
     for (let uid in this.labels) { // eslint-disable-line guard-for-in
       const text = uid;
-      this.labels[uid].remake(text, {
+      this.labels[uid].o.remake(text, {
         font: this.config.label_font,
         color: '#' + this.config.colors.fg.getHexString(),
       });
@@ -737,7 +742,7 @@ export class Viewer {
   }
 
   toggle_model_visibility(model_bag/*:?ModelBag*/) {
-    model_bag = model_bag || this.active_model_bag;
+    model_bag = model_bag || this.selected.bag;
     if (model_bag == null) return;
     model_bag.visible = !model_bag.visible;
     this.redraw_model(model_bag);
@@ -877,8 +882,8 @@ export class Viewer {
 
   get_cell_box_func() /*:?Function*/ {
     let uc = null;
-    if (this.active_model_bag !== null) {
-      uc = this.active_model_bag.model.unit_cell;
+    if (this.selected.bag != null) {
+      uc = this.selected.bag.model.unit_cell;
     }
     // note: model may not have unit cell
     if (uc == null && this.map_bags.length > 0) {
@@ -899,10 +904,11 @@ export class Viewer {
 
   go_to_nearest_Ca() {
     const t = this.target;
-    if (this.active_model_bag == null) return;
-    const a = this.active_model_bag.model.get_nearest_atom(t.x, t.y, t.z, 'CA');
-    if (a) {
-      this.select_atom(a, {steps: 30});
+    const bag = this.selected.bag;
+    if (bag == null) return;
+    const atom = bag.model.get_nearest_atom(t.x, t.y, t.z, 'CA');
+    if (atom != null) {
+      this.select_atom({bag, atom}, {steps: 30});
     } else {
       this.hud('no nearby CA');
     }
@@ -1129,10 +1135,11 @@ export class Viewer {
       this.decor.selection = null;
     }
     const mouse = new THREE.Vector2(this.relX(event), this.relY(event));
-    const atom = this.pick_atom(mouse, this.camera);
-    if (atom) {
+    const pick = this.pick_atom(mouse, this.camera);
+    if (pick) {
+      const atom = pick.atom;
       this.hud(atom.long_label());
-      this.toggle_label(atom);
+      this.toggle_label(pick);
       const color = this.config.colors[atom.element] || this.config.colors.def;
       const size = 2.5 * scale_by_height(this.config.bond_line,
                                          this.window_size);
@@ -1212,9 +1219,9 @@ export class Viewer {
   // If xyz set recenter on it looking toward the model center.
   // Otherwise recenter on the model center looking along the z axis.
   recenter(xyz/*:?Num3*/, cam/*:?Num3*/, steps/*:number*/) {
-    const bag = this.active_model_bag;
+    const bag = this.selected.bag;
     let new_up;
-    if (xyz != null && cam == null && bag !== null) {
+    if (xyz != null && cam == null && bag != null) {
       // look from specified point toward the center of the molecule,
       // i.e. shift camera away from the molecule center.
       xyz = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
@@ -1240,18 +1247,20 @@ export class Viewer {
   }
 
   center_next_residue(back/*:boolean*/) {
-    const bag = this.active_model_bag;
-    if (!bag) return;
-    const a = bag.model.next_residue(this.selected_atom, back);
-    if (a) this.select_atom(a, {steps: 30});
+    const bag = this.selected.bag;
+    if (bag == null) return;
+    const atom = bag.model.next_residue(this.selected.atom, back);
+    if (atom != null) {
+      this.select_atom({bag, atom}, {steps: 30});
+    }
   }
 
-  select_atom(atom/*:AtomT*/, options/*:Object*/ = {}) {
-    this.hud('-> ' + atom.long_label());
-    this.controls.go_to(atom.xyz, null, null, options.steps);
-    this.toggle_label(this.selected_atom);
-    this.selected_atom = atom;
-    this.toggle_label(atom);
+  select_atom(pick/*:{bag:ModelBag, atom:AtomT}*/, options/*:Object*/={}) {
+    this.hud('-> ' + pick.atom.long_label());
+    this.controls.go_to(pick.atom.xyz, null, null, options.steps);
+    this.toggle_label(this.selected, false);
+    this.selected = {bag: pick.bag, atom: pick.atom}; // not ...=pick b/c flow
+    this.toggle_label(this.selected, true);
   }
 
   update_camera() {
@@ -1373,7 +1382,7 @@ export class Viewer {
       for (const model of models) {
         self.add_model(model);
       }
-      self.active_model_bag = self.model_bags[len];
+      self.selected.bag = self.model_bags[len];
       self.set_view(options);
       if (callback) callback();
     });
