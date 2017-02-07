@@ -1048,10 +1048,6 @@ export class Viewer {
       this.select_next('bond lines', 'line_style', LINE_STYLES, evt.shiftKey);
       this.redraw_models();
     };
-    // 3, numpad 3
-    kb[51] = kb[99] = function () { this.shift_clip(1); };
-    // numpad period (Linux), decimal point (Mac)
-    kb[108] = kb[110] = function () { this.shift_clip(-1); };
     // shift, ctrl, alt, altgr
     kb[16] = kb[17] = kb[18] = kb[225] = function () {};
     // slash, single quote
@@ -1100,6 +1096,10 @@ export class Viewer {
                ' hydrogens (if any)');
       this.redraw_models();
     };
+    // comma
+    kb[188] = function (evt) { if (evt.shiftKey) this.shift_clip(1); };
+    // period
+    kb[190] = function (evt) { if (evt.shiftKey) this.shift_clip(-1); };
   }
 
   mousedown(event/*:MouseEvent*/) {
@@ -1478,7 +1478,7 @@ Viewer.prototype.KEYBOARD_HELP = [
   '+/- = sigma level',
   ']/[ = map radius',
   'D/F = clip width',
-  'numpad 3/. = move clip',
+  '&lt;/> = move clip',
   'M/N = zoom',
   'U = unitcell box',
   'Y = hydrogens',

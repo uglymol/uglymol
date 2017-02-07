@@ -249,10 +249,10 @@ export class ReciprocalViewer extends Viewer {
     kb[90] = function (evt) {
       evt.ctrlKey ? this.change_map_line(-0.1) : this.change_point_size(-0.5);
     };
-    // 3, numpad 3
-    kb[51] = kb[99] = function () { this.shift_clip(0.1); };
-    // numpad period (Linux), decimal point (Mac)
-    kb[108] = kb[110] = function () { this.shift_clip(-0.1); };
+    // comma
+    kb[188] = function (evt) { if (evt.shiftKey) this.shift_clip(0.1); };
+    // period
+    kb[190] = function (evt) { if (evt.shiftKey) this.shift_clip(-0.1); };
     // <-
     kb[37] = function () { this.change_dmin(0.05); };
     // ->
@@ -488,6 +488,7 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
   'E = toggle fog',
   'M/N = zoom',
   'D/F = clip width',
+  '&lt;/> = move clip',
   'R = center view',
   'Z/X = point size',
   'S = point shape',
