@@ -590,7 +590,7 @@ const label_vert = [
   '  vec2 rel_offset = vec2(0.02, -0.3);',
   '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
   '  gl_Position.xy += (uv + rel_offset) * 2.0 * canvas_size / win_size;',
-  '  gl_Position.z += 1.0 * projectionMatrix[2][2];',
+  '  gl_Position.z += 0.2 * projectionMatrix[2][2];',
   '}'].join('\n');
 
 const label_frag = [
