@@ -357,10 +357,6 @@ class Atom {
     return this.element === 'H' || this.element === 'D';
   }
 
-  is_s_or_p() {
-    return this.element === 'S' || this.element === 'P';
-  }
-
   is_ion() {
     return this.element === this.resname;
   }
@@ -384,19 +380,19 @@ class Atom {
     return this.altloc === '' || this.altloc === 'A';
   }
 
-  is_bonded_to(other /*:Atom*/) {
-    const MAX_DIST_SQ = 1.99 * 1.99;
-    const MAX_DIST_H_SQ = 1.3 * 1.3;
-    const MAX_DIST_SP_SQ = 2.2 * 2.2;
+  bond_radius() { // rather crude
+    if (this.element === 'H') return 1.3;
+    if (this.element === 'S' || this.element === 'P') return 2.43;
+    return 1.99;
+  }
 
+  is_bonded_to(other /*:Atom*/) {
+    const MAX_DIST = 2.2 * 2.2;
     if (!this.is_same_conformer(other)) return false;
-    if (this.element === 'H' && other.element === 'H') return false;
     const dxyz2 = this.distance_sq(other);
-    if (dxyz2 > MAX_DIST_SP_SQ) return false;
-    if (this.element === 'H' || other.element === 'H') {
-      return dxyz2 <= MAX_DIST_H_SQ;
-    }
-    return dxyz2 <= MAX_DIST_SQ || this.is_s_or_p() || other.is_s_or_p();
+    if (dxyz2 > MAX_DIST) return false;
+    if (this.element === 'H' && other.element === 'H') return false;
+    return dxyz2 <= this.bond_radius() * other.bond_radius();
   }
 
   resid() {

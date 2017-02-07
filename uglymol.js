@@ -405,10 +405,6 @@ Atom.prototype.is_hydrogen = function is_hydrogen () {
   return this.element === 'H' || this.element === 'D';
 };
 
-Atom.prototype.is_s_or_p = function is_s_or_p () {
-  return this.element === 'S' || this.element === 'P';
-};
-
 Atom.prototype.is_ion = function is_ion () {
   return this.element === this.resname;
 };
@@ -432,19 +428,19 @@ Atom.prototype.is_main_conformer = function is_main_conformer () {
   return this.altloc === '' || this.altloc === 'A';
 };
 
-Atom.prototype.is_bonded_to = function is_bonded_to (other /*:Atom*/) {
-  var MAX_DIST_SQ = 1.99 * 1.99;
-  var MAX_DIST_H_SQ = 1.3 * 1.3;
-  var MAX_DIST_SP_SQ = 2.2 * 2.2;
+Atom.prototype.bond_radius = function bond_radius () { // rather crude
+  if (this.element === 'H') { return 1.3; }
+  if (this.element === 'S' || this.element === 'P') { return 2.43; }
+  return 1.99;
+};
 
+Atom.prototype.is_bonded_to = function is_bonded_to (other /*:Atom*/) {
+  var MAX_DIST = 2.2 * 2.2;
   if (!this.is_same_conformer(other)) { return false; }
-  if (this.element === 'H' && other.element === 'H') { return false; }
   var dxyz2 = this.distance_sq(other);
-  if (dxyz2 > MAX_DIST_SP_SQ) { return false; }
-  if (this.element === 'H' || other.element === 'H') {
-    return dxyz2 <= MAX_DIST_H_SQ;
-  }
-  return dxyz2 <= MAX_DIST_SQ || this.is_s_or_p() || other.is_s_or_p();
+  if (dxyz2 > MAX_DIST) { return false; }
+  if (this.element === 'H' && other.element === 'H') { return false; }
+  return dxyz2 <= this.bond_radius() * other.bond_radius();
 };
 
 Atom.prototype.resid = function resid () {
@@ -3420,10 +3416,6 @@ Viewer.prototype.set_common_key_bindings = function set_common_key_bindings () {
     this.select_next('bond lines', 'line_style', LINE_STYLES, evt.shiftKey);
     this.redraw_models();
   };
-  // 3, numpad 3
-  kb[51] = kb[99] = function () { this.shift_clip(1); };
-  // numpad period (Linux), decimal point (Mac)
-  kb[108] = kb[110] = function () { this.shift_clip(-1); };
   // shift, ctrl, alt, altgr
   kb[16] = kb[17] = kb[18] = kb[225] = function () {};
   // slash, single quote
@@ -3472,6 +3464,10 @@ Viewer.prototype.set_real_space_key_bindings = function set_real_space_key_bindi
              ' hydrogens (if any)');
     this.redraw_models();
   };
+  // comma
+  kb[188] = function (evt) { if (evt.shiftKey) { this.shift_clip(1); } };
+  // period
+  kb[190] = function (evt) { if (evt.shiftKey) { this.shift_clip(-1); } };
 };
 
 Viewer.prototype.mousedown = function mousedown (event/*:MouseEvent*/) {
@@ -3810,7 +3806,7 @@ Viewer.prototype.load_from_pdbe = function load_from_pdbe () {
   var url = window.location.href;
   var match = url.match(/[?&]id=([^&#]+)/);
   if (match == null) { return; }
-  var id = match[1];
+  var id = match[1].toLowerCase();
   this.load_pdb('https://www.ebi.ac.uk/pdbe/entry-files/pdb' + id + '.ent');
 };
 
@@ -3835,7 +3831,7 @@ Viewer.prototype.KEYBOARD_HELP = [
   '+/- = sigma level',
   ']/[ = map radius',
   'D/F = clip width',
-  'numpad 3/. = move clip',
+  '&lt;/> = move clip',
   'M/N = zoom',
   'U = unitcell box',
   'Y = hydrogens',
@@ -4069,10 +4065,10 @@ var ReciprocalViewer = (function (Viewer$$1) {
     kb[90] = function (evt) {
       evt.ctrlKey ? this.change_map_line(-0.1) : this.change_point_size(-0.5);
     };
-    // 3, numpad 3
-    kb[51] = kb[99] = function () { this.shift_clip(0.1); };
-    // numpad period (Linux), decimal point (Mac)
-    kb[108] = kb[110] = function () { this.shift_clip(-0.1); };
+    // comma
+    kb[188] = function (evt) { if (evt.shiftKey) { this.shift_clip(0.1); } };
+    // period
+    kb[190] = function (evt) { if (evt.shiftKey) { this.shift_clip(-0.1); } };
     // <-
     kb[37] = function () { this.change_dmin(0.05); };
     // ->
@@ -4313,6 +4309,7 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
   'E = toggle fog',
   'M/N = zoom',
   'D/F = clip width',
+  '&lt;/> = move clip',
   'R = center view',
   'Z/X = point size',
   'S = point shape',
