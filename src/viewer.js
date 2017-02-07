@@ -259,7 +259,7 @@ class ModelBag {
         }
       }
     }
-    //console.log('add_bonds() vertex count: ' + vertex_arr.length);
+    if (vertex_arr.length === 0) return;
     const linewidth = scale_by_height(this.conf.bond_line, this.win_size);
     const use_gl_lines = this.conf.line_style === 'simplistic';
     const material = makeLineMaterial({
