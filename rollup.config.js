@@ -51,7 +51,7 @@ let build = {
   moduleName: 'UM',
   external: ['three'],
   globals: { three: 'THREE' },
-  intro: `exports.VERSION = '${version}';\n`,
+  intro: `var VERSION = exports.VERSION = '${version}';\n`,
   banner,
   sourceMap: true,
 };

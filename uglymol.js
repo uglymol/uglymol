@@ -11,7 +11,7 @@
 	(factory((global.UM = global.UM || {}),global.THREE));
 }(this, (function (exports,THREE) { 'use strict';
 
-exports.VERSION = '0.5.4';
+var VERSION = exports.VERSION = '0.5.4';
 
 
 // @flow
@@ -3847,7 +3847,8 @@ Viewer.prototype.KEYBOARD_HELP = [
   'Shift+F = full screen' ].join('\n');
 
 Viewer.prototype.ABOUT_HELP =
-  '<a href="https://uglymol.github.io">about uglymol</a>';
+  '&nbsp; <a href="https://uglymol.github.io">uglymol</a> ' +
+  (typeof VERSION === 'string' ? VERSION : 'dev');
 
 Viewer.prototype.ColorSchemes = ColorSchemes;
 

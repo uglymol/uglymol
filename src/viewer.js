@@ -1495,7 +1495,8 @@ Viewer.prototype.KEYBOARD_HELP = [
 ].join('\n');
 
 Viewer.prototype.ABOUT_HELP =
-  '<a href="https://uglymol.github.io">about uglymol</a>';
+  '&nbsp; <a href="https://uglymol.github.io">uglymol</a> ' +
+  (typeof VERSION === 'string' ? VERSION : 'dev');
 
 Viewer.prototype.ColorSchemes = ColorSchemes;
 
