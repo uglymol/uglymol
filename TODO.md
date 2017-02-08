@@ -1,6 +1,4 @@
 
-- include molecule number (or name) in the atom description
-
 - It would nice to calculate maps from a reflection file (mtz)
   in the browser, but currently no one is working on it. Volunteers needed.
   Requires 3D FFT.

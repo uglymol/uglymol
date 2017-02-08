@@ -2577,7 +2577,7 @@ var MapBag = function MapBag(map, config, is_diff_map) {
 
 var ModelBag = function ModelBag(model, config, win_size) {
   this.model = model;
-  this.name = '';
+  this.label = '(model #' + ++ModelBag.ctor_counter + ')';
   this.visible = true;
   this.hue_shift = 0;
   this.conf = config;
@@ -2711,6 +2711,8 @@ ModelBag.prototype.add_ribbon = function add_ribbon (smoothness) {
     this.atomic_objects.push(obj);
   }
 };
+
+ModelBag.ctor_counter = 0;
 
 function vec3_to_fixed(vec, n) {
   return [vec.x.toFixed(n), vec.y.toFixed(n), vec.z.toFixed(n)];
@@ -3506,7 +3508,7 @@ Viewer.prototype.dblclick = function dblclick (event/*:MouseEvent*/) {
   var pick = this.pick_atom(mouse, this.camera);
   if (pick) {
     var atom = pick.atom;
-    this.hud(atom.long_label());
+    this.hud(pick.bag.label + ' ' + atom.long_label());
     this.toggle_label(pick);
     var color = this.config.colors[atom.element] || this.config.colors.def;
     var size = 2.5 * scale_by_height(this.config.bond_line,
@@ -3626,7 +3628,7 @@ Viewer.prototype.center_next_residue = function center_next_residue (back/*:bool
 Viewer.prototype.select_atom = function select_atom (pick/*:{bag:ModelBag, atom:AtomT}*/, options) {
     if ( options === void 0 ) options/*:Object*/={};
 
-  this.hud('-> ' + pick.atom.long_label());
+  this.hud('-> ' + pick.bag.label + ' ' + pick.atom.long_label());
   this.controls.go_to(pick.atom.xyz, null, null, options.steps);
   this.toggle_label(this.selected, false);
   this.selected = {bag: pick.bag, atom: pick.atom}; // not ...=pick b/c flow
@@ -3848,7 +3850,8 @@ Viewer.prototype.KEYBOARD_HELP = [
 
 Viewer.prototype.ABOUT_HELP =
   '&nbsp; <a href="https://uglymol.github.io">uglymol</a> ' +
-  (typeof VERSION === 'string' ? VERSION : 'dev');
+  // $FlowFixMe
+  (typeof VERSION === 'string' ? VERSION : 'dev'); // eslint-disable-line
 
 Viewer.prototype.ColorSchemes = ColorSchemes;
 

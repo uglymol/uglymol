@@ -189,16 +189,17 @@ class MapBag {
 class ModelBag {
   /*::
   model: Model
-  name: string
+  label: string
   visible: boolean
   hue_shift: number
   conf: Object
   win_size: [number, number]
   atomic_objects: Object[]
+  static ctor_counter: number
   */
   constructor(model, config, win_size) {
     this.model = model;
-    this.name = '';
+    this.label = '(model #' + ++ModelBag.ctor_counter + ')';
     this.visible = true;
     this.hue_shift = 0;
     this.conf = config;
@@ -325,6 +326,8 @@ class ModelBag {
     }
   }
 }
+
+ModelBag.ctor_counter = 0;
 
 function vec3_to_fixed(vec, n) {
   return [vec.x.toFixed(n), vec.y.toFixed(n), vec.z.toFixed(n)];
@@ -1138,7 +1141,7 @@ export class Viewer {
     const pick = this.pick_atom(mouse, this.camera);
     if (pick) {
       const atom = pick.atom;
-      this.hud(atom.long_label());
+      this.hud(pick.bag.label + ' ' + atom.long_label());
       this.toggle_label(pick);
       const color = this.config.colors[atom.element] || this.config.colors.def;
       const size = 2.5 * scale_by_height(this.config.bond_line,
@@ -1256,7 +1259,7 @@ export class Viewer {
   }
 
   select_atom(pick/*:{bag:ModelBag, atom:AtomT}*/, options/*:Object*/={}) {
-    this.hud('-> ' + pick.atom.long_label());
+    this.hud('-> ' + pick.bag.label + ' ' + pick.atom.long_label());
     this.controls.go_to(pick.atom.xyz, null, null, options.steps);
     this.toggle_label(this.selected, false);
     this.selected = {bag: pick.bag, atom: pick.atom}; // not ...=pick b/c flow
@@ -1496,7 +1499,8 @@ Viewer.prototype.KEYBOARD_HELP = [
 
 Viewer.prototype.ABOUT_HELP =
   '&nbsp; <a href="https://uglymol.github.io">uglymol</a> ' +
-  (typeof VERSION === 'string' ? VERSION : 'dev');
+  // $FlowFixMe
+  (typeof VERSION === 'string' ? VERSION : 'dev'); // eslint-disable-line
 
 Viewer.prototype.ColorSchemes = ColorSchemes;
 
