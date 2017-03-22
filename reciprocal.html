@@ -79,7 +79,9 @@
   <div id="inset"></div>
   <script>
     V = new UM.ReciprocalViewer({viewer: "viewer", hud: "hud", help: "help"});
-    V.load_data("data/rlp.csv");
+    var rlp = /[?&]rlp(=([^&#]*)|&|#|$)/.exec(window.location.href);
+    if (rlp && rlp[2])
+      V.load_data(decodeURIComponent(rlp[2].replace(/\+/g, " ")));
   </script>
 </body>
 </html>
