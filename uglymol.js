@@ -3764,7 +3764,11 @@ Viewer.prototype.load_pdb = function load_pdb (url/*:string*/, options/*:?Object
   });
 };
 
-Viewer.prototype.load_map = function load_map (url/*:string*/, options/*:Object*/, callback/*:?Function*/) {
+Viewer.prototype.load_map = function load_map (url/*:?string*/, options/*:Object*/, callback/*:?Function*/) {
+  if (url == null) {
+    if (callback) { callback(); }
+    return;
+  }
   if (options.format !== 'ccp4' && options.format !== 'dsn6') {
     throw Error('Unknown map format.');
   }

@@ -1391,7 +1391,11 @@ export class Viewer {
     });
   }
 
-  load_map(url/*:string*/, options/*:Object*/, callback/*:?Function*/) {
+  load_map(url/*:?string*/, options/*:Object*/, callback/*:?Function*/) {
+    if (url == null) {
+      if (callback) callback();
+      return;
+    }
     if (options.format !== 'ccp4' && options.format !== 'dsn6') {
       throw Error('Unknown map format.');
     }
