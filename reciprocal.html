@@ -82,6 +82,8 @@
     var rlp = /[?&]rlp(=([^&#]*)|&|#|$)/.exec(window.location.href);
     if (rlp && rlp[2])
       V.load_data(decodeURIComponent(rlp[2].replace(/\+/g, " ")));
+    else
+      V.hud('Drag your rlp.json and/or dials.rs_mapper map to this page.');
   </script>
 </body>
 </html>
