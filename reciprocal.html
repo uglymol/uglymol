@@ -79,7 +79,7 @@
   <div id="inset"></div>
   <script>
     V = new UM.ReciprocalViewer({viewer: "viewer", hud: "hud", help: "help"});
-    var rlp = /[?&]rlp(=([^&#]*)|&|#|$)/.exec(window.location.href);
+    var rlp = /[?&#]rlp(=([^&#]*)|&|#|$)/.exec(window.location.href);
     if (rlp && rlp[2])
       V.load_data(decodeURIComponent(rlp[2].replace(/\+/g, " ")));
     else
