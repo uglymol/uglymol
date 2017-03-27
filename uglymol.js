@@ -3713,7 +3713,8 @@ Viewer.prototype.load_file = function load_file (url/*:string*/, options/*:{[id:
   req.onreadystatechange = function () {
     if (req.readyState === 4) {
       // chrome --allow-file-access-from-files gives status 0
-      if (req.status === 200 || (req.status === 0 && req.response !== null)) {
+      if (req.status === 200 || (req.status === 0 && req.response !== null &&
+                                                     req.response !== '')) {
         try {
           callback(req);
         } catch (e) {
