@@ -3230,7 +3230,6 @@ Viewer.prototype.toggle_full_screen = function toggle_full_screen () {
     var req = el.requestFullscreen || el.webkitRequestFullscreen ||
     // $FlowFixMe: property `msRequestFullscreen` not found in HTMLElement
               el.mozRequestFullScreen || el.msRequestFullscreen;
-    // $FlowFixMe
     if (req) { req.call(el); }
   }
 };

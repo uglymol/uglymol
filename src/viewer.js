@@ -863,7 +863,6 @@ export class Viewer {
       let req = el.requestFullscreen || el.webkitRequestFullscreen ||
       // $FlowFixMe: property `msRequestFullscreen` not found in HTMLElement
                 el.mozRequestFullScreen || el.msRequestFullscreen;
-      // $FlowFixMe
       if (req) req.call(el);
     }
   }
