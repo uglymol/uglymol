@@ -8,10 +8,13 @@ parserOptions:
   sourceType: 'module'
 extends: ['eslint:recommended', 'google']
 rules:
-  # eslint@3.9.0 started enforcing indention of continuation lines for array
-  # we stick with 3.8.1 for now
-  indent: [1, 2, {SwitchCase: 1, outerIIFEBody: 0,
-                  ArrayExpression: 'first', ObjectExpression: 'first'}]
+  # disable for now, until it's more flexible
+  indent: [0, 2, {SwitchCase: 1, outerIIFEBody: 0,
+                  ArrayExpression: 'first',
+                  ObjectExpression: 'first',
+                  CallExpression: {arguments: 'first'},
+                  FunctionDeclaration: {parameters: 'first'},
+                  FunctionExpression: {parameters: 'first'} }]
   brace-style: [2, '1tbs', {'allowSingleLine': true}]
   space-before-function-paren: [2, {'anonymous': 'always', 'named': 'never'}]
   curly: [2, 'multi-line', 'consistent']
@@ -24,3 +27,4 @@ rules:
   no-console: 0
   #prefer-const: 1
   prefer-spread: 0
+  no-multi-spaces: [2, {ignoreEOLComments: true }]
