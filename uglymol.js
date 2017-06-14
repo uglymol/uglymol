@@ -1,5 +1,5 @@
 /*!
- * UglyMol v0.5.5. Macromolecular Viewer for Crystallographers.
+ * UglyMol v0.5.6. Macromolecular Viewer for Crystallographers.
  * Copyright 2014 Nat Echols
  * Copyright 2016 Diamond Light Source Ltd
  * Copyright 2016 Marcin Wojdyr
@@ -11,7 +11,7 @@
 	(factory((global.UM = global.UM || {}),global.THREE));
 }(this, (function (exports,THREE) { 'use strict';
 
-var VERSION = exports.VERSION = '0.5.5';
+var VERSION = exports.VERSION = '0.5.6';
 
 
 // @flow
@@ -2755,6 +2755,7 @@ var Viewer = function Viewer(options /*: {[key: string]: any}*/) {
                  mark: null };
   this.labels = {};
   this.nav = null;
+  this.xhr_headers = {};
 
   this.config = {
     bond_line: 4.0, // ~ to height, like in Coot (see scale_by_height())
@@ -3707,6 +3708,11 @@ Viewer.prototype.load_file = function load_file (url/*:string*/, options/*:{[id:
   } else {
     // http://stackoverflow.com/questions/7374911/
     req.overrideMimeType('text/plain');
+  }
+  for (var name in this.xhr_headers) {
+    if (this.xhr_headers.hasOwnProperty(name)) {
+      req.setRequestHeader(name, this.xhr_headers[name]);
+    }
   }
   var self = this;
   req.onreadystatechange = function () {

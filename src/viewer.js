@@ -370,6 +370,7 @@ export class Viewer {
           mark: ?Object}
   labels: {[id:string]: {o: THREE.Mesh, bag: ModelBag}}
   nav: ?Object
+  xhr_headers: {[id:string]: string}
   config: Object
   window_size: [number, number]
   window_offset: [number, number]
@@ -406,6 +407,7 @@ export class Viewer {
                    mark: null };
     this.labels = {};
     this.nav = null;
+    this.xhr_headers = {};
 
     this.config = {
       bond_line: 4.0, // ~ to height, like in Coot (see scale_by_height())
@@ -1336,6 +1338,11 @@ export class Viewer {
     } else {
       // http://stackoverflow.com/questions/7374911/
       req.overrideMimeType('text/plain');
+    }
+    for (const name in this.xhr_headers) {
+      if (this.xhr_headers.hasOwnProperty(name)) {
+        req.setRequestHeader(name, this.xhr_headers[name]);
+      }
     }
     let self = this;
     req.onreadystatechange = function () {
