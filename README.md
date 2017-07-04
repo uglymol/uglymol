@@ -6,12 +6,10 @@
 UglyMol is a web-based macromolecular viewer focused on electron density.
 
 It makes models and e.den. maps easy to recognize, navigate and interpret --
-for [Coot](http://www2.mrc-lmb.cam.ac.uk/personal/pemsley/coot/) users.
-It looks like coot and walks (mouse controls) like coot.
-Except when it doesn't -- see the
-[FAQ](https://github.com/uglymol/uglymol/wiki).
-
-It's only a viewer. For situations when you want
+for crystallographers.
+It looks like [Coot](http://www2.mrc-lmb.cam.ac.uk/personal/pemsley/coot/)
+and walks (mouse controls) like Coot.
+But it's only a viewer. For situations when you want
 a quick look without downloading the data and starting Coot.
 For instance, when screening
 [Dimple](http://ccp4.github.io/dimple/) results in a synchrotron.
@@ -36,9 +34,7 @@ is to keep it small. But if you're missing some functionality,
 it won't hurt if you get in touch --
 use [Issues](https://github.com/uglymol/uglymol/issues)
 or [chat](https://gitter.im/ccp4/dimple)
-or email wojdyr@gmail.com.
+or [email](mailto:wojdyr@gmail.com).
 
-Finally, if you need pretty visualization,
-or if you trust the model and don't need to see the electron density,
-use one of many
-[other viewers](https://github.com/uglymol/uglymol/wiki/MolecularViewers).
+See the [Wiki](https://github.com/uglymol/uglymol/wiki)
+for more information.
