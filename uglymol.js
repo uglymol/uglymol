@@ -1,5 +1,5 @@
 /*!
- * UglyMol v0.5.6. Macromolecular Viewer for Crystallographers.
+ * UglyMol v0.5.7. Macromolecular Viewer for Crystallographers.
  * Copyright 2014 Nat Echols
  * Copyright 2016 Diamond Light Source Ltd
  * Copyright 2016 Marcin Wojdyr
@@ -11,7 +11,7 @@
 	(factory((global.UM = global.UM || {}),global.THREE));
 }(this, (function (exports,THREE) { 'use strict';
 
-var VERSION = exports.VERSION = '0.5.6';
+var VERSION = exports.VERSION = '0.5.7';
 
 
 // @flow
@@ -1462,12 +1462,12 @@ ElMap.prototype.extract_block = function extract_block (radius/*:number*/, cente
   var grid = this.grid;
   var unit_cell = this.unit_cell;
   if (grid == null || unit_cell == null) { return; }
-  var xyz_min = [center[0]-radius, center[1]-radius, center[2]-radius];
-  var xyz_max = [center[0]+radius, center[1]+radius, center[2]+radius];
-  var frac_min = unit_cell.fractionalize(xyz_min);
-  var frac_max = unit_cell.fractionalize(xyz_max);
-  var grid_min = grid.frac2grid(frac_min);
-  var grid_max = grid.frac2grid(frac_max);
+  var fc = unit_cell.fractionalize(center);
+  var r = [radius / unit_cell.parameters[0],
+             radius / unit_cell.parameters[1],
+             radius / unit_cell.parameters[2]];
+  var grid_min = grid.frac2grid([fc[0] - r[0], fc[1] - r[1], fc[2] - r[2]]);
+  var grid_max = grid.frac2grid([fc[0] + r[0], fc[1] + r[1], fc[2] + r[2]]);
   var size = [grid_max[0] - grid_min[0] + 1,
                 grid_max[1] - grid_min[1] + 1,
                 grid_max[2] - grid_min[2] + 1];

@@ -274,12 +274,12 @@ export class ElMap {
     const grid = this.grid;
     const unit_cell = this.unit_cell;
     if (grid == null || unit_cell == null) return;
-    const xyz_min = [center[0]-radius, center[1]-radius, center[2]-radius];
-    const xyz_max = [center[0]+radius, center[1]+radius, center[2]+radius];
-    const frac_min = unit_cell.fractionalize(xyz_min);
-    const frac_max = unit_cell.fractionalize(xyz_max);
-    const grid_min = grid.frac2grid(frac_min);
-    const grid_max = grid.frac2grid(frac_max);
+    const fc = unit_cell.fractionalize(center);
+    const r = [radius / unit_cell.parameters[0],
+               radius / unit_cell.parameters[1],
+               radius / unit_cell.parameters[2]];
+    const grid_min = grid.frac2grid([fc[0] - r[0], fc[1] - r[1], fc[2] - r[2]]);
+    const grid_max = grid.frac2grid([fc[0] + r[0], fc[1] + r[1], fc[2] + r[2]]);
     const size = [grid_max[0] - grid_min[0] + 1,
                   grid_max[1] - grid_min[1] + 1,
                   grid_max[2] - grid_min[2] + 1];

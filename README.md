@@ -17,7 +17,7 @@ Of course, for this to work, it needs to be integrated into a website
 that provides the data access
 (see the [FAQ](https://github.com/uglymol/uglymol/wiki) on how to do it).
 
-But first try it:
+Try it:
 
 - [1MRU](https://uglymol.github.io/1mru.html) (60kDa, 3Å),
   and in [dual view](https://uglymol.github.io/dual.html) with PDB_REDO,
