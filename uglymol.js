@@ -8,7 +8,7 @@
 (function (global, factory) {
 	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('three')) :
 	typeof define === 'function' && define.amd ? define(['exports', 'three'], factory) :
-	(factory((global.UM = global.UM || {}),global.THREE));
+	(factory((global.UM = {}),global.THREE));
 }(this, (function (exports,THREE) { 'use strict';
 
 var VERSION = exports.VERSION = '0.5.7';
@@ -4332,8 +4332,8 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
   '←/→ = max resol.',
   '↑/↓ = min resol.' ].join('\n');
 
-ReciprocalViewer.prototype.MOUSE_HELP = Viewer.prototype.MOUSE_HELP
-                                        .split('\n').slice(0, -2).join('\n');
+ReciprocalViewer.prototype.MOUSE_HELP =
+    Viewer.prototype.MOUSE_HELP.split('\n').slice(0, -2).join('\n');
 
 exports.UnitCell = UnitCell;
 exports.modelsFromPDB = modelsFromPDB;

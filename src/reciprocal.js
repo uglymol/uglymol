@@ -2,7 +2,7 @@
 import { ElMap } from './elmap.js';
 import { Viewer } from './viewer.js';
 import { addXyzCross, makeLineMaterial, makeLineSegments,
-         makeUniforms} from './lines.js';
+         makeUniforms } from './lines.js';
 import * as THREE from 'three';
 
 
@@ -498,6 +498,6 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
   '↑/↓ = min resol.',
 ].join('\n');
 
-ReciprocalViewer.prototype.MOUSE_HELP = Viewer.prototype.MOUSE_HELP
-                                        .split('\n').slice(0, -2).join('\n');
+ReciprocalViewer.prototype.MOUSE_HELP =
+    Viewer.prototype.MOUSE_HELP.split('\n').slice(0, -2).join('\n');
 
