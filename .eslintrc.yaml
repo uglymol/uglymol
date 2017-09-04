@@ -8,13 +8,15 @@ parserOptions:
   sourceType: 'module'
 extends: ['eslint:recommended', 'google']
 rules:
-  # disable for now, until it's more flexible
-  indent: [0, 2, {SwitchCase: 1, outerIIFEBody: 0,
+  indent: [2, 2, {SwitchCase: 1, outerIIFEBody: 0,
                   ArrayExpression: 'first',
                   ObjectExpression: 'first',
+                  ImportDeclaration: 'first',
                   CallExpression: {arguments: 'first'},
                   FunctionDeclaration: {parameters: 'first'},
-                  FunctionExpression: {parameters: 'first'} }]
+                  FunctionExpression: {parameters: 'first'},
+                  # ignore ternary expression - we often align ':' with '?'
+                  ignoredNodes: ['ConditionalExpression'] }]
   brace-style: [2, '1tbs', {'allowSingleLine': true}]
   block-spacing: [2, "always"]
   space-before-function-paren: [2, {'anonymous': 'always', 'named': 'never'}]
