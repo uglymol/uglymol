@@ -44,16 +44,18 @@ function three_import() {
 }
 
 let build = {
-  entry: 'src/all.js',
+  input: 'src/all.js',
   plugins: [],
-  format: 'umd',
-  dest: 'uglymol.js',
-  moduleName: 'UM',
+  output: {
+    file: 'uglymol.js',
+    format: 'umd',
+  },
+  name: 'UM',
   external: ['three'],
   globals: { three: 'THREE' },
   intro: `var VERSION = exports.VERSION = '${version}';\n`,
   banner,
-  sourceMap: true,
+  sourcemap: true,
 };
 
 // build with included three.js subset: BUNDLE_DEPS=1 rollup -c
