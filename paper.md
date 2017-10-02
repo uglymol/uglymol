@@ -40,14 +40,14 @@ To make UglyMol easy to use by its audience,
 the user interface is closely resembling Coot [@coot],
 a desktop program popular among crystallographers.
 
-UglyMol is currently used in a few web applications.
-In SynchWeb [@synchweb] in Diamond Light Source it presents results from
-the refinement pipeline Dimple [@dimple].
-In EXI [@exi] in European Synchrotron Radiation Facility it shows
-results from a phasing pipeline.
-In CCP4 web services [@ccp4web] -- results from multiple programs
-and pipelines.
-And in molstack [@molstack], which is a platforms for sharing electron
-density maps and their interpretations, it shows the shared maps.
+Originally, UglyMol was developed to present results from the refinement
+pipeline Dimple [@dimple]. Currently, it has also other uses.
+It is included in at least five web applications:
+
+* SynchWeb [@synchweb] in Diamond Light Source,
+* EXI [@exi] in European Synchrotron Radiation Facility,
+* CCP4 web services [@ccp4web],
+* molstack [@molstack]
+* and ContaMiner [@contaminer].
 
 # References
