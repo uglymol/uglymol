@@ -496,6 +496,7 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
   'Shift+F = full screen',
   '←/→ = max resol.',
   '↑/↓ = min resol.',
+  '+/- = map level',
 ].join('\n');
 
 ReciprocalViewer.prototype.MOUSE_HELP =

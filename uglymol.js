@@ -4330,7 +4330,8 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
   'Shift+P = permalink',
   'Shift+F = full screen',
   '←/→ = max resol.',
-  '↑/↓ = min resol.' ].join('\n');
+  '↑/↓ = min resol.',
+  '+/- = map level' ].join('\n');
 
 ReciprocalViewer.prototype.MOUSE_HELP =
     Viewer.prototype.MOUSE_HELP.split('\n').slice(0, -2).join('\n');
