@@ -1228,13 +1228,13 @@ export class Viewer {
     if (xyz != null && cam == null && bag != null) {
       // look from specified point toward the center of the molecule,
       // i.e. shift camera away from the molecule center.
-      xyz = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
       const mc = bag.model.get_center();
       let d = new THREE.Vector3(xyz[0] - mc[0], xyz[1] - mc[1], xyz[2] - mc[2]);
       d.setLength(100);
       new_up = d.y < 90 ? new THREE.Vector3(0, 1, 0)
                         : new THREE.Vector3(1, 0, 0);
       new_up.projectOnPlane(d).normalize();
+      xyz = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
       cam = d.add(xyz);
     } else {
       xyz = xyz || (bag ? bag.model.get_center() : [0, 0, 0]);

@@ -2686,13 +2686,13 @@ ModelBag.prototype.add_ribbon = function add_ribbon (smoothness) {
   var colors = color_by(this.conf.color_aim, visible_atoms,
                           this.conf.colors, this.hue_shift);
   var k = 0;
-  for (var i = 0, list = segments; i < list.length; i += 1) {
-    var seg = list[i];
+  for (var i$1 = 0, list$1 = segments; i$1 < list$1.length; i$1 += 1) {
+    var seg = list$1[i$1];
 
       var tangents = [];
     var last = [0, 0, 0];
-    for (var i$1 = 0, list$1 = seg; i$1 < list$1.length; i$1 += 1) {
-      var atom = list$1[i$1];
+    for (var i = 0, list = seg; i < list.length; i += 1) {
+      var atom = list[i];
 
         var residue = res_map[atom.resid()];
       var tang = this.model.calculate_tangent_vector(residue);
@@ -3594,13 +3594,13 @@ Viewer.prototype.recenter = function recenter (xyz/*:?Num3*/, cam/*:?Num3*/, ste
   if (xyz != null && cam == null && bag != null) {
     // look from specified point toward the center of the molecule,
     // i.e. shift camera away from the molecule center.
-    xyz = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
     var mc = bag.model.get_center();
     var d = new THREE.Vector3(xyz[0] - mc[0], xyz[1] - mc[1], xyz[2] - mc[2]);
     d.setLength(100);
     new_up = d.y < 90 ? new THREE.Vector3(0, 1, 0)
                       : new THREE.Vector3(1, 0, 0);
     new_up.projectOnPlane(d).normalize();
+    xyz = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
     cam = d.add(xyz);
   } else {
     xyz = xyz || (bag ? bag.model.get_center() : [0, 0, 0]);
