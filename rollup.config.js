@@ -49,13 +49,13 @@ let build = {
   output: {
     file: 'uglymol.js',
     format: 'umd',
+    name: 'UM',
+    globals: { three: 'THREE' },
+    intro: `var VERSION = exports.VERSION = '${version}';\n`,
+    banner,
+    sourcemap: true,
   },
-  name: 'UM',
   external: ['three'],
-  globals: { three: 'THREE' },
-  intro: `var VERSION = exports.VERSION = '${version}';\n`,
-  banner,
-  sourcemap: true,
 };
 
 // build with included three.js subset: BUNDLE_DEPS=1 rollup -c
