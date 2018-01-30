@@ -452,20 +452,21 @@ export class Viewer {
     if (this.constructor === Viewer) this.set_real_space_key_bindings();
     if (typeof document === 'undefined') return;  // for testing on node
 
-    try {
-      this.renderer = new THREE.WebGLRenderer({antialias: true});
-    } catch (e) {
-      this.hud('no WebGL in your browser?', 'ERR');
-      this.renderer = null;
-      return;
-    }
-
     function get_elem(name) {
       if (options[name] === null) return null;
       return document.getElementById(options[name] || name);
     }
-    this.container = get_elem('viewer');
     this.hud_el = get_elem('hud');
+
+    try {
+      this.renderer = new THREE.WebGLRenderer({antialias: true});
+    } catch (e) {
+      this.hud('No WebGL in your browser?', 'ERR');
+      this.renderer = null;
+      return;
+    }
+
+    this.container = get_elem('viewer');
     this.help_el = get_elem('help');
     if (this.hud_el) {
       this.initial_hud_html = this.hud_el.innerHTML;
