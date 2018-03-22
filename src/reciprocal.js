@@ -228,7 +228,7 @@ export class ReciprocalViewer extends Viewer {
     };
     // u
     kb[85] = function () {
-      if (this.map_bags.length == 0) {
+      if (this.map_bags.length === 0) {
         this.hud('Reciprocal-space density map not loaded.');
         return;
       }
@@ -446,7 +446,7 @@ export class ReciprocalViewer extends Viewer {
   }
 
   get_cell_box_func() {
-    if (this.map_bags.size === 0) return null;
+    if (this.map_bags.length === 0) return null;
     // $FlowFixMe: here the map is ReciprocalSpaceMap not ElMap
     const a = this.map_bags[0].map.box_size;
     return function (xyz/*:[number,number,number]*/) {

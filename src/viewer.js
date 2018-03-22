@@ -853,8 +853,11 @@ export class Viewer {
 
   toggle_full_screen() {
     let d = document;
+    // $FlowFixMe: Property mozFullScreenElement is missing in Document
     if (d.fullscreenElement || d.mozFullScreenElement ||
+        // $FlowFixMe: Property webkitExitFullscreen is missing in Document
         d.webkitFullscreenElement || d.msFullscreenElement) {
+      // $FlowFixMe: Property webkitExitFullscreen is missing in Document
       let ex = d.exitFullscreen || d.webkitExitFullscreen ||
       // $FlowFixMe: property `msExitFullscreen` not found in document
                d.mozCancelFullScreen || d.msExitFullscreen;
@@ -863,6 +866,7 @@ export class Viewer {
     } else {
       let el = this.container;
       if (!el) return;
+      // $FlowFixMe: Property webkitRequestFullscreen is missing in HTMLElement
       let req = el.requestFullscreen || el.webkitRequestFullscreen ||
       // $FlowFixMe: property `msRequestFullscreen` not found in HTMLElement
                 el.mozRequestFullScreen || el.msRequestFullscreen;

@@ -18,7 +18,7 @@ rules:
                   # ignore ternary expression - we often align ':' with '?'
                   ignoredNodes: ['ConditionalExpression'] }]
   brace-style: [2, '1tbs', {'allowSingleLine': true}]
-  block-spacing: [2, "always"]
+  block-spacing: [2, 'always']
   space-before-function-paren: [2, {'anonymous': 'always', 'named': 'never'}]
   curly: [2, 'multi-line', 'consistent']
   spaced-comment: 0  # comments are spaced, but not commented out code

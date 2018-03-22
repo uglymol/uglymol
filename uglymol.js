@@ -3219,8 +3219,11 @@ Viewer.prototype.change_map_line = function change_map_line (delta/*:number*/) {
 
 Viewer.prototype.toggle_full_screen = function toggle_full_screen () {
   var d = document;
+  // $FlowFixMe: Property mozFullScreenElement is missing in Document
   if (d.fullscreenElement || d.mozFullScreenElement ||
+      // $FlowFixMe: Property webkitExitFullscreen is missing in Document
       d.webkitFullscreenElement || d.msFullscreenElement) {
+    // $FlowFixMe: Property webkitExitFullscreen is missing in Document
     var ex = d.exitFullscreen || d.webkitExitFullscreen ||
     // $FlowFixMe: property `msExitFullscreen` not found in document
              d.mozCancelFullScreen || d.msExitFullscreen;
@@ -3229,6 +3232,7 @@ Viewer.prototype.toggle_full_screen = function toggle_full_screen () {
   } else {
     var el = this.container;
     if (!el) { return; }
+    // $FlowFixMe: Property webkitRequestFullscreen is missing in HTMLElement
     var req = el.requestFullscreen || el.webkitRequestFullscreen ||
     // $FlowFixMe: property `msRequestFullscreen` not found in HTMLElement
               el.mozRequestFullScreen || el.msRequestFullscreen;
@@ -3867,6 +3871,8 @@ Viewer.prototype.ABOUT_HELP =
 Viewer.prototype.ColorSchemes = ColorSchemes;
 
 // @flow
+
+
 // options handled by Viewer#select_next()
 var SPOT_SEL = ['all', 'unindexed', '#1']; //extended when needed
 var SHOW_AXES = ['two', 'three', 'none'];
@@ -4059,7 +4065,7 @@ var ReciprocalViewer = (function (Viewer$$1) {
     };
     // u
     kb[85] = function () {
-      if (this.map_bags.length == 0) {
+      if (this.map_bags.length === 0) {
         this.hud('Reciprocal-space density map not loaded.');
         return;
       }
@@ -4281,7 +4287,7 @@ var ReciprocalViewer = (function (Viewer$$1) {
   };
 
   ReciprocalViewer.prototype.get_cell_box_func = function get_cell_box_func () {
-    if (this.map_bags.size === 0) { return null; }
+    if (this.map_bags.length === 0) { return null; }
     // $FlowFixMe: here the map is ReciprocalSpaceMap not ElMap
     var a = this.map_bags[0].map.box_size;
     return function (xyz/*:[number,number,number]*/) {
