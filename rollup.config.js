@@ -54,6 +54,7 @@ let build = {
     intro: `var VERSION = exports.VERSION = '${version}';\n`,
     banner,
     sourcemap: true,
+    indent: false,
   },
   external: ['three'],
 };
