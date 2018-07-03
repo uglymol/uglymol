@@ -313,16 +313,19 @@ export class ReciprocalViewer extends Viewer {
   load_data(url/*:string*/, options/*:Object*/ = {}) {
     let self = this;
     this.load_file(url, {binary: false, progress: true}, function (req) {
-      self.load_from_string(req.responseText, options);
-      if (options.callback) options.callback();
+      let ok = self.load_from_string(req.responseText, options);
+      if (ok && options.callback) options.callback();
     });
   }
 
   load_from_string(text/*:string*/, options/*:Object*/) {
     if (text[0] === '{') {
       this.data = parse_json(text);
-    } else {
+    } else if (text[0] === '#') {
       this.data = parse_csv(text);
+    } else {
+      this.hud('Unrecognized file type.');
+      return false;
     }
     this.max_dist = find_max_dist(this.data.pos);
     this.d_min = 1 / this.max_dist;
@@ -339,6 +342,7 @@ export class ReciprocalViewer extends Viewer {
     this.controls.slab_width = [d, d, 100];
     this.set_view(options);
     this.hud('Loaded ' + this.data.pos.length + ' spots.');
+    return true;
   }
 
   load_map_from_ab(buffer/*:ArrayBuffer*/) {

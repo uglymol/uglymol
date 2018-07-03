@@ -6,9 +6,9 @@
  * Released under the MIT License.
  */
 (function (global, factory) {
-	typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('three')) :
-	typeof define === 'function' && define.amd ? define(['exports', 'three'], factory) :
-	(factory((global.UM = {}),global.THREE));
+typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports, require('three')) :
+typeof define === 'function' && define.amd ? define(['exports', 'three'], factory) :
+(factory((global.UM = {}),global.THREE));
 }(this, (function (exports,THREE) { 'use strict';
 
 var VERSION = exports.VERSION = '0.5.7';
@@ -113,11 +113,10 @@ var Model = function Model() {
   this.cubes = null;
 };
 
-Model.prototype.from_pdb = function from_pdb (pdb_lines /*:string[]*/) {
+Model.prototype.from_pdb = function from_pdb (pdb_lines /*:string[]*/) /*:?string[]*/ {
   var chain_index = 0;// will be ++'ed for the first atom
   var last_chain = null;
   var atom_i_seq = 0;
-  //let last_atom = null;
   var continuation = null;
   for (var i = 0; i < pdb_lines.length; i++) {
     var line = pdb_lines[i];
@@ -134,11 +133,8 @@ Model.prototype.from_pdb = function from_pdb (pdb_lines /*:string[]*/) {
       }
       new_atom.chain_index = chain_index;
       last_chain = new_atom.chain;
-      //last_atom = new_atom;
       this.atoms.push(new_atom);
-    } else if (rec_type === 'ANISOU') {
-      //last_atom.set_uij_from_anisou(line);
-    } else if (rec_type === 'CRYST1') {
+    } else if (rec_type === 'ANISOU') ; else if (rec_type === 'CRYST1') {
       var a = parseFloat(line.substring(6, 15));
       var b = parseFloat(line.substring(15, 24));
       var c = parseFloat(line.substring(24, 33));
@@ -4154,16 +4150,19 @@ var ReciprocalViewer = (function (Viewer$$1) {
 
     var self = this;
     this.load_file(url, {binary: false, progress: true}, function (req) {
-      self.load_from_string(req.responseText, options);
-      if (options.callback) { options.callback(); }
+      var ok = self.load_from_string(req.responseText, options);
+      if (ok && options.callback) { options.callback(); }
     });
   };
 
   ReciprocalViewer.prototype.load_from_string = function load_from_string (text/*:string*/, options/*:Object*/) {
     if (text[0] === '{') {
       this.data = parse_json(text);
-    } else {
+    } else if (text[0] === '#') {
       this.data = parse_csv(text);
+    } else {
+      this.hud('Unrecognized file type.');
+      return false;
     }
     this.max_dist = find_max_dist(this.data.pos);
     this.d_min = 1 / this.max_dist;
@@ -4180,6 +4179,7 @@ var ReciprocalViewer = (function (Viewer$$1) {
     this.controls.slab_width = [d, d, 100];
     this.set_view(options);
     this.hud('Loaded ' + this.data.pos.length + ' spots.');
+    return true;
   };
 
   ReciprocalViewer.prototype.load_map_from_ab = function load_map_from_ab (buffer/*:ArrayBuffer*/) {

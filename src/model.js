@@ -46,11 +46,10 @@ export class Model {
     this.cubes = null;
   }
 
-  from_pdb(pdb_lines /*:string[]*/) {
+  from_pdb(pdb_lines /*:string[]*/) /*:?string[]*/ {
     let chain_index = 0;  // will be ++'ed for the first atom
     let last_chain = null;
     let atom_i_seq = 0;
-    //let last_atom = null;
     let continuation = null;
     for (let i = 0; i < pdb_lines.length; i++) {
       const line = pdb_lines[i];
@@ -67,10 +66,9 @@ export class Model {
         }
         new_atom.chain_index = chain_index;
         last_chain = new_atom.chain;
-        //last_atom = new_atom;
         this.atoms.push(new_atom);
       } else if (rec_type === 'ANISOU') {
-        //last_atom.set_uij_from_anisou(line);
+        // we don't use anisotropic B-factors
       } else if (rec_type === 'CRYST1') {
         const a = parseFloat(line.substring(6, 15));
         const b = parseFloat(line.substring(15, 24));
