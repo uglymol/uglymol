@@ -1365,7 +1365,7 @@ export class Viewer {
           try {
             callback(req);
           } catch (e) {
-            self.hud('Error: ' + e.message + '\nin ' + url, 'ERR');
+            self.hud('Error: ' + e.message + '\nwhen processing ' + url, 'ERR');
           }
         } else {
           self.hud('Failed to fetch ' + url, 'ERR');
@@ -1376,8 +1376,8 @@ export class Viewer {
       req.addEventListener('progress', function (evt /*:ProgressEvent*/) {
         if (evt.lengthComputable && evt.loaded && evt.total) {
           const fn = url.split('/').pop();
-          self.hud('loading ' + fn + ' ... ' +
-                   (evt.loaded >> 10) + ' / ' + (evt.total >> 10) + ' kB');
+          self.hud('loading ' + fn + ' ... ' + ((evt.loaded / 1024) | 0) +
+                   ' / ' + ((evt.total / 1024) | 0) + ' kB');
           if (evt.loaded === evt.total) self.hud(); // clear progress message
         }
       });

@@ -1293,7 +1293,7 @@ ElMap.prototype.from_ccp4 = function from_ccp4 (buf /*:ArrayBuffer*/, expand_sym
   if (1024 + nsymbt + nb*n_crs[0]*n_crs[1]*n_crs[2] !== buf.byteLength) {
     throw Error('ccp4 file too short or too long');
   }
-  var fview = new Float32Array(buf, 0, buf.byteLength >> 2);
+  var fview = new Float32Array(buf, 0, buf.byteLength / 4);
   this.unit_cell = new UnitCell(fview[10], fview[11], fview[12],
                                 fview[13], fview[14], fview[15]);
   // MAPC, MAPR, MAPS - axis corresp to cols, rows, sections (1,2,3 for X,Y,Z)
@@ -3731,7 +3731,7 @@ Viewer.prototype.load_file = function load_file (url/*:string*/, options/*:{[id:
         try {
           callback(req);
         } catch (e) {
-          self.hud('Error: ' + e.message + '\nin ' + url, 'ERR');
+          self.hud('Error: ' + e.message + '\nwhen processing ' + url, 'ERR');
         }
       } else {
         self.hud('Failed to fetch ' + url, 'ERR');
@@ -3742,8 +3742,8 @@ Viewer.prototype.load_file = function load_file (url/*:string*/, options/*:{[id:
     req.addEventListener('progress', function (evt /*:ProgressEvent*/) {
       if (evt.lengthComputable && evt.loaded && evt.total) {
         var fn = url.split('/').pop();
-        self.hud('loading ' + fn + ' ... ' +
-                 (evt.loaded >> 10) + ' / ' + (evt.total >> 10) + ' kB');
+        self.hud('loading ' + fn + ' ... ' + ((evt.loaded / 1024) | 0) +
+                 ' / ' + ((evt.total / 1024) | 0) + ' kB');
         if (evt.loaded === evt.total) { self.hud(); } // clear progress message
       }
     });

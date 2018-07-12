@@ -109,7 +109,7 @@ export class ElMap {
     if (1024 + nsymbt + nb*n_crs[0]*n_crs[1]*n_crs[2] !== buf.byteLength) {
       throw Error('ccp4 file too short or too long');
     }
-    const fview = new Float32Array(buf, 0, buf.byteLength >> 2);
+    const fview = new Float32Array(buf, 0, buf.byteLength / 4);
     this.unit_cell = new UnitCell(fview[10], fview[11], fview[12],
                                   fview[13], fview[14], fview[15]);
     // MAPC, MAPR, MAPS - axis corresp to cols, rows, sections (1,2,3 for X,Y,Z)
