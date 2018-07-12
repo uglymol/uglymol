@@ -1242,7 +1242,14 @@ export class Viewer {
       xyz = new THREE.Vector3(xyz[0], xyz[1], xyz[2]);
       cam = d.add(xyz);
     } else {
-      xyz = xyz || (bag ? bag.model.get_center() : [0, 0, 0]);
+      if (xyz == null) {
+        if (bag != null) {
+          xyz = bag.model.get_center();
+        } else {
+          const uc_func = this.get_cell_box_func();
+          xyz = uc_func ? uc_func([0.5, 0.5, 0.5]) : [0, 0, 0];
+        }
+      }
       if (cam != null) {
         cam = new THREE.Vector3(cam[0], cam[1], cam[2]);
         new_up = null; // preserve the up direction
