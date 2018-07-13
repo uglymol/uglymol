@@ -1,5 +1,5 @@
 /*!
- * UglyMol v0.5.7. Macromolecular Viewer for Crystallographers.
+ * UglyMol v0.5.8. Macromolecular Viewer for Crystallographers.
  * Copyright 2014 Nat Echols
  * Copyright 2016 Diamond Light Source Ltd
  * Copyright 2016 Marcin Wojdyr
@@ -11,7 +11,7 @@ typeof define === 'function' && define.amd ? define(['exports', 'three'], factor
 (factory((global.UM = {}),global.THREE));
 }(this, (function (exports,THREE) { 'use strict';
 
-var VERSION = exports.VERSION = '0.5.7';
+var VERSION = exports.VERSION = '0.5.8';
 
 
 // @flow
@@ -3589,7 +3589,7 @@ Viewer.prototype.resize = function resize (/*evt*/) {
 
 // If xyz set recenter on it looking toward the model center.
 // Otherwise recenter on the model center looking along the z axis.
-Viewer.prototype.recenter = function recenter (xyz/*:?Num3*/, cam/*:?Num3*/, steps/*:number*/) {
+Viewer.prototype.recenter = function recenter (xyz/*:?Num3*/, cam/*:?Num3*/, steps/*:?number*/) {
   var bag = this.selected.bag;
   var new_up;
   if (xyz != null && cam == null && bag != null) {
@@ -3755,6 +3755,61 @@ Viewer.prototype.load_file = function load_file (url/*:string*/, options/*:{[id:
   }
 };
 
+Viewer.prototype.set_dropzone = function set_dropzone (zone/*:Object*/, callback/*:Function*/) {
+  var self = this;
+  zone.addEventListener('dragover', function (e) {
+    e.stopPropagation();
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    self.hud('ready for file drop...');
+  });
+  zone.addEventListener('drop', function (e) {
+    e.stopPropagation();
+    e.preventDefault();
+    var names = [];
+    for (var i = 0, list = e.dataTransfer.files; i < list.length; i += 1) {
+      var file = list[i];
+
+        try {
+        callback(file);
+      } catch (e) {
+        self.hud('Loading ' + file.name + ' failed.\n' + e.message, 'ERR');
+        return;
+      }
+      names.push(file.name);
+    }
+    self.hud('loading ' + names.join(', '));
+  });
+};
+
+Viewer.prototype.set_pdb_and_map_dropzone = function set_pdb_and_map_dropzone (zone/*:Object*/) {
+  var self = this;
+  this.set_dropzone(zone, function (file) {
+    var reader = new FileReader();
+    if (/\.(pdb|ent)$/.test(file.name)) {
+      reader.onload = function (evt) {
+        self.load_pdb_from_text(evt.target.result);
+        self.recenter();
+      };
+      reader.readAsText(file);
+    } else if (/\.(map|ccp4|dsn6|omap)$/.test(file.name)) {
+      var map_format = /\.(dsn6|omap)$/.test(file.name) ? 'dsn6' : 'ccp4';
+      reader.onloadend = function (evt) {
+        if (evt.target.readyState == 2) {
+          self.load_map_from_buffer(evt.target.result, {format: map_format});
+          if (self.model_bags.length === 0 && self.map_bags.length === 1) {
+            self.recenter();
+          }
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      throw Error('Unknown file extension. ' +
+                  'Use: pdb, ent, ccp4, map, dsn6 or omap.');
+    }
+  });
+};
+
 Viewer.prototype.set_view = function set_view (options/*:?Object*/) {
   var frag = parse_url_fragment();
   if (frag.zoom) { this.camera.zoom = frag.zoom; }
@@ -3762,17 +3817,21 @@ Viewer.prototype.set_view = function set_view (options/*:?Object*/) {
 };
 
 // Load molecular model from PDB file and centers the view
+Viewer.prototype.load_pdb_from_text = function load_pdb_from_text (text/*:string*/) {
+  var len = this.model_bags.length;
+  var models = modelsFromPDB(text);
+  for (var i = 0, list = models; i < list.length; i += 1) {
+    var model = list[i];
+
+      this.add_model(model);
+  }
+  this.selected.bag = this.model_bags[len];
+};
+
 Viewer.prototype.load_pdb = function load_pdb (url/*:string*/, options/*:?Object*/, callback/*:?Function*/) {
   var self = this;
   this.load_file(url, {binary: false}, function (req) {
-    var len = self.model_bags.length;
-    var models = modelsFromPDB(req.responseText);
-    for (var i = 0, list = models; i < list.length; i += 1) {
-      var model = list[i];
-
-        self.add_model(model);
-    }
-    self.selected.bag = self.model_bags[len];
+    self.load_pdb_from_text(req.responseText);
     self.set_view(options);
     if (callback) { callback(); }
   });
@@ -3822,12 +3881,13 @@ Viewer.prototype.load_pdb_and_ccp4_maps = function load_pdb_and_ccp4_maps (pdb/*
 };
 
 Viewer.prototype.load_from_pdbe = function load_from_pdbe () {
-  if (typeof window === 'undefined') { return; }
+  if (typeof window === 'undefined') { return false; }
   var url = window.location.href;
   var match = url.match(/[?&]id=([^&#]+)/);
-  if (match == null) { return; }
+  if (match == null) { return false; }
   var id = match[1].toLowerCase();
   this.load_pdb('https://www.ebi.ac.uk/pdbe/entry-files/pdb' + id + '.ent');
+  return true;
 };
 
 Viewer.prototype.MOUSE_HELP = [
@@ -4021,7 +4081,10 @@ var ReciprocalViewer = (function (Viewer$$1) {
     this.config.spot_shape = SPOT_SHAPES[0];
     this.config.center_cube_size = 0.001;
     this.set_reciprocal_key_bindings();
-    this.set_dropzone();
+    if (typeof document !== 'undefined') {
+      this.set_dropzone(this.renderer.domElement,
+                        this.file_drop_callback.bind(this));
+    }
     this.point_material = new THREE.ShaderMaterial({
       uniforms: makeUniforms({
         size: 3,
@@ -4115,41 +4178,21 @@ var ReciprocalViewer = (function (Viewer$$1) {
     kb[221] = function () { this.change_map_radius(0.001); };
   };
 
-  ReciprocalViewer.prototype.set_dropzone = function set_dropzone () {
-    if (typeof document === 'undefined') { return; }  // for testing on node
-    var zone = this.renderer.domElement;
-    var self = this;
-    zone.addEventListener('dragover', function (e) {
-      e.stopPropagation();
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'copy';
-      self.hud('ready for drop...');
-    });
-    zone.addEventListener('drop', function (e) {
-      e.stopPropagation();
-      e.preventDefault();
-      var names = [];
-      for (var i = 0, list = e.dataTransfer.files; i < list.length; i += 1) {
-        var file = list[i];
-
-        var reader = new FileReader();
-        if (/\.(map|ccp4)$/.test(file.name)) {
-          reader.onloadend = function (evt) {
-            if (evt.target.readyState == 2) {
-              self.load_map_from_ab(evt.target.result);
-            }
-          };
-          reader.readAsArrayBuffer(file);
-        } else {
-          reader.onload = function (evt) {
-            self.load_from_string(evt.target.result, {});
-          };
-          reader.readAsText(file);
+  ReciprocalViewer.prototype.file_drop_callback = function file_drop_callback (file/*:File*/) {
+    var reader = new FileReader();
+    if (/\.(map|ccp4)$/.test(file.name)) {
+      reader.onloadend = function (evt) {
+        if (evt.target.readyState == 2) {
+          self.load_map_from_ab(evt.target.result);
         }
-        names.push(file.name);
-      }
-      self.hud('loading ' + names.join(', '));
-    });
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.onload = function (evt) {
+        self.load_from_string(evt.target.result, {});
+      };
+      reader.readAsText(file);
+    }
   };
 
   ReciprocalViewer.prototype.load_data = function load_data (url/*:string*/, options) {

@@ -1227,7 +1227,7 @@ export class Viewer {
 
   // If xyz set recenter on it looking toward the model center.
   // Otherwise recenter on the model center looking along the z axis.
-  recenter(xyz/*:?Num3*/, cam/*:?Num3*/, steps/*:number*/) {
+  recenter(xyz/*:?Num3*/, cam/*:?Num3*/, steps/*:?number*/) {
     const bag = this.selected.bag;
     let new_up;
     if (xyz != null && cam == null && bag != null) {
@@ -1389,6 +1389,59 @@ export class Viewer {
     }
   }
 
+  set_dropzone(zone/*:Object*/, callback/*:Function*/) {
+    const self = this;
+    zone.addEventListener('dragover', function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      self.hud('ready for file drop...');
+    });
+    zone.addEventListener('drop', function (e) {
+      e.stopPropagation();
+      e.preventDefault();
+      let names = [];
+      for (const file of e.dataTransfer.files) {
+        try {
+          callback(file);
+        } catch (e) {
+          self.hud('Loading ' + file.name + ' failed.\n' + e.message, 'ERR');
+          return;
+        }
+        names.push(file.name);
+      }
+      self.hud('loading ' + names.join(', '));
+    });
+  }
+
+  set_pdb_and_map_dropzone(zone/*:Object*/) {
+    const self = this;
+    this.set_dropzone(zone, function (file) {
+      const reader = new FileReader();
+      if (/\.(pdb|ent)$/.test(file.name)) {
+        reader.onload = function (evt) {
+          self.load_pdb_from_text(evt.target.result);
+          self.recenter();
+        };
+        reader.readAsText(file);
+      } else if (/\.(map|ccp4|dsn6|omap)$/.test(file.name)) {
+        const map_format = /\.(dsn6|omap)$/.test(file.name) ? 'dsn6' : 'ccp4';
+        reader.onloadend = function (evt) {
+          if (evt.target.readyState == 2) {
+            self.load_map_from_buffer(evt.target.result, {format: map_format});
+            if (self.model_bags.length === 0 && self.map_bags.length === 1) {
+              self.recenter();
+            }
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      } else {
+        throw Error('Unknown file extension. ' +
+                    'Use: pdb, ent, ccp4, map, dsn6 or omap.');
+      }
+    });
+  }
+
   set_view(options/*:?Object*/) {
     const frag = parse_url_fragment();
     if (frag.zoom) this.camera.zoom = frag.zoom;
@@ -1396,15 +1449,19 @@ export class Viewer {
   }
 
   // Load molecular model from PDB file and centers the view
+  load_pdb_from_text(text/*:string*/) {
+    const len = this.model_bags.length;
+    const models = modelsFromPDB(text);
+    for (const model of models) {
+      this.add_model(model);
+    }
+    this.selected.bag = this.model_bags[len];
+  }
+
   load_pdb(url/*:string*/, options/*:?Object*/, callback/*:?Function*/) {
     let self = this;
     this.load_file(url, {binary: false}, function (req) {
-      const len = self.model_bags.length;
-      const models = modelsFromPDB(req.responseText);
-      for (const model of models) {
-        self.add_model(model);
-      }
-      self.selected.bag = self.model_bags[len];
+      self.load_pdb_from_text(req.responseText);
       self.set_view(options);
       if (callback) callback();
     });
@@ -1454,12 +1511,13 @@ export class Viewer {
   }
 
   load_from_pdbe() {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return false;
     const url = window.location.href;
     const match = url.match(/[?&]id=([^&#]+)/);
-    if (match == null) return;
+    if (match == null) return false;
     const id = match[1].toLowerCase();
     this.load_pdb('https://www.ebi.ac.uk/pdbe/entry-files/pdb' + id + '.ent');
+    return true;
   }
 
   // TODO: navigation window like in gimp and mifit
