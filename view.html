@@ -63,19 +63,18 @@
   <!-- -DEV- using directly source files and node_modules -->
   <script src="node_modules/three/build/three.js"></script><!--DEV-->
   <script src="node_modules/three/examples/js/libs/stats.min.js"></script><!--DEV-->
+  <script src="uglymol.js"></script><!--DEV-->
   <!--DEV-: normally, use uglymol[.min].js and three.min.js from CDN.
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r83/three.min.js"></script>
+  <script src="/uglymol.js"></script>
   -DEV-->
-  <script src="uglymol.js"></script>
 
 </head>
 <body style="background-color: black">
   <div id="viewer"></div>
   <header id="hud" onmousedown="event.stopPropagation();"
                    ondblclick="event.stopPropagation();"
-                   onkeydown="event.stopPropagation();"
-    >
-  </header>
+                   onkeydown="event.stopPropagation();"></header>
   <footer id="help"></footer>
   <div id="inset"></div>
   <script>
