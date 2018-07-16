@@ -2494,6 +2494,8 @@ var ColorSchemes /*:ColorScheme[]*/ = [ // Viewer.prototype.ColorSchemes
     def: 0x808080,
   } ];
 
+var INIT_HUD_TEXT = 'This is UglyMol not Coot. ' +
+  '<a href="#" onclick="V.toggle_help(); return false;">H shows help.</a>';
 
 // options handled by select_next()
 
@@ -2813,6 +2815,7 @@ var Viewer = function Viewer(options /*: {[key: string]: any}*/) {
   this.container = get_elem('viewer');
   this.help_el = get_elem('help');
   if (this.hud_el) {
+    if (this.hud_el.innerHTML === '') { this.hud_el.innerHTML = INIT_HUD_TEXT; }
     this.initial_hud_html = this.hud_el.innerHTML;
   }
 
@@ -3849,7 +3852,7 @@ Viewer.prototype.load_pdb_from_text = function load_pdb_from_text (text/*:string
 
 Viewer.prototype.load_pdb = function load_pdb (url/*:string*/, options/*:?Object*/, callback/*:?Function*/) {
   var self = this;
-  this.load_file(url, {binary: false}, function (req) {
+  this.load_file(url, {binary: false, progress: true}, function (req) {
     self.load_pdb_from_text(req.responseText);
     if (options == null || !options.stay) { self.set_view(options); }
     if (callback) { callback(); }

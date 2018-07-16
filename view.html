@@ -74,22 +74,14 @@
   <header id="hud" onmousedown="event.stopPropagation();"
                    ondblclick="event.stopPropagation();"
                    onkeydown="event.stopPropagation();"
-    >Drag and drop your local PDB and map (CCP4 or DSN6) files to this window.
-    Alternatively, use PDB code to load files <input type="text"
-        size="5" maxlength="4" minlength="4" pattern="[0-9][0-9a-zA-Z]{3}"
-        value="1ABC" id="pdbid" required
-    /> <input type="submit" value="from PDBe" onclick="return do_load(true);"
-    /> <input type="submit" value="from RCSB" onclick="return do_load(false);"
-    />
-    Reload the page to remove all the models and maps.
-    <a href="#" onclick="V.toggle_help(); return false;"
-    >H shows help.</a></header>
+    >
+  </header>
   <footer id="help"></footer>
   <div id="inset"></div>
   <script>
     V = new UM.Viewer({viewer: "viewer", hud: "hud", help: "help"});
-    function do_load(use_pdbe) {
-      var pdbid = document.getElementById('pdbid').value;
+    function load(use_pdbe) {
+      var pdbid = document.getElementById('pdbid').value.toLowerCase();
       var callback = function () {
         V.hud('Model and maps for ' + pdbid + ' are loaded.<br/>' +
               'You may also add <input type="submit" value="PDB-REDO model" ' +
@@ -105,12 +97,25 @@
       var url = 'https://pdb-redo.eu/db/' + id + '/' + id + '_final.pdb';
       V.load_pdb(url, {stay: true}, function () {
       V.hud('Reload the page to remove all the models and maps.\n' +
-            'H shows help');
+            'V hides one of the models. H shows help.');
       });
     }
     V.set_pdb_and_map_dropzone(V.renderer.domElement);
     var id_match = window.location.href.match(/[?&]id=([^&#]+)/);
-    if (id_match) V.load_from_pdbe(id_match[1].toLowerCase());
+    if (id_match) {
+      V.load_from_pdbe(id_match[1].toLowerCase());
+    } else {
+      V.hud(
+    'Drag and drop your pdb and map (CCP4/DSN6) files to this window.' +
+    '\nAlternatively, use PDB code to load files <input type="text"' +
+    ' size="5" maxlength="4" minlength="4" pattern="[0-9][0-9a-zA-Z]{3}"' +
+    ' value="4UN4" id="pdbid" required/> ' +
+    '<input type="submit" value="from PDBe" onclick="return load(true);"/> ' +
+    '<input type="submit" value="from RCSB" onclick="return load(false);"/>' +
+    '\nReload the page to remove all the models and maps.' +
+    '\n<a href="#" onclick="V.toggle_help(); return false;">H shows help.</a>',
+    'HTML');
+    }
   </script>
 </body>
 </html>

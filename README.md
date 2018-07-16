@@ -23,7 +23,7 @@ Try it:
   and in [dual view](https://uglymol.github.io/dual.html) with PDB_REDO,
 - [a blob](https://uglymol.github.io/dimple_thaum.html#xyz=14,18,12&eye=80,71,-41&zoom=70)
   (Dimple result, thaumatin, 1.4Å),
-- or any [local file or wwPDB entry](https://uglymol.github.io/demo.html).
+- or any [local file or wwPDB entry](https://uglymol.github.io/view/).
 
 
 It also has a [reciprocal space spin-off](https://uglymol.github.io/reciprocal.html?rlp=data/rlp.csv).
