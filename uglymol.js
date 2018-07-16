@@ -3105,10 +3105,10 @@ Viewer.prototype.redraw_map = function redraw_map (map_bag/*:MapBag*/) {
   }
 };
 
-Viewer.prototype.toggle_model_visibility = function toggle_model_visibility (model_bag/*:?ModelBag*/) {
+Viewer.prototype.toggle_model_visibility = function toggle_model_visibility (model_bag/*:?ModelBag*/, visible/*:?boolean*/) {
   model_bag = model_bag || this.selected.bag;
   if (model_bag == null) { return; }
-  model_bag.visible = !model_bag.visible;
+  model_bag.visible = visible == null ? !model_bag.visible : visible;
   this.redraw_model(model_bag);
   this.request_render();
 };
@@ -3283,6 +3283,23 @@ Viewer.prototype.go_to_nearest_Ca = function go_to_nearest_Ca () {
   } else {
     this.hud('no nearby CA');
   }
+};
+
+Viewer.prototype.toggle_inactive_models = function toggle_inactive_models () {
+  var n = this.model_bags.length;
+  if (n < 2) {
+    this.hud((n == 0 ? 'No' : 'Only one') + ' model is loaded. ' +
+             '"V" is for working with multiple models.');
+    return;
+  }
+  var show_all = !this.model_bags.every(function (m) { return m.visible; });
+  for (var i = 0, list = this.model_bags; i < list.length; i += 1) {
+    var model_bag = list[i];
+
+      var show = show_all || model_bag === this.selected.bag;
+    this.toggle_model_visibility(model_bag, show);
+  }
+  this.hud(show_all ? 'All models visible' : 'Inactive models hidden');
 };
 
 Viewer.prototype.permalink = function permalink () {
@@ -3460,6 +3477,8 @@ Viewer.prototype.set_real_space_key_bindings = function set_real_space_key_bindi
     this.hud('toggled unit cell box');
     this.toggle_cell_box();
   };
+  // v
+  kb[86] = function () { this.toggle_inactive_models(); };
   // y
   kb[89] = function (evt) {
     this.config.hydrogens = !this.config.hydrogens;
@@ -3832,7 +3851,7 @@ Viewer.prototype.load_pdb = function load_pdb (url/*:string*/, options/*:?Object
   var self = this;
   this.load_file(url, {binary: false}, function (req) {
     self.load_pdb_from_text(req.responseText);
-    self.set_view(options);
+    if (options == null || !options.stay) { self.set_view(options); }
     if (callback) { callback(); }
   });
 };
@@ -3864,30 +3883,49 @@ Viewer.prototype.load_map_from_buffer = function load_map_from_buffer (buffer/*:
 
 // Load a normal map and a difference map.
 // To show the first map ASAP we do not download both maps in parallel.
-Viewer.prototype.load_ccp4_maps = function load_ccp4_maps (url1/*:string*/, url2/*:string*/, callback/*:?Function*/) {
+Viewer.prototype.load_maps = function load_maps (url1/*:string*/, url2/*:string*/,
+          options/*:Object*/, callback/*:?Function*/) {
+  var format = options.format || 'ccp4';
   var self = this;
-  this.load_map(url1, {diff_map: false, format: 'ccp4'}, function () {
-    self.load_map(url2, {diff_map: true, format: 'ccp4'}, callback);
+  this.load_map(url1, {diff_map: false, format: format}, function () {
+    self.load_map(url2, {diff_map: true, format: format}, callback);
   });
 };
 
 // Load a model (PDB), normal map and a difference map - in this order.
-Viewer.prototype.load_pdb_and_ccp4_maps = function load_pdb_and_ccp4_maps (pdb/*:string*/, map1/*:string*/, map2/*:string*/,
-                       callback/*:?Function*/) {
+Viewer.prototype.load_pdb_and_maps = function load_pdb_and_maps (pdb/*:string*/, map1/*:string*/, map2/*:string*/,
+                  options/*:Object*/, callback/*:?Function*/) {
   var self = this;
-  this.load_pdb(pdb, {}, function () {
-    self.load_ccp4_maps(map1, map2, callback);
+  this.load_pdb(pdb, options, function () {
+    self.load_maps(map1, map2, options, callback);
   });
 };
 
-Viewer.prototype.load_from_pdbe = function load_from_pdbe () {
-  if (typeof window === 'undefined') { return false; }
-  var url = window.location.href;
-  var match = url.match(/[?&]id=([^&#]+)/);
-  if (match == null) { return false; }
-  var id = match[1].toLowerCase();
-  this.load_pdb('https://www.ebi.ac.uk/pdbe/entry-files/pdb' + id + '.ent');
-  return true;
+// for backward compatibility:
+Viewer.prototype.load_ccp4_maps = function load_ccp4_maps (url1/*:string*/, url2/*:string*/, callback/*:?Function*/) {
+  this.load_maps(url1, url2, {format: 'ccp4'}, callback);
+};
+Viewer.prototype.load_pdb_and_ccp4_maps = function load_pdb_and_ccp4_maps (pdb/*:string*/, map1/*:string*/, map2/*:string*/,
+                       callback/*:?Function*/) {
+  this.load_pdb_and_maps(pdb, map1, map2, {format: 'ccp4'}, callback);
+};
+
+// pdb_id here should be lowercase ('1abc')
+Viewer.prototype.load_from_pdbe = function load_from_pdbe (pdb_id/*:string*/, callback/*:?Function*/) {
+  var id = pdb_id.toLowerCase();
+  this.load_pdb_and_maps(
+    'https://www.ebi.ac.uk/pdbe/entry-files/pdb' + id + '.ent',
+    'https://www.ebi.ac.uk/pdbe/coordinates/files/' + id + '.ccp4',
+    'https://www.ebi.ac.uk/pdbe/coordinates/files/' + id + '_diff.ccp4',
+    {format: 'ccp4'}, callback);
+};
+Viewer.prototype.load_from_rcsb = function load_from_rcsb (pdb_id/*:string*/, callback/*:?Function*/) {
+  var id = pdb_id.toLowerCase();
+  this.load_pdb_and_maps(
+    'https://files.rcsb.org/download/' + id + '.pdb',
+    'https://edmaps.rcsb.org/maps/' + id + '_2fofc.dsn6',
+    'https://edmaps.rcsb.org/maps/' + id + '_fofc.dsn6',
+    {format: 'dsn6'}, callback);
 };
 
 Viewer.prototype.MOUSE_HELP = [
@@ -3915,6 +3953,7 @@ Viewer.prototype.KEYBOARD_HELP = [
   'M/N = zoom',
   'U = unitcell box',
   'Y = hydrogens',
+  'V = inactive models',
   'R = center view',
   'W = wireframe style',
   'I = spin',

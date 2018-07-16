@@ -21,9 +21,10 @@ Try it:
 
 - [1MRU](https://uglymol.github.io/1mru.html) (60kDa, 3Å),
   and in [dual view](https://uglymol.github.io/dual.html) with PDB_REDO,
-- a bigger one -- [4UN4](https://uglymol.github.io/4un4.html) (200kDa, 2.4Å),
 - [a blob](https://uglymol.github.io/dimple_thaum.html#xyz=14,18,12&eye=80,71,-41&zoom=70)
-  (Dimple result, thaumatin, 1.4Å).
+  (Dimple result, thaumatin, 1.4Å),
+- or any [local file or wwPDB entry](https://uglymol.github.io/demo.html).
+
 
 It also has a [reciprocal space spin-off](https://uglymol.github.io/reciprocal.html?rlp=data/rlp.csv).
 

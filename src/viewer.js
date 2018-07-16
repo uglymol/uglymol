@@ -747,10 +747,10 @@ export class Viewer {
     }
   }
 
-  toggle_model_visibility(model_bag/*:?ModelBag*/) {
+  toggle_model_visibility(model_bag/*:?ModelBag*/, visible/*:?boolean*/) {
     model_bag = model_bag || this.selected.bag;
     if (model_bag == null) return;
-    model_bag.visible = !model_bag.visible;
+    model_bag.visible = visible == null ? !model_bag.visible : visible;
     this.redraw_model(model_bag);
     this.request_render();
   }
@@ -921,6 +921,21 @@ export class Viewer {
     } else {
       this.hud('no nearby CA');
     }
+  }
+
+  toggle_inactive_models() {
+    const n = this.model_bags.length;
+    if (n < 2) {
+      this.hud((n == 0 ? 'No' : 'Only one') + ' model is loaded. ' +
+               '"V" is for working with multiple models.');
+      return;
+    }
+    let show_all = !this.model_bags.every(function (m) { return m.visible; });
+    for (const model_bag of this.model_bags) {
+      let show = show_all || model_bag === this.selected.bag;
+      this.toggle_model_visibility(model_bag, show);
+    }
+    this.hud(show_all ? 'All models visible' : 'Inactive models hidden');
   }
 
   permalink() {
@@ -1098,6 +1113,8 @@ export class Viewer {
       this.hud('toggled unit cell box');
       this.toggle_cell_box();
     };
+    // v
+    kb[86] = function () { this.toggle_inactive_models(); };
     // y
     kb[89] = function (evt) {
       this.config.hydrogens = !this.config.hydrogens;
@@ -1462,7 +1479,7 @@ export class Viewer {
     let self = this;
     this.load_file(url, {binary: false}, function (req) {
       self.load_pdb_from_text(req.responseText);
-      self.set_view(options);
+      if (options == null || !options.stay) self.set_view(options);
       if (callback) callback();
     });
   }
@@ -1494,30 +1511,49 @@ export class Viewer {
 
   // Load a normal map and a difference map.
   // To show the first map ASAP we do not download both maps in parallel.
-  load_ccp4_maps(url1/*:string*/, url2/*:string*/, callback/*:?Function*/) {
+  load_maps(url1/*:string*/, url2/*:string*/,
+            options/*:Object*/, callback/*:?Function*/) {
+    const format = options.format || 'ccp4';
     let self = this;
-    this.load_map(url1, {diff_map: false, format: 'ccp4'}, function () {
-      self.load_map(url2, {diff_map: true, format: 'ccp4'}, callback);
+    this.load_map(url1, {diff_map: false, format: format}, function () {
+      self.load_map(url2, {diff_map: true, format: format}, callback);
     });
   }
 
   // Load a model (PDB), normal map and a difference map - in this order.
-  load_pdb_and_ccp4_maps(pdb/*:string*/, map1/*:string*/, map2/*:string*/,
-                         callback/*:?Function*/) {
+  load_pdb_and_maps(pdb/*:string*/, map1/*:string*/, map2/*:string*/,
+                    options/*:Object*/, callback/*:?Function*/) {
     let self = this;
-    this.load_pdb(pdb, {}, function () {
-      self.load_ccp4_maps(map1, map2, callback);
+    this.load_pdb(pdb, options, function () {
+      self.load_maps(map1, map2, options, callback);
     });
   }
 
-  load_from_pdbe() {
-    if (typeof window === 'undefined') return false;
-    const url = window.location.href;
-    const match = url.match(/[?&]id=([^&#]+)/);
-    if (match == null) return false;
-    const id = match[1].toLowerCase();
-    this.load_pdb('https://www.ebi.ac.uk/pdbe/entry-files/pdb' + id + '.ent');
-    return true;
+  // for backward compatibility:
+  load_ccp4_maps(url1/*:string*/, url2/*:string*/, callback/*:?Function*/) {
+    this.load_maps(url1, url2, {format: 'ccp4'}, callback);
+  }
+  load_pdb_and_ccp4_maps(pdb/*:string*/, map1/*:string*/, map2/*:string*/,
+                         callback/*:?Function*/) {
+    this.load_pdb_and_maps(pdb, map1, map2, {format: 'ccp4'}, callback);
+  }
+
+  // pdb_id here should be lowercase ('1abc')
+  load_from_pdbe(pdb_id/*:string*/, callback/*:?Function*/) {
+    const id = pdb_id.toLowerCase();
+    this.load_pdb_and_maps(
+      'https://www.ebi.ac.uk/pdbe/entry-files/pdb' + id + '.ent',
+      'https://www.ebi.ac.uk/pdbe/coordinates/files/' + id + '.ccp4',
+      'https://www.ebi.ac.uk/pdbe/coordinates/files/' + id + '_diff.ccp4',
+      {format: 'ccp4'}, callback);
+  }
+  load_from_rcsb(pdb_id/*:string*/, callback/*:?Function*/) {
+    const id = pdb_id.toLowerCase();
+    this.load_pdb_and_maps(
+      'https://files.rcsb.org/download/' + id + '.pdb',
+      'https://edmaps.rcsb.org/maps/' + id + '_2fofc.dsn6',
+      'https://edmaps.rcsb.org/maps/' + id + '_fofc.dsn6',
+      {format: 'dsn6'}, callback);
   }
 
   // TODO: navigation window like in gimp and mifit
@@ -1566,6 +1602,7 @@ Viewer.prototype.KEYBOARD_HELP = [
   'M/N = zoom',
   'U = unitcell box',
   'Y = hydrogens',
+  'V = inactive models',
   'R = center view',
   'W = wireframe style',
   'I = spin',

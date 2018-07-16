@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <title>1mru - UglyMol</title>
+  <title>UglyMol Demo</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, user-scalable=no">
   <meta name="theme-color" content="#333333">
@@ -76,10 +76,11 @@
                    onkeydown="event.stopPropagation();"
     >Drag and drop your local PDB and map (CCP4 or DSN6) files to this window.
     Alternatively, use PDB code to load files <input type="text"
-           size="5" maxlength="4" minlength="4" pattern="[0-9][0-9a-zA-Z]{3}"
-           value="1ABC" required
-    /> <input type="submit" class="submit" value="from PDBe"
-    /> <input type="submit" class="submit" value="from RCSB"/>
+        size="5" maxlength="4" minlength="4" pattern="[0-9][0-9a-zA-Z]{3}"
+        value="1ABC" id="pdbid" required
+    /> <input type="submit" value="from PDBe" onclick="return do_load(true);"
+    /> <input type="submit" value="from RCSB" onclick="return do_load(false);"
+    />
     Reload the page to remove all the models and maps.
     <a href="#" onclick="V.toggle_help(); return false;"
     >H shows help.</a></header>
@@ -87,8 +88,30 @@
   <div id="inset"></div>
   <script>
     V = new UM.Viewer({viewer: "viewer", hud: "hud", help: "help"});
+    function do_load(use_pdbe) {
+      var pdbid = document.getElementById('pdbid').value;
+      var callback = function () {
+        V.hud('Model and maps for ' + pdbid + ' are loaded.<br/>' +
+              'You may also add <input type="submit" value="PDB-REDO model" ' +
+              'onclick="return load_pdb_redo(\'' + pdbid + '\');"/><br/>' +
+              'Reload the page to remove all the models and maps.<br/>' +
+              'H shows help',
+              'HTML');
+      };
+      if (use_pdbe) V.load_from_pdbe(pdbid, callback);
+      else V.load_from_rcsb(pdbid, callback);
+    }
+    function load_pdb_redo(id) {
+      var url = 'https://pdb-redo.eu/db/' + id + '/' + id + '_final.pdb';
+      V.load_pdb(url, {stay: true}, function () {
+      V.hud('Reload the page to remove all the models and maps.\n' +
+            'H shows help');
+      });
+    }
     V.set_pdb_and_map_dropzone(V.renderer.domElement);
-    //V.load_from_pdbe()
+    var id_match = window.location.href.match(/[?&]id=([^&#]+)/);
+    if (id_match) V.load_from_pdbe(id_match[1].toLowerCase());
   </script>
 </body>
 </html>
+document.getElementById('pdbid').value
