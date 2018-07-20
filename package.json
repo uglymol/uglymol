@@ -24,10 +24,10 @@
     "http-server": "^0.11.0",
     "istanbul": "^0.4.5",
     "mocha": "^5.2.0",
-    "rollup": "^0.62.0",
+    "rollup": "^0.63.4",
     "rollup-plugin-buble": "^0.19.0",
     "rollup-watch": "^4.0.0",
-    "uglify-js": "^3.4.4"
+    "uglify-js": "^3.4.5"
   },
   "scripts": {
     "test": "npm run lint && npm run flow && rollup -c && mocha",

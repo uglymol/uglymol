@@ -3814,7 +3814,7 @@ Viewer.prototype.set_pdb_and_map_dropzone = function set_pdb_and_map_dropzone (z
         self.recenter();
       };
       reader.readAsText(file);
-    } else if (/\.(map|ccp4|dsn6|omap)$/.test(file.name)) {
+    } else if (/\.(map|ccp4|mrc|dsn6|omap)$/.test(file.name)) {
       var map_format = /\.(dsn6|omap)$/.test(file.name) ? 'dsn6' : 'ccp4';
       reader.onloadend = function (evt) {
         if (evt.target.readyState == 2) {
@@ -3827,7 +3827,7 @@ Viewer.prototype.set_pdb_and_map_dropzone = function set_pdb_and_map_dropzone (z
       reader.readAsArrayBuffer(file);
     } else {
       throw Error('Unknown file extension. ' +
-                  'Use: pdb, ent, ccp4, map, dsn6 or omap.');
+                  'Use: pdb, ent, ccp4, mrc, map, dsn6 or omap.');
     }
   });
 };
