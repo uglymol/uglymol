@@ -63,8 +63,8 @@ let build = {
 if (process.env.BUNDLE_DEPS) {
   build.plugins.push(glsl(), three_import());
   build.external = [];
-  build.globals = {};
-  build.dest = 'uglymol-nodeps.js';
+  build.output.globals = {};
+  build.output.file = 'uglymol-nodeps.js';
   console.log('\nYou may run next:\n' +
               'uglifyjs uglymol-nodeps.js -cm > uglymol-nodeps.min.js\n');
 }

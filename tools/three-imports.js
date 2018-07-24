@@ -30,3 +30,4 @@ export { Quaternion } from '../node_modules/three/src/math/Quaternion.js';
 export { Color } from '../node_modules/three/src/math/Color.js';
 export { CatmullRomCurve3 } from '../node_modules/three/src/extras/curves/CatmullRomCurve3.js';
 export { TriangleStripDrawMode, VertexColors } from '../node_modules/three/src/constants.js';
+export { Texture } from '../node_modules/three/src/textures/Texture.js';
