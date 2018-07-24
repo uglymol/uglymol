@@ -14,3 +14,8 @@
   Ctrl-G - go to specified residue
 
 - impostor-based ball and stick mode
+
+- handling big (>2 GB) maps
+  https://developer.mozilla.org/en-US/docs/Web/API/FileReader
+  https://stackoverflow.com/questions/25810051/filereader-api-on-big-files
+  https://stackoverflow.com/questions/14438187/javascript-filereader-parsing-long-file-in-chunks

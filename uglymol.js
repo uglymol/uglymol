@@ -2833,11 +2833,6 @@ var Viewer = function Viewer(options /*: {[key: string]: any}*/) {
   }
   this.decor.zoom_grid.visible = false;
   this.scene.add(this.decor.zoom_grid);
-  if (window.Stats) { // set by including three/examples/js/libs/stats.min.js
-    this.stats = new window.Stats();
-    // $FlowFixMe: flow can't figure out that this.container != null
-    this.container.appendChild(this.stats.dom);
-  }
 
   window.addEventListener('resize', this.resize.bind(this));
   var keydown_el = (options.focusable ? el : window);
