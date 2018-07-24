@@ -108,9 +108,10 @@
     'Drag and drop your pdb and map (CCP4/DSN6) files to this window.' +
     '\nAlternatively, use PDB code to load files <input type="text"' +
     ' size="5" maxlength="4" minlength="4" pattern="[0-9][0-9a-zA-Z]{3}"' +
-    ' value="4UN4" id="pdbid" required/> ' +
+    ' value="4UN4" id="pdbid" required' +
+    ' onkeypress="if (event.keyCode === 13) load(true);"/> ' +
     '<input type="submit" value="from PDBe" onclick="return load(true);"/> ' +
-    '<input type="submit" value="from RCSB" onclick="return load(false);"/>' +
+    //'<input type="submit" value="from RCSB" onclick="return load(false);"/>' +
     '\nReload the page to remove all the models and maps.' +
     '\n<a href="#" onclick="V.toggle_help(); return false;">H shows help.</a>',
     'HTML');
