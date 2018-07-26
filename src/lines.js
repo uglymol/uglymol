@@ -326,15 +326,6 @@ function makeChickenWire(data /*:{vertices: number[], segments: number[]}*/,
   let geom = new THREE.BufferGeometry();
   const position = new Float32Array(data.vertices);
   geom.addAttribute('position', new THREE.BufferAttribute(position, 3));
-  /* old version - mesh instead of lines
-  geom.setIndex(new THREE.BufferAttribute(new Uint32Array(data.faces), 1));
-  var material = new THREE.MeshBasicMaterial({
-    color: this.config.colors[mtype],
-    wireframe: true,
-    wireframeLinewidth: this.config.map_line
-  });
-  var obj = new THREE.Mesh(geom, material);
-  */
 
   // Although almost all browsers support OES_element_index_uint nowadays,
   // use Uint32 indexes only when needed.

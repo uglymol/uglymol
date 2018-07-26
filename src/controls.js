@@ -32,7 +32,7 @@ export class Controls {
     move: (number, number, ?number) => void
     stop: () => any
    */
-  constructor(camera /*:THREE.Camera*/, target /*:THREE.Vector3*/) {
+  constructor(camera /*:THREE.OrthographicCamera*/, target /*:THREE.Vector3*/) {
     const auto_speed = 1.0;
     let _state = STATE.NONE;
     let _rotate_start = new THREE.Vector3();

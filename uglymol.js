@@ -1840,15 +1840,6 @@ function makeChickenWire(data /*:{vertices: number[], segments: number[]}*/,
   var geom = new THREE.BufferGeometry();
   var position = new Float32Array(data.vertices);
   geom.addAttribute('position', new THREE.BufferAttribute(position, 3));
-  /* old version - mesh instead of lines
-  geom.setIndex(new THREE.BufferAttribute(new Uint32Array(data.faces), 1));
-  var material = new THREE.MeshBasicMaterial({
-    color: this.config.colors[mtype],
-    wireframe: true,
-    wireframeLinewidth: this.config.map_line
-  });
-  var obj = new THREE.Mesh(geom, material);
-  */
 
   // Although almost all browsers support OES_element_index_uint nowadays,
   // use Uint32 indexes only when needed.
@@ -2180,7 +2171,7 @@ var STATE = { NONE: -1, ROTATE: 0, PAN: 1, ZOOM: 2, PAN_ZOOM: 3,
                        SLAB: 4, ROLL: 5, AUTO_ROTATE: 6, GO: 7 };
 
 // based on three.js/examples/js/controls/OrthographicTrackballControls.js
-var Controls = function Controls(camera /*:THREE.Camera*/, target /*:THREE.Vector3*/) {
+var Controls = function Controls(camera /*:THREE.OrthographicCamera*/, target /*:THREE.Vector3*/) {
   var auto_speed = 1.0;
   var _state = STATE.NONE;
   var _rotate_start = new THREE.Vector3();
