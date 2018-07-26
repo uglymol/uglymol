@@ -69,10 +69,25 @@ if (process.env.BUNDLE_DEPS) {
               'uglifyjs uglymol-nodeps.js -cm > uglymol-nodeps.min.js\n');
 }
 
+let fromthree_build = {
+  input: 'src/fromthree.js',
+  plugins: [],
+  output: {
+    file: 'fromthree.js',
+    format: 'umd',
+    name: 'THREE',
+    sourcemap: false,
+    indent: false,
+  },
+};
+
+
 if (process.env.TARGET !== 'dev') {
   // disable arrow b/c https://gitlab.com/Rich-Harris/buble/issues/158
   const transforms = { arrow: false, dangerousForOf: true };
   build.plugins.push(buble({transforms}));
+  fromthree_build.plugins.push(buble({transforms}));
 }
 
-export default build;
+//export default build;
+export default [build, fromthree_build];
