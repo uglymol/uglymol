@@ -379,7 +379,7 @@ export class Viewer {
   last_ctr: THREE.Vector3
   selected: {bag: ?ModelBag, atom: ?AtomT}
   scene: THREE.Scene
-  light: THREE.Light
+  light: THREE.AmbientLight
   default_camera_pos: [number, number, number]
   target: THREE.Vector3
   camera: THREE.OrthographicCamera
