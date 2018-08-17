@@ -29,14 +29,12 @@ export function makeCube(size /*:number*/,
       y: ctr.y + size * (a[1] - 0.5),
       z: ctr.z + size * (a[2] - 0.5)};
   });
-  const material = makeLineMaterial({
-    gl_lines: true,
+  const material = new THREE.LineBasicMaterial({
     color: options.color,
     linewidth: options.linewidth,
-    win_size: options.win_size,
-    segments: true,
   });
-  return makeLineSegments(material, vertices);
+  const geometry = makeSimpleGeometry(vertices);
+  return new THREE.LineSegments(geometry, material);
 }
 
 // A cube with 3 edges (for x, y, z axes) colored in red, green and blue.
@@ -53,13 +51,13 @@ export function makeRgbBox(transform_func /*:Num3 => Num3*/,
   for (let j = 6; j < CUBE_EDGES.length; j++) {
     colors.push(options.color);
   }
-  const material = makeLineMaterial({
-    gl_lines: true,
+  const material = new THREE.LineBasicMaterial({
     linewidth: 1,
-    segments: true,
+    vertexColors: THREE.VertexColors,
   });
   // $FlowFixMe: the type of vertices confuses flow
-  return makeLineSegments(material, vertices, colors);
+  const geometry = makeSimpleGeometry(vertices, colors);
+  return new THREE.LineSegments(geometry, material);
 }
 
 function double_pos(vertex_arr /*:Vector3[] | AtomT[]*/) {
@@ -384,18 +382,7 @@ export function makeGrid() {
 }
 
 
-function makeSimpleLineMaterial(options) {
-  let mparams = {};
-  mparams.linewidth = options.linewidth;
-  if (options.color === undefined) {
-    mparams.vertexColors = THREE.VertexColors;
-  } else {
-    mparams.color = options.color;
-  }
-  return new THREE.LineBasicMaterial(mparams);
-}
-
-function makeThickLineMaterial(options) {
+export function makeLineMaterial(options /*:{[key: string]: mixed}*/) {
   let uniforms = makeUniforms({
     linewidth: options.linewidth,
     win_size: options.win_size,
@@ -407,11 +394,6 @@ function makeThickLineMaterial(options) {
     fog: true,
     vertexColors: THREE.VertexColors,
   });
-}
-
-export function makeLineMaterial(options /*:{[key: string]: mixed}*/) {
-  return options.gl_lines ? makeSimpleLineMaterial(options)
-                          : makeThickLineMaterial(options);
 }
 
 function makeSimpleGeometry(vertices /*:Vector3[] | AtomT[]*/,
@@ -450,25 +432,11 @@ function makeSimpleGeometry(vertices /*:Vector3[] | AtomT[]*/,
   return geometry;
 }
 
-function makeThickLine(material, vertices, colors) {
-  let mesh = new THREE.Mesh(wide_line_geometry(vertices, colors), material);
-  mesh.drawMode = THREE.TriangleStripDrawMode;
-  mesh.raycast = line_raycast;
-  return mesh;
-}
-
 export function makeLine(material /*:THREE.Material*/,
                          vertices /*:AtomT[]*/,
                          colors /*:Color[]*/) {
-  if (material.isShaderMaterial) {
-    return makeThickLine(material, vertices, colors);
-  } else {
-    return new THREE.Line(makeSimpleGeometry(vertices, colors), material);
-  }
-}
-
-function makeThickLineSegments(material, vertices, colors) {
-  let mesh = new THREE.Mesh(wide_segments_geometry(vertices, colors), material);
+  let mesh = new THREE.Mesh(wide_line_geometry(vertices, colors), material);
+  mesh.drawMode = THREE.TriangleStripDrawMode;
   mesh.raycast = line_raycast;
   return mesh;
 }
@@ -476,12 +444,9 @@ function makeThickLineSegments(material, vertices, colors) {
 export function makeLineSegments(material /*:THREE.Material*/,
                                  vertices /*:Vector3[] | AtomT[]*/,
                                  colors /*:?Color[]*/) {
-  if (material.isShaderMaterial) {
-    return makeThickLineSegments(material, vertices, colors);
-  } else {
-    return new THREE.LineSegments(makeSimpleGeometry(vertices, colors),
-                                  material);
-  }
+  let mesh = new THREE.Mesh(wide_segments_geometry(vertices, colors), material);
+  mesh.raycast = line_raycast;
+  return mesh;
 }
 
 const wheel_vert = [

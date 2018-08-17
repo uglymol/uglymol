@@ -1545,14 +1545,12 @@ function makeCube(size /*:number*/,
       y: ctr.y + size * (a[1] - 0.5),
       z: ctr.z + size * (a[2] - 0.5)};
   });
-  var material = makeLineMaterial({
-    gl_lines: true,
+  var material = new THREE.LineBasicMaterial({
     color: options.color,
     linewidth: options.linewidth,
-    win_size: options.win_size,
-    segments: true,
   });
-  return makeLineSegments(material, vertices);
+  var geometry = makeSimpleGeometry(vertices);
+  return new THREE.LineSegments(geometry, material);
 }
 
 // A cube with 3 edges (for x, y, z axes) colored in red, green and blue.
@@ -1568,13 +1566,13 @@ function makeRgbBox(transform_func /*:Num3 => Num3*/,
   for (var j = 6; j < CUBE_EDGES.length; j++) {
     colors.push(options.color);
   }
-  var material = makeLineMaterial({
-    gl_lines: true,
+  var material = new THREE.LineBasicMaterial({
     linewidth: 1,
-    segments: true,
+    vertexColors: THREE.VertexColors,
   });
   // $FlowFixMe: the type of vertices confuses flow
-  return makeLineSegments(material, vertices, colors);
+  var geometry = makeSimpleGeometry(vertices, colors);
+  return new THREE.LineSegments(geometry, material);
 }
 
 function double_pos(vertex_arr /*:Vector3[] | AtomT[]*/) {
@@ -1898,18 +1896,7 @@ function makeGrid() {
 }
 
 
-function makeSimpleLineMaterial(options) {
-  var mparams = {};
-  mparams.linewidth = options.linewidth;
-  if (options.color === undefined) {
-    mparams.vertexColors = THREE.VertexColors;
-  } else {
-    mparams.color = options.color;
-  }
-  return new THREE.LineBasicMaterial(mparams);
-}
-
-function makeThickLineMaterial(options) {
+function makeLineMaterial(options /*:{[key: string]: mixed}*/) {
   var uniforms = makeUniforms({
     linewidth: options.linewidth,
     win_size: options.win_size,
@@ -1921,11 +1908,6 @@ function makeThickLineMaterial(options) {
     fog: true,
     vertexColors: THREE.VertexColors,
   });
-}
-
-function makeLineMaterial(options /*:{[key: string]: mixed}*/) {
-  return options.gl_lines ? makeSimpleLineMaterial(options)
-                          : makeThickLineMaterial(options);
 }
 
 function makeSimpleGeometry(vertices /*:Vector3[] | AtomT[]*/,
@@ -1964,25 +1946,11 @@ function makeSimpleGeometry(vertices /*:Vector3[] | AtomT[]*/,
   return geometry;
 }
 
-function makeThickLine(material, vertices, colors) {
-  var mesh = new THREE.Mesh(wide_line_geometry(vertices, colors), material);
-  mesh.drawMode = THREE.TriangleStripDrawMode;
-  mesh.raycast = line_raycast;
-  return mesh;
-}
-
 function makeLine(material /*:THREE.Material*/,
                          vertices /*:AtomT[]*/,
                          colors /*:Color[]*/) {
-  if (material.isShaderMaterial) {
-    return makeThickLine(material, vertices, colors);
-  } else {
-    return new THREE.Line(makeSimpleGeometry(vertices, colors), material);
-  }
-}
-
-function makeThickLineSegments(material, vertices, colors) {
-  var mesh = new THREE.Mesh(wide_segments_geometry(vertices, colors), material);
+  var mesh = new THREE.Mesh(wide_line_geometry(vertices, colors), material);
+  mesh.drawMode = THREE.TriangleStripDrawMode;
   mesh.raycast = line_raycast;
   return mesh;
 }
@@ -1990,12 +1958,9 @@ function makeThickLineSegments(material, vertices, colors) {
 function makeLineSegments(material /*:THREE.Material*/,
                                  vertices /*:Vector3[] | AtomT[]*/,
                                  colors /*:?Color[]*/) {
-  if (material.isShaderMaterial) {
-    return makeThickLineSegments(material, vertices, colors);
-  } else {
-    return new THREE.LineSegments(makeSimpleGeometry(vertices, colors),
-                                  material);
-  }
+  var mesh = new THREE.Mesh(wide_segments_geometry(vertices, colors), material);
+  mesh.raycast = line_raycast;
+  return mesh;
 }
 
 var wheel_vert = [
@@ -2631,9 +2596,7 @@ ModelBag.prototype.add_bonds = function add_bonds (ligands_only, ball_size) {
   }
   if (vertex_arr.length === 0) { return; }
   var linewidth = scale_by_height(this.conf.bond_line, this.win_size);
-  var use_gl_lines = this.conf.line_style === 'simplistic';
   var material = makeLineMaterial({
-    gl_lines: use_gl_lines,
     linewidth: linewidth,
     win_size: this.win_size,
     segments: true,
@@ -2641,8 +2604,8 @@ ModelBag.prototype.add_bonds = function add_bonds (ligands_only, ball_size) {
   this.atomic_objects.push(makeLineSegments(material, vertex_arr, color_arr));
   if (opt.balls && ball_size != null) {
     this.atomic_objects.push(makeWheels(visible_atoms, colors, ball_size));
-  } else if (!use_gl_lines && !ligands_only) {
-    // wheels (discs) as simplistic round caps
+  } else if (this.conf.line_style !== 'simplistic' && !ligands_only) {
+    // wheels (discs) as round caps
     this.atomic_objects.push(makeWheels(visible_atoms, colors, linewidth));
   }
 };
@@ -2653,7 +2616,6 @@ ModelBag.prototype.add_trace = function add_trace () {
   var colors = color_by(this.conf.color_aim, visible_atoms,
                           this.conf.colors, this.hue_shift);
   var material = makeLineMaterial({
-    gl_lines: this.conf.line_style === 'simplistic',
     linewidth: scale_by_height(this.conf.bond_line, this.win_size),
     win_size: this.win_size,
   });

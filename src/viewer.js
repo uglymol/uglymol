@@ -264,9 +264,7 @@ class ModelBag {
     }
     if (vertex_arr.length === 0) return;
     const linewidth = scale_by_height(this.conf.bond_line, this.win_size);
-    const use_gl_lines = this.conf.line_style === 'simplistic';
     const material = makeLineMaterial({
-      gl_lines: use_gl_lines,
       linewidth: linewidth,
       win_size: this.win_size,
       segments: true,
@@ -274,8 +272,8 @@ class ModelBag {
     this.atomic_objects.push(makeLineSegments(material, vertex_arr, color_arr));
     if (opt.balls && ball_size != null) {
       this.atomic_objects.push(makeWheels(visible_atoms, colors, ball_size));
-    } else if (!use_gl_lines && !ligands_only) {
-      // wheels (discs) as simplistic round caps
+    } else if (this.conf.line_style !== 'simplistic' && !ligands_only) {
+      // wheels (discs) as round caps
       this.atomic_objects.push(makeWheels(visible_atoms, colors, linewidth));
     }
   }
@@ -286,7 +284,6 @@ class ModelBag {
     const colors = color_by(this.conf.color_aim, visible_atoms,
                             this.conf.colors, this.hue_shift);
     const material = makeLineMaterial({
-      gl_lines: this.conf.line_style === 'simplistic',
       linewidth: scale_by_height(this.conf.bond_line, this.win_size),
       win_size: this.win_size,
     });
