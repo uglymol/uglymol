@@ -2097,89 +2097,6 @@ ShaderMaterial.prototype.copy = function ( source ) {
   return this;
 };
 
-/**
-* @author bhouston / http://clara.io
-* @author WestLangley / http://github.com/WestLangley
-*/
-
-function Box3( min, max ) {
-  this.min = ( min !== undefined ) ? min : new Vector3( + Infinity, + Infinity, + Infinity );
-  this.max = ( max !== undefined ) ? max : new Vector3( - Infinity, - Infinity, - Infinity );
-}
-
-Box3.prototype = {
-
-  constructor: Box3,
-
-  isBox3: true,
-
-  setFromBufferAttribute: function ( attribute ) {
-    let minX = + Infinity;
-    let minY = + Infinity;
-    let minZ = + Infinity;
-
-    let maxX = - Infinity;
-    let maxY = - Infinity;
-    let maxZ = - Infinity;
-
-    for ( let i = 0, l = attribute.count; i < l; i ++ ) {
-      let x = attribute.getX( i );
-      let y = attribute.getY( i );
-      let z = attribute.getZ( i );
-
-      if ( x < minX ) minX = x;
-      if ( y < minY ) minY = y;
-      if ( z < minZ ) minZ = z;
-
-      if ( x > maxX ) maxX = x;
-      if ( y > maxY ) maxY = y;
-      if ( z > maxZ ) maxZ = z;
-    }
-
-    this.min.set( minX, minY, minZ );
-    this.max.set( maxX, maxY, maxZ );
-  },
-
-  isEmpty: function () {
-    // this is a more robust check for empty than ( volume <= 0 ) because volume can get positive with two negative axes
-
-    return ( this.max.x < this.min.x ) || ( this.max.y < this.min.y ) || ( this.max.z < this.min.z );
-  },
-
-  getCenter: function ( optionalTarget ) {
-    let result = optionalTarget || new Vector3();
-    return this.isEmpty() ? result.set( 0, 0, 0 ) : result.addVectors( this.min, this.max ).multiplyScalar( 0.5 );
-  },
-};
-
-/**
-* @author bhouston / http://clara.io
-* @author mrdoob / http://mrdoob.com/
-*/
-
-function Sphere( center, radius ) {
-  this.center = ( center !== undefined ) ? center : new Vector3();
-  this.radius = ( radius !== undefined ) ? radius : 0;
-}
-
-Sphere.prototype = {
-
-  constructor: Sphere,
-
-  copy: function ( sphere ) {
-    this.center.copy( sphere.center );
-    this.radius = sphere.radius;
-
-    return this;
-  },
-
-  applyMatrix4: function ( matrix ) {
-    this.center.applyMatrix4( matrix );
-    this.radius = this.radius * matrix.getMaxScaleOnAxis();
-
-    return this;
-  },
-};
 
 /**
 * @author bhouston / http://clara.io
@@ -2257,21 +2174,6 @@ Frustum.prototype = {
     return this;
   },
 
-  intersectsSphere: function ( sphere ) {
-    let planes = this.planes;
-    let center = sphere.center;
-    let negRadius = - sphere.radius;
-
-    for ( let i = 0; i < 6; i ++ ) {
-      let distance = planes[i].distanceToPoint( center );
-
-      if ( distance < negRadius ) {
-        return false;
-      }
-    }
-
-    return true;
-  },
 };
 
 
@@ -2657,44 +2559,6 @@ Object.assign( BufferGeometry.prototype, EventDispatcher.prototype, {
 
     return this;
   },
-
-  computeBoundingSphere: function () {
-    let box = new Box3();
-    let vector = new Vector3();
-
-    return function computeBoundingSphere() {
-      if ( this.boundingSphere === null ) {
-        this.boundingSphere = new Sphere();
-      }
-
-      let position = this.attributes.position;
-
-      if ( position ) {
-        let center = this.boundingSphere.center;
-
-        box.setFromBufferAttribute( position );
-        box.getCenter( center );
-
-        // hoping to find a boundingSphere with a radius smaller than the
-        // boundingSphere of the boundingBox: sqrt(3) smaller in the best case
-
-        let maxRadiusSq = 0;
-
-        for ( let i = 0, il = position.count; i < il; i ++ ) {
-          vector.x = position.getX( i );
-          vector.y = position.getY( i );
-          vector.z = position.getZ( i );
-          maxRadiusSq = Math.max( maxRadiusSq, center.distanceToSquared( vector ) );
-        }
-
-        this.boundingSphere.radius = Math.sqrt( maxRadiusSq );
-
-        if ( isNaN( this.boundingSphere.radius ) ) {
-          console.error( 'THREE.BufferGeometry.computeBoundingSphere(): Computed radius is NaN. The "position" attribute is likely to have NaN values.', this );
-        }
-      }
-    };
-  }(),
 
   dispose: function () {
     this.dispatchEvent( { type: 'dispose' } );
@@ -4470,12 +4334,6 @@ function WebGLRenderer( parameters ) {
 
     _viewport = new Vector4( 0, 0, _width, _height ),
 
-    // frustum
-
-    _frustum = new Frustum(),
-
-    _sphere = new Sphere(),
-
     // camera matrices cache
 
     _projScreenMatrix = new Matrix4(),
@@ -5011,7 +4869,6 @@ function WebGLRenderer( parameters ) {
     camera.matrixWorldInverse.getInverse( camera.matrixWorld );
 
     _projScreenMatrix.multiplyMatrices( camera.projectionMatrix, camera.matrixWorldInverse );
-    _frustum.setFromMatrix( _projScreenMatrix );
 
     lights.length = 0;
 
@@ -5133,58 +4990,23 @@ function WebGLRenderer( parameters ) {
     }
   }
 
-  // TODO Duplicated code (Frustum)
-
-  function isObjectViewable( object ) {
-    let geometry = object.geometry;
-
-    if ( geometry.boundingSphere === null ) { geometry.computeBoundingSphere(); }
-
-    _sphere.copy( geometry.boundingSphere ).
-      applyMatrix4( object.matrixWorld );
-
-    return isSphereViewable( _sphere );
-  }
-
-  function isSphereViewable( sphere ) {
-    if ( ! _frustum.intersectsSphere( sphere ) ) return false;
-
-    return true;
-  }
-
   function projectObject( object, camera ) {
     if ( object.visible === false ) return;
 
     if ( object.isAmbientLight ) {
       lights.push( object );
     } else if ( object.isMesh || object.isLine || object.isPoints ) {
-      if ( object.frustumCulled === false || isObjectViewable( object ) === true ) {
-        let material = object.material;
+      let material = object.material;
 
-        if ( material.visible === true ) {
-          if ( _this.sortObjects === true ) {
-            _vector3.setFromMatrixPosition( object.matrixWorld );
-            _vector3.applyProjection( _projScreenMatrix );
-          }
-
-          let geometry = objects.update( object );
-
-          if ( material.isMultiMaterial ) {
-            let groups = geometry.groups;
-            let materials = material.materials;
-
-            for ( let i = 0, l = groups.length; i < l; i ++ ) {
-              let group = groups[i];
-              let groupMaterial = materials[group.materialIndex];
-
-              if ( groupMaterial.visible === true ) {
-                pushRenderItem( object, geometry, groupMaterial, _vector3.z, group );
-              }
-            }
-          } else {
-            pushRenderItem( object, geometry, material, _vector3.z, null );
-          }
+      if ( material.visible === true ) {
+        if ( _this.sortObjects === true ) {
+          _vector3.setFromMatrixPosition( object.matrixWorld );
+          _vector3.applyProjection( _projScreenMatrix );
         }
+
+        let geometry = objects.update( object );
+
+        pushRenderItem( object, geometry, material, _vector3.z, null );
       }
     }
 
@@ -5676,8 +5498,6 @@ function LineBasicMaterial( parameters ) {
   this.color = new Color( 0xffffff );
 
   this.linewidth = 1;
-  this.linecap = 'round';
-  this.linejoin = 'round';
 
   this.lights = false;
 
@@ -5700,7 +5520,7 @@ function Line( geometry, material, mode ) {
   this.type = 'Line';
 
   this.geometry = geometry !== undefined ? geometry : new BufferGeometry();
-  this.material = material !== undefined ? material : new LineBasicMaterial( { color: Math.random() * 0xffffff } );
+  this.material = material;
 }
 
 Line.prototype = Object.assign( Object.create( Object3D.prototype ), {
