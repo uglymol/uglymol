@@ -876,9 +876,7 @@ export class Viewer {
     } else {
       const uc_func = this.get_cell_box_func();
       if (uc_func) {
-        this.decor.cell_box = makeRgbBox(uc_func, {
-          color: this.config.colors.fg,
-        });
+        this.decor.cell_box = makeRgbBox(uc_func, this.config.colors.fg);
         this.scene.add(this.decor.cell_box);
       }
     }

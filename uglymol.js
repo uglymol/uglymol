@@ -1536,42 +1536,59 @@ var CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
                     [1, 1, 0], [1, 1, 1],
                     [0, 1, 1], [1, 1, 1]];
 
+function makeColorAttribute(colors /*:Color[]*/) {
+  var col = new Float32Array(colors.length * 3);
+  for (var i = 0; i < colors.length; i++) {
+    col[3*i+0] = colors[i].r;
+    col[3*i+1] = colors[i].g;
+    col[3*i+2] = colors[i].b;
+  }
+  return new THREE.BufferAttribute(col, 3);
+}
+
 function makeCube(size /*:number*/,
                          ctr /*:Vector3*/,
                          options /*:{[key:string]: any}*/) {
-  var vertices = CUBE_EDGES.map(function (a) {
-    return {
-      x: ctr.x + size * (a[0] - 0.5),
-      y: ctr.y + size * (a[1] - 0.5),
-      z: ctr.z + size * (a[2] - 0.5)};
-  });
+  var pos = new Float32Array(CUBE_EDGES.length * 3);
+  for (var i = 0; i < CUBE_EDGES.length; i++) {
+    var coor = CUBE_EDGES[i];
+    pos[3*i+0] = ctr.x + size * (coor[0] - 0.5);
+    pos[3*i+1] = ctr.y + size * (coor[1] - 0.5);
+    pos[3*i+2] = ctr.z + size * (coor[2] - 0.5);
+  }
   var material = new THREE.LineBasicMaterial({
     color: options.color,
     linewidth: options.linewidth,
   });
-  var geometry = makeSimpleGeometry(vertices);
+  var geometry = new THREE.BufferGeometry();
+  geometry.addAttribute('position', new THREE.BufferAttribute(pos, 3));
   return new THREE.LineSegments(geometry, material);
 }
 
 // A cube with 3 edges (for x, y, z axes) colored in red, green and blue.
 function makeRgbBox(transform_func /*:Num3 => Num3*/,
-                           options /*:{[key:string]: any}*/) {
-  var vertices = CUBE_EDGES.map(function (a) {
-    return { xyz: transform_func(a) };
-  });
+                           color /*:THREE.Color*/) {
+  var pos = new Float32Array(CUBE_EDGES.length * 3);
+  for (var i = 0; i < CUBE_EDGES.length; i++) {
+    var coor = transform_func(CUBE_EDGES[i]);
+    pos[3*i+0] = coor[0];
+    pos[3*i+1] = coor[1];
+    pos[3*i+2] = coor[2];
+  }
   var colors = [
     new THREE.Color(0xff0000), new THREE.Color(0xffaa00),
     new THREE.Color(0x00ff00), new THREE.Color(0xaaff00),
     new THREE.Color(0x0000ff), new THREE.Color(0x00aaff) ];
   for (var j = 6; j < CUBE_EDGES.length; j++) {
-    colors.push(options.color);
+    colors.push(color);
   }
   var material = new THREE.LineBasicMaterial({
     linewidth: 1,
     vertexColors: THREE.VertexColors,
   });
-  // $FlowFixMe: the type of vertices confuses flow
-  var geometry = makeSimpleGeometry(vertices, colors);
+  var geometry = new THREE.BufferGeometry();
+  geometry.addAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geometry.addAttribute('color', makeColorAttribute(colors));
   return new THREE.LineSegments(geometry, material);
 }
 
@@ -1813,7 +1830,16 @@ function makeRibbon(vertices /*:AtomT[]*/,
   var color_arr = interpolate_colors(colors, smoothness);
   var tang_arr = interpolate_directions(tangents, smoothness);
   var obj = new THREE.Object3D();
-  var geometry = makeSimpleGeometry(vertex_arr, color_arr);
+  var geometry = new THREE.BufferGeometry();
+  var pos = new Float32Array(vertex_arr.length * 3);
+  for (var i = 0; i < vertex_arr.length; i++) {
+    var v = vertex_arr[i];
+    pos[3*i+0] = v.x;
+    pos[3*i+1] = v.y;
+    pos[3*i+2] = v.z;
+  }
+  geometry.addAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geometry.addAttribute('color', makeColorAttribute(color_arr));
   var tan = new Float32Array(tang_arr);
   // it's not 'normal', but it doesn't matter
   geometry.addAttribute('normal', new THREE.BufferAttribute(tan, 3));
@@ -1879,8 +1905,8 @@ function makeGrid() {
     pos.push(i, -N, z, i, N, z);  // vertical line
   }
   var geom = new THREE.BufferGeometry();
-  geom.addAttribute('position',
-                    new THREE.BufferAttribute(new Float32Array(pos), 3));
+  var pos_arr = new Float32Array(pos);
+  geom.addAttribute('position', new THREE.BufferAttribute(pos_arr, 3));
   var material = new THREE.ShaderMaterial({
     uniforms: makeUniforms({ucolor: new THREE.Color(0x888888)}),
     //linewidth: 3,
@@ -1908,42 +1934,6 @@ function makeLineMaterial(options /*:{[key: string]: mixed}*/) {
     fog: true,
     vertexColors: THREE.VertexColors,
   });
-}
-
-function makeSimpleGeometry(vertices /*:Vector3[] | AtomT[]*/,
-                            colors /*:?Color[]*/) {
-  var geometry = new THREE.BufferGeometry();
-  var pos = new Float32Array(vertices.length * 3);
-  var i;
-  if (vertices && vertices[0].xyz) {
-    for (i = 0; i < vertices.length; i++) {
-      // $FlowFixMe: disjoint unions not smart enough
-      var xyz /*:Num3*/ = vertices[i].xyz;
-      pos[3*i] = xyz[0];
-      pos[3*i+1] = xyz[1];
-      pos[3*i+2] = xyz[2];
-    }
-  } else {
-    for (i = 0; i < vertices.length; i++) {
-      // $FlowFixMe
-      var v /*:Vector3*/ = vertices[i];
-      pos[3*i] = v.x;
-      pos[3*i+1] = v.y;
-      pos[3*i+2] = v.z;
-    }
-  }
-  geometry.addAttribute('position', new THREE.BufferAttribute(pos, 3));
-  if (colors != null) {
-    var col = new Float32Array(colors.length * 3);
-    for (i = 0; i < colors.length; i++) {
-      var c = colors[i];
-      col[3*i] = c.r;
-      col[3*i+1] = c.g;
-      col[3*i+2] = c.b;
-    }
-    geometry.addAttribute('color', new THREE.BufferAttribute(col, 3));
-  }
-  return geometry;
 }
 
 function makeLine(material /*:THREE.Material*/,
@@ -1986,7 +1976,16 @@ var wheel_frag = [
 function makeWheels(atom_arr /*:AtomT[]*/,
                            color_arr /*:Color[]*/,
                            size /*:number*/) {
-  var geometry = makeSimpleGeometry(atom_arr, color_arr);
+  var geometry = new THREE.BufferGeometry();
+  var pos = new Float32Array(atom_arr.length * 3);
+  for (var i = 0; i < atom_arr.length; i++) {
+    var xyz = atom_arr[i].xyz;
+    pos[3*i+0] = xyz[0];
+    pos[3*i+1] = xyz[1];
+    pos[3*i+2] = xyz[2];
+  }
+  geometry.addAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geometry.addAttribute('color', makeColorAttribute(color_arr));
   var material = new THREE.ShaderMaterial({
     uniforms: makeUniforms({size: size}),
     vertexShader: wheel_vert,
@@ -3194,9 +3193,7 @@ Viewer.prototype.toggle_cell_box = function toggle_cell_box () {
   } else {
     var uc_func = this.get_cell_box_func();
     if (uc_func) {
-      this.decor.cell_box = makeRgbBox(uc_func, {
-        color: this.config.colors.fg,
-      });
+      this.decor.cell_box = makeRgbBox(uc_func, this.config.colors.fg);
       this.scene.add(this.decor.cell_box);
     }
   }
