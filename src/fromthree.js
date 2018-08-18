@@ -2022,9 +2022,6 @@ Object.assign( Material.prototype, EventDispatcher.prototype );
 *  fragmentShader: <string>,
 *  vertexShader: <string>,
 *
-*  wireframe: <boolean>,
-*  wireframeLinewidth: <float>,
-*
 *  lights: <bool>,
 * }
 */
@@ -2041,9 +2038,6 @@ function ShaderMaterial( parameters ) {
   this.fragmentShader = 'void main() {\n\tgl_FragColor = vec4( 1.0, 0.0, 0.0, 1.0 );\n}';
 
   this.linewidth = 1;
-
-  this.wireframe = false;
-  this.wireframeLinewidth = 1;
 
   this.fog = false; // set to use scene fog
   this.lights = false; // set to use scene lights
@@ -2086,9 +2080,6 @@ ShaderMaterial.prototype.copy = function ( source ) {
   this.uniforms = UniformsUtils.clone( source.uniforms );
 
   this.defines = source.defines;
-
-  this.wireframe = source.wireframe;
-  this.wireframeLinewidth = source.wireframeLinewidth;
 
   this.lights = source.lights;
 
@@ -3183,17 +3174,7 @@ function WebGLGeometries( gl, properties, info ) {
 
     let property = properties.get( geometry );
 
-    if ( property.wireframe ) {
-      deleteAttribute( property.wireframe );
-    }
-
     properties.delete( geometry );
-
-    let bufferproperty = properties.get( buffergeometry );
-
-    if ( bufferproperty.wireframe ) {
-      deleteAttribute( bufferproperty.wireframe );
-    }
 
     properties.delete( buffergeometry );
 
@@ -4632,7 +4613,7 @@ function WebGLRenderer( parameters ) {
     let program = setProgram( camera, fog, material, object );
 
     let updateBuffers = false;
-    let geometryProgram = geometry.id + '_' + program.id + '_' + material.wireframe;
+    let geometryProgram = geometry.id + '_' + program.id;
 
     if ( geometryProgram !== _currentGeometryProgram ) {
       _currentGeometryProgram = geometryProgram;
@@ -4644,11 +4625,6 @@ function WebGLRenderer( parameters ) {
     let index = geometry.index;
     let position = geometry.attributes.position;
     let rangeFactor = 1;
-
-    if ( material.wireframe === true ) {
-      index = objects.getWireframeAttribute( geometry );
-      rangeFactor = 2;
-    }
 
     let renderer;
 
@@ -4693,23 +4669,18 @@ function WebGLRenderer( parameters ) {
     //
 
     if ( object.isMesh ) {
-      if ( material.wireframe === true ) {
-        state.setLineWidth( material.wireframeLinewidth * getTargetPixelRatio() );
-        renderer.setMode( _gl.LINES );
-      } else {
-        switch ( object.drawMode ) {
-          case TrianglesDrawMode:
-            renderer.setMode( _gl.TRIANGLES );
-            break;
+      switch ( object.drawMode ) {
+        case TrianglesDrawMode:
+          renderer.setMode( _gl.TRIANGLES );
+          break;
 
-          case TriangleStripDrawMode:
-            renderer.setMode( _gl.TRIANGLE_STRIP );
-            break;
+        case TriangleStripDrawMode:
+          renderer.setMode( _gl.TRIANGLE_STRIP );
+          break;
 
-          case TriangleFanDrawMode:
-            renderer.setMode( _gl.TRIANGLE_FAN );
-            break;
-        }
+        case TriangleFanDrawMode:
+          renderer.setMode( _gl.TRIANGLE_FAN );
+          break;
       }
     } else if ( object.isLine ) {
       let lineWidth = material.linewidth;
@@ -5478,40 +5449,6 @@ Scene.prototype.constructor = Scene;
 
 /**
 * @author mrdoob / http://mrdoob.com/
-* @author alteredq / http://alteredqualia.com/
-*
-* parameters = {
-*  color: <hex>,
-*  opacity: <float>,
-*
-*  linewidth: <float>,
-*  linecap: "round",
-*  linejoin: "round"
-* }
-*/
-
-function LineBasicMaterial( parameters ) {
-  Material.call( this );
-
-  this.type = 'LineBasicMaterial';
-
-  this.color = new Color( 0xffffff );
-
-  this.linewidth = 1;
-
-  this.lights = false;
-
-  this.setValues( parameters );
-}
-
-LineBasicMaterial.prototype = Object.create( Material.prototype );
-LineBasicMaterial.prototype.constructor = LineBasicMaterial;
-
-LineBasicMaterial.prototype.isLineBasicMaterial = true;
-
-
-/**
-* @author mrdoob / http://mrdoob.com/
 */
 
 function Line( geometry, material, mode ) {
@@ -5838,7 +5775,6 @@ export {
   Line,
   Points,
   ShaderMaterial,
-  LineBasicMaterial,
   AmbientLight,
   OrthographicCamera,
   BufferGeometry,
