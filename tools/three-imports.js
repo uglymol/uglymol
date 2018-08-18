@@ -12,9 +12,6 @@ export { LineSegments } from '../node_modules/three/src/objects/LineSegments.js'
 export { Line } from '../node_modules/three/src/objects/Line.js';
 export { Points } from '../node_modules/three/src/objects/Points.js';
 export { ShaderMaterial } from '../node_modules/three/src/materials/ShaderMaterial.js';
-export { PointsMaterial } from '../node_modules/three/src/materials/PointsMaterial.js';
-export { MeshBasicMaterial } from '../node_modules/three/src/materials/MeshBasicMaterial.js';
-export { LineBasicMaterial } from '../node_modules/three/src/materials/LineBasicMaterial.js';
 export { AmbientLight } from '../node_modules/three/src/lights/AmbientLight.js';
 export { OrthographicCamera } from '../node_modules/three/src/cameras/OrthographicCamera.js';
 export { BufferGeometry } from '../node_modules/three/src/core/BufferGeometry.js';

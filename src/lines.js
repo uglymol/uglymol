@@ -30,6 +30,31 @@ function makeColorAttribute(colors /*:Color[]*/) {
   return new THREE.BufferAttribute(col, 3);
 }
 
+const line_vert = `
+#ifdef USE_COLOR
+varying vec3 vcolor;
+#endif
+void main() {
+#ifdef USE_COLOR
+  vcolor = color;
+#endif
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`;
+
+const line_frag = `
+#include <fog_pars_fragment>
+#ifdef USE_COLOR
+varying vec3 vcolor;
+#else
+uniform vec3 vcolor;
+#endif
+void main() {
+  gl_FragColor = vec4(vcolor, 1.0);
+#include <fog_fragment>
+}
+`;
+
 export function makeCube(size /*:number*/,
                          ctr /*:Vector3*/,
                          options /*:{[key:string]: any}*/) {
@@ -40,8 +65,11 @@ export function makeCube(size /*:number*/,
     pos[3*i+1] = ctr.y + size * (coor[1] - 0.5);
     pos[3*i+2] = ctr.z + size * (coor[2] - 0.5);
   }
-  const material = new THREE.LineBasicMaterial({
-    color: options.color,
+  const material = new THREE.ShaderMaterial({
+    uniforms: makeUniforms({vcolor: options.color}),
+    vertexShader: line_vert,
+    fragmentShader: line_frag,
+    fog: true,
     linewidth: options.linewidth,
   });
   let geometry = new THREE.BufferGeometry();
@@ -67,9 +95,13 @@ export function makeRgbBox(transform_func /*:Num3 => Num3*/,
   for (let j = 6; j < CUBE_EDGES.length; j++) {
     colors.push(color);
   }
-  const material = new THREE.LineBasicMaterial({
-    linewidth: 1,
+  const material = new THREE.ShaderMaterial({
+    uniforms: makeUniforms({}),
+    vertexShader: line_vert,
+    fragmentShader: line_frag,
     vertexColors: THREE.VertexColors,
+    fog: true,
+    linewidth: 1,
   });
   let geometry = new THREE.BufferGeometry();
   geometry.addAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -346,7 +378,7 @@ export function makeRibbon(vertices /*:AtomT[]*/,
 
 export
 function makeChickenWire(data /*:{vertices: number[], segments: number[]}*/,
-                         parameters /*:{[key: string]: any}*/) {
+                         options /*:{[key: string]: any}*/) {
   let geom = new THREE.BufferGeometry();
   const position = new Float32Array(data.vertices);
   geom.addAttribute('position', new THREE.BufferAttribute(position, 3));
@@ -357,7 +389,13 @@ function makeChickenWire(data /*:{vertices: number[], segments: number[]}*/,
                                               : new Uint32Array(data.segments));
   //console.log('arr len:', data.vertices.length, data.segments.length);
   geom.setIndex(new THREE.BufferAttribute(arr, 1));
-  let material = new THREE.LineBasicMaterial(parameters);
+  const material = new THREE.ShaderMaterial({
+    uniforms: makeUniforms({vcolor: options.color}),
+    vertexShader: line_vert,
+    fragmentShader: line_frag,
+    fog: true,
+    linewidth: options.linewidth,
+  });
   return new THREE.LineSegments(geom, material);
 }
 
