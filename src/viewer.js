@@ -2,7 +2,7 @@
 
 import * as THREE from 'three';
 import { makeLineMaterial, makeLineSegments, makeLine, makeRibbon,
-         makeChickenWire, makeGrid, makeWheels, makeCube,
+         makeChickenWire, makeGrid, makeBalls, makeWheels, makeCube,
          makeRgbBox, makeLabel, addXyzCross } from './lines.js';
 import { STATE, Controls } from './controls.js';
 import { ElMap } from './elmap.js';
@@ -105,6 +105,7 @@ const INIT_HUD_TEXT = 'This is UglyMol not Coot. ' +
 
 const COLOR_AIMS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
 const RENDER_STYLES = ['lines', 'trace', 'ribbon'/*, 'ball&stick'*/];
+const LIGAND_STYLES = ['normal', 'ball&stick'];
 const MAP_STYLES = ['marching cubes', 'squarish'/*, 'snapped MC'*/];
 const LINE_STYLES = ['normal', 'simplistic'];
 const LABEL_FONTS = ['bold 14px', '14px', '16px', 'bold 16px'];
@@ -230,14 +231,12 @@ class ModelBag {
                             this.conf.colors, this.hue_shift);
     let vertex_arr /*:THREE.Vector3[]*/ = [];
     let color_arr = [];
-    const opt = { hydrogens: this.conf.hydrogens,
-                  ligands_only: ligands_only,
-                  balls: this.conf.render_style === 'ball&stick' };
+    const hydrogens = this.conf.hydrogens;
     for (let i = 0; i < visible_atoms.length; i++) {
       const atom = visible_atoms[i];
       const color = colors[i];
       if (ligands_only && !atom.is_ligand) continue;
-      if (atom.bonds.length === 0 && !opt.balls) { // nonbonded, draw star
+      if (atom.bonds.length === 0 && ball_size == null) { // nonbonded - cross
         addXyzCross(vertex_arr, atom.xyz, 0.7);
         for (let n = 0; n < 6; n++) {
           color_arr.push(color);
@@ -245,15 +244,15 @@ class ModelBag {
       } else { // bonded, draw lines
         for (let j = 0; j < atom.bonds.length; j++) {
           const other = this.model.atoms[atom.bonds[j]];
-          if (!opt.hydrogens && other.element === 'H') continue;
+          if (!hydrogens && other.element === 'H') continue;
           // Coot show X-H bonds as thinner lines in a single color.
           // Here we keep it simple and render such bonds like all others.
-          if (opt.ligands_only && !other.is_ligand) continue;
+          if (ligands_only && !other.is_ligand) continue;
           const mid = atom.midpoint(other);
           const vmid = new THREE.Vector3(mid[0], mid[1], mid[2]);
           const vatom = new THREE.Vector3(atom.xyz[0], atom.xyz[1],
                                           atom.xyz[2]);
-          if (opt.balls && ball_size != null) {
+          if (ball_size != null) {
             const lerp_factor = vatom.distanceTo(vmid) / ball_size;
             vatom.lerp(vmid, lerp_factor);
           }
@@ -270,8 +269,8 @@ class ModelBag {
       segments: true,
     });
     this.atomic_objects.push(makeLineSegments(material, vertex_arr, color_arr));
-    if (opt.balls && ball_size != null) {
-      this.atomic_objects.push(makeWheels(visible_atoms, colors, ball_size));
+    if (ball_size != null) {
+      this.atomic_objects.push(makeBalls(visible_atoms, colors, ball_size));
     } else if (this.conf.line_style !== 'simplistic' && !ligands_only) {
       // wheels (discs) as round caps
       this.atomic_objects.push(makeWheels(visible_atoms, colors, linewidth));
@@ -417,6 +416,7 @@ export class Viewer {
       center_cube_size: 0.1,
       map_style: MAP_STYLES[0],
       render_style: RENDER_STYLES[0],
+      ligand_style: LIGAND_STYLES[0],
       color_aim: COLOR_AIMS[0],
       line_style: LINE_STYLES[0],
       label_font: LABEL_FONTS[0],
@@ -664,16 +664,24 @@ export class Viewer {
 
   set_atomic_objects(model_bag/*:ModelBag*/) {
     model_bag.atomic_objects = [];
+    const ball_size = 0.3;
     switch (model_bag.conf.render_style) {
       case 'lines':
         model_bag.add_bonds();
+        if (model_bag.conf.ligand_style === 'ball&stick') {
+          // TODO move it to ModelBag
+          const ligand_atoms = model_bag.model.atoms.filter(function (a) {
+            return a.is_ligand && a.element !== 'H';
+          });
+          const colors = color_by('element', ligand_atoms,
+                                  model_bag.conf.colors, model_bag.hue_shift);
+          const obj = makeBalls(ligand_atoms, colors, ball_size);
+          model_bag.atomic_objects.push(obj);
+        }
         break;
-      case 'ball&stick': {
-        const h_scale = this.camera.projectionMatrix.elements[5];
-        const ball_size = Math.max(1, 200 * h_scale);
+      case 'ball&stick':
         model_bag.add_bonds(false, ball_size);
         break;
-      }
       case 'trace':  // + lines for ligands
         model_bag.add_trace();
         model_bag.add_bonds(true);
@@ -1090,6 +1098,12 @@ export class Viewer {
     // f
     kb[70] = function (evt) {
       evt.shiftKey ? this.toggle_full_screen() : this.change_slab_width_by(0.1);
+    };
+    // l
+    kb[76] = function (evt) {
+      this.select_next('ligands as', 'ligand_style', LIGAND_STYLES,
+                       evt.shiftKey);
+      this.redraw_models();
     };
     // p
     kb[80] = function (evt) {

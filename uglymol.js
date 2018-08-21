@@ -1667,16 +1667,29 @@ function wide_line_geometry(vertex_arr, color_arr) {
   return geometry;
 }
 
+// draw quads as 2 triangles: 4 attribute / quad, 6 indices / quad
+function make_quad_index_buffer(len) {
+  var index = (4*len < 65536 ? new Uint16Array(6*len)
+                             : new Uint32Array(6*len));
+  var vert_order = [0, 1, 2, 0, 2, 3];
+  for (var i = 0; i < len; i++) {
+    for (var j = 0; j < 6; j++) {
+      index[6*i+j] = 4*i + vert_order[j];
+    }
+  }
+  return new THREE.BufferAttribute(index, 1);
+}
+
 // input arrays must be of the same length
 function wide_segments_geometry(vertex_arr, color_arr) {
   // n input vertices => 2n output vertices, n triangles, 3n indexes
   var len = vertex_arr.length;
   var i;
-  var j;
   var pos = double_pos(vertex_arr);
   var position = new Float32Array(pos);
   var other_vert = new Float32Array(6*len);
   for (i = 0; i < 6 * len; i += 12) {
+    var j = (void 0);
     for (j = 0; j < 6; j++) { other_vert[i+j] = pos[i+j+6]; }
     for (; j < 12; j++) { other_vert[i+j] = pos[i+j-6]; }
   }
@@ -1684,14 +1697,6 @@ function wide_segments_geometry(vertex_arr, color_arr) {
   for (i = 0; i < len; i++) {
     side[2*i] = -1;
     side[2*i+1] = 1;
-  }
-  var index = (2*len < 65536 ? new Uint16Array(3*len)
-                             : new Uint32Array(3*len));
-  var vert_order = [0, 1, 2, 0, 2, 3];
-  for (i = 0; i < len / 2; i++) {
-    for (j = 0; j < 6; j++) {
-      index[6*i+j] = 4*i + vert_order[j];
-    }
   }
   var geometry = new THREE.BufferGeometry();
   geometry.addAttribute('position', new THREE.BufferAttribute(position, 3));
@@ -1701,7 +1706,7 @@ function wide_segments_geometry(vertex_arr, color_arr) {
     var color = double_color(color_arr);
     geometry.addAttribute('color', new THREE.BufferAttribute(color, 3));
   }
-  geometry.setIndex(new THREE.BufferAttribute(index, 1));
+  geometry.setIndex(make_quad_index_buffer(len/2));
   return geometry;
 }
 
@@ -2016,6 +2021,65 @@ function makeWheels(atom_arr /*:AtomT[]*/,
   return obj;
 }
 
+var sphere_vert = "\nattribute vec2 corner;\nuniform float radius;\nvarying vec3 vcolor;\nvarying vec2 rcoor;\n\nvoid main() {\n  vcolor = color;\n  rcoor = corner;\n  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);\n  mvPosition.xy += corner * radius;\n  gl_Position = projectionMatrix * mvPosition;\n}\n";
+
+var sphere_frag = "\n#include <fog_pars_fragment>\nvarying vec3 vcolor;\nvarying vec2 rcoor;\n\nvoid main() {\n  if (dot(rcoor, rcoor) > 1.0) discard;\n  gl_FragColor = vec4(vcolor, 1.0);\n#include <fog_fragment>\n}\n";
+
+function makeBalls(atom_arr /*:AtomT[]*/,
+                          color_arr /*:Color[]*/,
+                          radius /*:number*/) {
+  var N = atom_arr.length;
+  var geometry = new THREE.BufferGeometry();
+
+  var pos = new Float32Array(N * 4 * 3);
+  for (var i = 0; i < N; i++) {
+    var xyz = atom_arr[i].xyz;
+    for (var j = 0; j < 4; j++) {
+      for (var k = 0; k < 3; k++) {
+        pos[3 * (4*i + j) + k] = xyz[k];
+      }
+    }
+  }
+  geometry.addAttribute('position', new THREE.BufferAttribute(pos, 3));
+
+  var corner = new Float32Array(N * 4 * 2);
+  for (var i$1 = 0; i$1 < N; i$1++) {
+    corner[8*i$1 + 0] = -1;  // 0
+    corner[8*i$1 + 1] = -1;  // 0
+    corner[8*i$1 + 2] = -1;  // 1
+    corner[8*i$1 + 3] = +1;  // 1
+    corner[8*i$1 + 4] = +1;  // 2
+    corner[8*i$1 + 5] = +1;  // 2
+    corner[8*i$1 + 6] = +1;  // 3
+    corner[8*i$1 + 7] = -1;  // 3
+  }
+  geometry.addAttribute('corner', new THREE.BufferAttribute(corner, 2));
+
+  var colors = new Float32Array(N * 4 * 3);
+  for (var i$2 = 0; i$2 < N; i$2++) {
+    var col = color_arr[i$2];
+    for (var j$1 = 0; j$1 < 4; j$1++) {
+      colors[3 * (4*i$2 + j$1) + 0] = col.r;
+      colors[3 * (4*i$2 + j$1) + 1] = col.g;
+      colors[3 * (4*i$2 + j$1) + 2] = col.b;
+    }
+  }
+  geometry.addAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+  geometry.setIndex(make_quad_index_buffer(N));
+
+  var material = new THREE.ShaderMaterial({
+    uniforms: makeUniforms({radius: radius}),
+    vertexShader: sphere_vert,
+    fragmentShader: sphere_frag,
+    fog: true,
+    vertexColors: THREE.VertexColors,
+  });
+  var obj = new THREE.Mesh(geometry, material);
+  // currently we use only lines for picking
+  obj.raycast = function () {};
+  return obj;
+}
 
 // based on THREE.Line.prototype.raycast(), but skipping duplicated points
 var inverseMatrix = new THREE.Matrix4();
@@ -2473,6 +2537,7 @@ var INIT_HUD_TEXT = 'This is UglyMol not Coot. ' +
 
 var COLOR_AIMS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
 var RENDER_STYLES = ['lines', 'trace', 'ribbon' ];
+var LIGAND_STYLES = ['normal', 'ball&stick'];
 var MAP_STYLES = ['marching cubes', 'squarish' ];
 var LINE_STYLES = ['normal', 'simplistic'];
 var LABEL_FONTS = ['bold 14px', '14px', '16px', 'bold 16px'];
@@ -2578,14 +2643,12 @@ ModelBag.prototype.add_bonds = function add_bonds (ligands_only, ball_size) {
                           this.conf.colors, this.hue_shift);
   var vertex_arr /*:THREE.Vector3[]*/ = [];
   var color_arr = [];
-  var opt = { hydrogens: this.conf.hydrogens,
-                ligands_only: ligands_only,
-                balls: this.conf.render_style === 'ball&stick' };
+  var hydrogens = this.conf.hydrogens;
   for (var i = 0; i < visible_atoms.length; i++) {
     var atom = visible_atoms[i];
     var color = colors[i];
     if (ligands_only && !atom.is_ligand) { continue; }
-    if (atom.bonds.length === 0 && !opt.balls) { // nonbonded, draw star
+    if (atom.bonds.length === 0 && ball_size == null) { // nonbonded - cross
       addXyzCross(vertex_arr, atom.xyz, 0.7);
       for (var n = 0; n < 6; n++) {
         color_arr.push(color);
@@ -2593,15 +2656,15 @@ ModelBag.prototype.add_bonds = function add_bonds (ligands_only, ball_size) {
     } else { // bonded, draw lines
       for (var j = 0; j < atom.bonds.length; j++) {
         var other = this.model.atoms[atom.bonds[j]];
-        if (!opt.hydrogens && other.element === 'H') { continue; }
+        if (!hydrogens && other.element === 'H') { continue; }
         // Coot show X-H bonds as thinner lines in a single color.
         // Here we keep it simple and render such bonds like all others.
-        if (opt.ligands_only && !other.is_ligand) { continue; }
+        if (ligands_only && !other.is_ligand) { continue; }
         var mid = atom.midpoint(other);
         var vmid = new THREE.Vector3(mid[0], mid[1], mid[2]);
         var vatom = new THREE.Vector3(atom.xyz[0], atom.xyz[1],
                                         atom.xyz[2]);
-        if (opt.balls && ball_size != null) {
+        if (ball_size != null) {
           var lerp_factor = vatom.distanceTo(vmid) / ball_size;
           vatom.lerp(vmid, lerp_factor);
         }
@@ -2618,8 +2681,8 @@ ModelBag.prototype.add_bonds = function add_bonds (ligands_only, ball_size) {
     segments: true,
   });
   this.atomic_objects.push(makeLineSegments(material, vertex_arr, color_arr));
-  if (opt.balls && ball_size != null) {
-    this.atomic_objects.push(makeWheels(visible_atoms, colors, ball_size));
+  if (ball_size != null) {
+    this.atomic_objects.push(makeBalls(visible_atoms, colors, ball_size));
   } else if (this.conf.line_style !== 'simplistic' && !ligands_only) {
     // wheels (discs) as round caps
     this.atomic_objects.push(makeWheels(visible_atoms, colors, linewidth));
@@ -2733,6 +2796,7 @@ var Viewer = function Viewer(options /*: {[key: string]: any}*/) {
     center_cube_size: 0.1,
     map_style: MAP_STYLES[0],
     render_style: RENDER_STYLES[0],
+    ligand_style: LIGAND_STYLES[0],
     color_aim: COLOR_AIMS[0],
     line_style: LINE_STYLES[0],
     label_font: LABEL_FONTS[0],
@@ -2992,16 +3056,24 @@ Viewer.prototype.clear_atomic_objects = function clear_atomic_objects (model_bag
 
 Viewer.prototype.set_atomic_objects = function set_atomic_objects (model_bag/*:ModelBag*/) {
   model_bag.atomic_objects = [];
+  var ball_size = 0.3;
   switch (model_bag.conf.render_style) {
     case 'lines':
       model_bag.add_bonds();
+      if (model_bag.conf.ligand_style === 'ball&stick') {
+        // TODO move it to ModelBag
+        var ligand_atoms = model_bag.model.atoms.filter(function (a) {
+          return a.is_ligand && a.element !== 'H';
+        });
+        var colors = color_by('element', ligand_atoms,
+                                model_bag.conf.colors, model_bag.hue_shift);
+        var obj = makeBalls(ligand_atoms, colors, ball_size);
+        model_bag.atomic_objects.push(obj);
+      }
       break;
-    case 'ball&stick': {
-      var h_scale = this.camera.projectionMatrix.elements[5];
-      var ball_size = Math.max(1, 200 * h_scale);
+    case 'ball&stick':
       model_bag.add_bonds(false, ball_size);
       break;
-    }
     case 'trace':// + lines for ligands
       model_bag.add_trace();
       model_bag.add_bonds(true);
@@ -3426,6 +3498,12 @@ Viewer.prototype.set_real_space_key_bindings = function set_real_space_key_bindi
   // f
   kb[70] = function (evt) {
     evt.shiftKey ? this.toggle_full_screen() : this.change_slab_width_by(0.1);
+  };
+  // l
+  kb[76] = function (evt) {
+    this.select_next('ligands as', 'ligand_style', LIGAND_STYLES,
+                     evt.shiftKey);
+    this.redraw_models();
   };
   // p
   kb[80] = function (evt) {
@@ -4412,6 +4490,7 @@ exports.makeLineMaterial = makeLineMaterial;
 exports.makeLine = makeLine;
 exports.makeLineSegments = makeLineSegments;
 exports.makeWheels = makeWheels;
+exports.makeBalls = makeBalls;
 exports.makeLabel = makeLabel;
 exports.addXyzCross = addXyzCross;
 exports.STATE = STATE;

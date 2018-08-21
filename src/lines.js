@@ -173,16 +173,29 @@ function wide_line_geometry(vertex_arr, color_arr) {
   return geometry;
 }
 
+// draw quads as 2 triangles: 4 attributes / quad, 6 indices / quad
+function make_quad_index_buffer(len) {
+  let index = (4*len < 65536 ? new Uint16Array(6*len)
+                             : new Uint32Array(6*len));
+  const vert_order = [0, 1, 2, 0, 2, 3];
+  for (let i = 0; i < len; i++) {
+    for (let j = 0; j < 6; j++) {
+      index[6*i+j] = 4*i + vert_order[j];
+    }
+  }
+  return new THREE.BufferAttribute(index, 1);
+}
+
 // input arrays must be of the same length
 function wide_segments_geometry(vertex_arr, color_arr) {
   // n input vertices => 2n output vertices, n triangles, 3n indexes
   const len = vertex_arr.length;
   let i;
-  let j;
   const pos = double_pos(vertex_arr);
   const position = new Float32Array(pos);
   let other_vert = new Float32Array(6*len);
   for (i = 0; i < 6 * len; i += 12) {
+    let j;
     for (j = 0; j < 6; j++) other_vert[i+j] = pos[i+j+6];
     for (; j < 12; j++) other_vert[i+j] = pos[i+j-6];
   }
@@ -190,14 +203,6 @@ function wide_segments_geometry(vertex_arr, color_arr) {
   for (i = 0; i < len; i++) {
     side[2*i] = -1;
     side[2*i+1] = 1;
-  }
-  let index = (2*len < 65536 ? new Uint16Array(3*len)
-                             : new Uint32Array(3*len));
-  const vert_order = [0, 1, 2, 0, 2, 3];
-  for (i = 0; i < len / 2; i++) {
-    for (j = 0; j < 6; j++) {
-      index[6*i+j] = 4*i + vert_order[j];
-    }
   }
   let geometry = new THREE.BufferGeometry();
   geometry.addAttribute('position', new THREE.BufferAttribute(position, 3));
@@ -207,7 +212,7 @@ function wide_segments_geometry(vertex_arr, color_arr) {
     const color = double_color(color_arr);
     geometry.addAttribute('color', new THREE.BufferAttribute(color, 3));
   }
-  geometry.setIndex(new THREE.BufferAttribute(index, 1));
+  geometry.setIndex(make_quad_index_buffer(len/2));
   return geometry;
 }
 
@@ -523,6 +528,88 @@ export function makeWheels(atom_arr /*:AtomT[]*/,
   return obj;
 }
 
+const sphere_vert = `
+attribute vec2 corner;
+uniform float radius;
+varying vec3 vcolor;
+varying vec2 rcoor;
+
+void main() {
+  vcolor = color;
+  rcoor = corner;
+  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+  mvPosition.xy += corner * radius;
+  gl_Position = projectionMatrix * mvPosition;
+}
+`;
+
+const sphere_frag = `
+#include <fog_pars_fragment>
+varying vec3 vcolor;
+varying vec2 rcoor;
+
+void main() {
+  if (dot(rcoor, rcoor) > 1.0) discard;
+  gl_FragColor = vec4(vcolor, 1.0);
+#include <fog_fragment>
+}
+`;
+
+export function makeBalls(atom_arr /*:AtomT[]*/,
+                          color_arr /*:Color[]*/,
+                          radius /*:number*/) {
+  const N = atom_arr.length;
+  let geometry = new THREE.BufferGeometry();
+
+  let pos = new Float32Array(N * 4 * 3);
+  for (let i = 0; i < N; i++) {
+    const xyz = atom_arr[i].xyz;
+    for (let j = 0; j < 4; j++) {
+      for (let k = 0; k < 3; k++) {
+        pos[3 * (4*i + j) + k] = xyz[k];
+      }
+    }
+  }
+  geometry.addAttribute('position', new THREE.BufferAttribute(pos, 3));
+
+  let corner = new Float32Array(N * 4 * 2);
+  for (let i = 0; i < N; i++) {
+    corner[8*i + 0] = -1;  // 0
+    corner[8*i + 1] = -1;  // 0
+    corner[8*i + 2] = -1;  // 1
+    corner[8*i + 3] = +1;  // 1
+    corner[8*i + 4] = +1;  // 2
+    corner[8*i + 5] = +1;  // 2
+    corner[8*i + 6] = +1;  // 3
+    corner[8*i + 7] = -1;  // 3
+  }
+  geometry.addAttribute('corner', new THREE.BufferAttribute(corner, 2));
+
+  let colors = new Float32Array(N * 4 * 3);
+  for (let i = 0; i < N; i++) {
+    const col = color_arr[i];
+    for (let j = 0; j < 4; j++) {
+      colors[3 * (4*i + j) + 0] = col.r;
+      colors[3 * (4*i + j) + 1] = col.g;
+      colors[3 * (4*i + j) + 2] = col.b;
+    }
+  }
+  geometry.addAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+  geometry.setIndex(make_quad_index_buffer(N));
+
+  let material = new THREE.ShaderMaterial({
+    uniforms: makeUniforms({radius: radius}),
+    vertexShader: sphere_vert,
+    fragmentShader: sphere_frag,
+    fog: true,
+    vertexColors: THREE.VertexColors,
+  });
+  let obj = new THREE.Mesh(geometry, material);
+  // currently we use only lines for picking
+  obj.raycast = function () {};
+  return obj;
+}
 
 // based on THREE.Line.prototype.raycast(), but skipping duplicated points
 let inverseMatrix = new THREE.Matrix4();
