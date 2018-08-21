@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { makeLineMaterial, makeLineSegments, makeLine, makeRibbon,
          makeChickenWire, makeGrid, makeBalls, makeWheels, makeCube,
-         makeRgbBox, makeLabel, addXyzCross } from './lines.js';
+         makeRgbBox, makeLabel, addXyzCross } from './draw.js';
 import { STATE, Controls } from './controls.js';
 import { ElMap } from './elmap.js';
 import { modelsFromPDB } from './model.js';

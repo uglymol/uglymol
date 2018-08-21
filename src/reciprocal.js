@@ -2,7 +2,7 @@
 import { ElMap } from './elmap.js';
 import { Viewer } from './viewer.js';
 import { addXyzCross, makeLineMaterial, makeLineSegments,
-         makeUniforms } from './lines.js';
+         makeUniforms } from './draw.js';
 import * as THREE from 'three';
 
 

@@ -7,7 +7,7 @@
  *    unitcell.js               \
  *              ^-  model.js <- viewer.js
  * THREE.js <--------------------' / /
- *     ^  ^----- lines.js <-------' /
+ *     ^  ^----- draw.js <--------' /
  *     '------ controls.js <-------'
  */
 
@@ -26,7 +26,7 @@ export * from './elmap.js';
 // GRAPHICS - the files below depend on THREE.js
 
 // drawing primitives
-export * from './lines.js';
+export * from './draw.js';
 
 // mouse/touchscreen controls
 export * from './controls.js';

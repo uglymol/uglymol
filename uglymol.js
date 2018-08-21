@@ -1667,7 +1667,7 @@ function wide_line_geometry(vertex_arr, color_arr) {
   return geometry;
 }
 
-// draw quads as 2 triangles: 4 attribute / quad, 6 indices / quad
+// draw quads as 2 triangles: 4 attributes / quad, 6 indices / quad
 function make_quad_index_buffer(len) {
   var index = (4*len < 65536 ? new Uint16Array(6*len)
                              : new Uint32Array(6*len));
