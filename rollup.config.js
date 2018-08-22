@@ -10,39 +10,6 @@ const banner = `/*!
  * Released under the MIT License.
  */`;
 
-// glsl() copied on from three.js/rollup.config.js
-function glsl () {
-  return {
-    transform ( code, id ) {
-      if ( !/\.glsl$/.test( id ) ) return;
-
-      var transformedCode = 'export default ' + JSON.stringify(
-        code
-          .replace( /[ \t]*\/\/.*\n/g, '' )
-          .replace( /[ \t]*\/\*[\s\S]*?\*\//g, '' )
-          .replace( /\n{2,}/g, '\n' )
-      ) + ';';
-      return {
-        code: transformedCode,
-        map: { mappings: '' }
-      }
-    }
-  };
-}
-
-function three_import() {
-  return {
-    transform(code, id) {
-      //if ( !/\.glsl$/.test( id ) ) return;
-      return {
-        code: code.replace("THREE from 'three'",
-                           "THREE from '../tools/three-imports.js'"),
-        map: { mappings: '' }
-      };
-    }
-  };
-}
-
 let build = {
   input: 'src/all.js',
   plugins: [],
@@ -50,44 +17,18 @@ let build = {
     file: 'uglymol.js',
     format: 'umd',
     name: 'UM',
-    globals: { three: 'THREE' },
     intro: `var VERSION = exports.VERSION = '${version}';\n`,
     banner,
     sourcemap: true,
     indent: false,
   },
-  external: ['three'],
 };
-
-// build with included three.js subset: BUNDLE_DEPS=1 rollup -c
-if (process.env.BUNDLE_DEPS) {
-  build.plugins.push(glsl(), three_import());
-  build.external = [];
-  build.output.globals = {};
-  build.output.file = 'uglymol-nodeps.js';
-  console.log('\nYou may run next:\n' +
-              'uglifyjs uglymol-nodeps.js -cm > uglymol-nodeps.min.js\n');
-}
-
-let fromthree_build = {
-  input: 'src/fromthree.js',
-  plugins: [],
-  output: {
-    file: 'fromthree.js',
-    format: 'umd',
-    name: 'THREE',
-    sourcemap: false,
-    indent: false,
-  },
-};
-
 
 if (process.env.TARGET !== 'dev') {
   // disable arrow b/c https://gitlab.com/Rich-Harris/buble/issues/158
   const transforms = { arrow: false, dangerousForOf: true };
   build.plugins.push(buble({transforms}));
-  fromthree_build.plugins.push(buble({transforms}));
 }
 
 //export default build;
-export default [build, fromthree_build];
+export default [build];

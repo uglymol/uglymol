@@ -1,6 +1,8 @@
 // @flow
 
-import * as THREE from 'three';
+import { Vector2, Vector3, Quaternion } from './fromthree.js';
+
+/*:: import type {OrthographicCamera} from './fromthree.js' */
 
 // map 2d position to sphere with radius 1.
 function project_on_ball(x, y) {
@@ -32,17 +34,17 @@ export class Controls {
     move: (number, number, ?number) => void
     stop: () => any
    */
-  constructor(camera /*:THREE.OrthographicCamera*/, target /*:THREE.Vector3*/) {
+  constructor(camera /*:OrthographicCamera*/, target /*:Vector3*/) {
     const auto_speed = 1.0;
     let _state = STATE.NONE;
-    let _rotate_start = new THREE.Vector3();
-    let _rotate_end = new THREE.Vector3();
-    let _zoom_start = new THREE.Vector2();
-    let _zoom_end = new THREE.Vector2();
+    let _rotate_start = new Vector3();
+    let _rotate_end = new Vector3();
+    let _zoom_start = new Vector2();
+    let _zoom_end = new Vector2();
     let _pinch_start = 0;
     let _pinch_end = 0;
-    let _pan_start = new THREE.Vector2();
-    let _pan_end = new THREE.Vector2();
+    let _pan_start = new Vector2();
+    let _pan_end = new Vector2();
     let _panned = true;
     let _rotating = null;
     let _auto_stamp = null;
@@ -52,7 +54,7 @@ export class Controls {
     this.slab_width = [2.5, 7.5, null];
 
     function rotate_camera(eye) {
-      let quat = new THREE.Quaternion();
+      let quat = new Quaternion();
       quat.setFromUnitVectors(_rotate_end, _rotate_start);
       eye.applyQuaternion(quat);
       camera.up.applyQuaternion(quat);
@@ -219,7 +221,7 @@ export class Controls {
 
     this.go_to = function (targ, cam_pos, cam_up, steps) {
       if (targ instanceof Array) {
-        targ = new THREE.Vector3(targ[0], targ[1], targ[2]);
+        targ = new Vector3(targ[0], targ[1], targ[2]);
       }
       if ((!targ || targ.distanceToSquared(target) < 0.001) &&
           (!cam_pos || cam_pos.distanceToSquared(camera.position) < 0.1) &&

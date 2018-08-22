@@ -1,14 +1,14 @@
 
 /* Dependencies between files (ES6 modules):
  *
- *  isosurface.js <--,
- *                    \
- *              v-- elmap.js <-.
- *    unitcell.js               \
- *              ^-  model.js <- viewer.js
- * THREE.js <--------------------' / /
- *     ^  ^----- draw.js <--------' /
- *     '------ controls.js <-------'
+ *      isosurface.js <--,
+ *                        \
+ *                  v-- elmap.js <-.
+ *        unitcell.js               \
+ *                  ^-  model.js <- viewer.js
+ * fromthree.js <--------------------' / /
+ *         ^  ^----- draw.js <--------' /
+ *         '------ controls.js <-------'
  */
 
 // UnitCell class with methods to fractionalize/orthogonalize coords
@@ -23,7 +23,10 @@ export * from './isosurface.js';
 // electron density map
 export * from './elmap.js';
 
-// GRAPHICS - the files below depend on THREE.js
+// GRAPHICS
+
+// modified subset of THREE.js
+export * from './fromthree.js';
 
 // drawing primitives
 export * from './draw.js';

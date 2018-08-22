@@ -5,9 +5,6 @@
 
 - show other copies of the molecule
 
-- Revisit resizing when https://github.com/mrdoob/three.js/issues/4903
-  is closed.
-
 - a few more keybindings:
   L = next ligand (ctrl-L in coot),
   u = move back to old centre,
