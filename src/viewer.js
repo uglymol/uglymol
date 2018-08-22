@@ -153,7 +153,9 @@ function color_by(style, atoms /*:AtomT[]*/, elem_colors, hue_shift) {
         return elem_colors[atom.element] || elem_colors.def;
       };
     } else {
-      const c_col = elem_colors['C'].clone().offsetHSL(hue_shift, 0, 0);
+      const c_hsl = elem_colors['C'].getHSL();
+      const c_col = new THREE.Color(0, 0, 0);
+      c_col.setHSL(c_hsl.h + hue_shift, c_hsl.s, c_hsl.l);
       color_func = function (atom) {
         const el = atom.element;
         return el === 'C' ? c_col : (elem_colors[el] || elem_colors.def);

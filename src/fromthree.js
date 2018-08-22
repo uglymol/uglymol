@@ -1,11 +1,10 @@
 // a small subset of THREE.js v83 that is used by UglyMol
-// (reformatted with eslint --fix)
-// threejs.org/license
+// modified with eslint --fix and manually,
+// LICENSE: threejs.org/license (MIT)
 
 /* eslint-disable max-len, one-var, guard-for-in */
-/* eslint-disable prefer-rest-params, no-invalid-this */
-/* eslint-disable new-cap */
-/* eslint-disable no-extend-native, no-useless-escape */
+/* eslint-disable prefer-rest-params, no-invalid-this, no-useless-escape */
+/* eslint-disable new-cap, eslint-disable, no-extend-native */
 
 // Polyfills
 
@@ -1528,6 +1527,33 @@ Color.prototype = {
       return this;
     };
   }(),
+
+  getHSL: function () {
+    // h,s,l ranges are in 0.0 - 1.0
+    let hsl = { h: 0, s: 0, l: 0 };
+    const r = this.r, g = this.g, b = this.b;
+    const max = Math.max( r, g, b );
+    const min = Math.min( r, g, b );
+    let hue, saturation;
+    const lightness = ( min + max ) / 2.0;
+    if ( min === max ) {
+      hue = 0;
+      saturation = 0;
+    } else {
+      const delta = max - min;
+      saturation = lightness <= 0.5 ? delta / ( max + min ) : delta / ( 2 - max - min );
+      switch ( max ) {
+        case r: hue = ( g - b ) / delta + ( g < b ? 6 : 0 ); break;
+        case g: hue = ( b - r ) / delta + 2; break;
+        case b: hue = ( r - g ) / delta + 4; break;
+      }
+      hue /= 6;
+    }
+    hsl.h = hue;
+    hsl.s = saturation;
+    hsl.l = lightness;
+    return hsl;
+  },
 
   clone: function () {
     return new this.constructor( this.r, this.g, this.b );
@@ -4123,9 +4149,7 @@ function WebGLRenderer( parameters ) {
       }
     } else if ( object.isLine ) {
       let lineWidth = material.linewidth;
-
       if ( lineWidth === undefined ) lineWidth = 1; // Not using Line*Material
-
       state.setLineWidth( lineWidth * getTargetPixelRatio() );
 
       if ( object.isLineSegments ) {
