@@ -3376,7 +3376,6 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
   let currentTextureSlot = null;
   let currentBoundTextures = {};
 
-  let currentScissor = new Vector4();
   let currentViewport = new Vector4();
 
   function createTexture( type, target, count ) {
@@ -3588,14 +3587,6 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
     }
   }
 
-  function setScissorTest( scissorTest ) {
-    if ( scissorTest ) {
-      enable( gl.SCISSOR_TEST );
-    } else {
-      disable( gl.SCISSOR_TEST );
-    }
-  }
-
   // texture
 
   function activeTexture( webglSlot ) {
@@ -3637,13 +3628,6 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
 
   //
 
-  function scissor( scissor ) {
-    if ( currentScissor.equals( scissor ) === false ) {
-      gl.scissor( scissor.x, scissor.y, scissor.z, scissor.w );
-      currentScissor.copy( scissor );
-    }
-  }
-
   function viewport( viewport ) {
     if ( currentViewport.equals( viewport ) === false ) {
       gl.viewport( viewport.x, viewport.y, viewport.z, viewport.w );
@@ -3678,13 +3662,10 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
     setLineWidth: setLineWidth,
     setPolygonOffset: setPolygonOffset,
 
-    setScissorTest: setScissorTest,
-
     activeTexture: activeTexture,
     bindTexture: bindTexture,
     texImage2D: texImage2D,
 
-    scissor: scissor,
     viewport: viewport,
 
   };
@@ -3862,9 +3843,6 @@ function WebGLRenderer( parameters ) {
     _currentGeometryProgram = '',
     _currentCamera = null,
 
-    _currentScissor = new Vector4(),
-    _currentScissorTest = null,
-
     _currentViewport = new Vector4(),
 
     //
@@ -3880,9 +3858,6 @@ function WebGLRenderer( parameters ) {
     _height = _canvas.height,
 
     _pixelRatio = 1,
-
-    _scissor = new Vector4( 0, 0, _width, _height ),
-    _scissorTest = false,
 
     _viewport = new Vector4( 0, 0, _width, _height ),
 
@@ -3993,7 +3968,6 @@ function WebGLRenderer( parameters ) {
   function setDefaultGLState() {
     state.init();
 
-    state.scissor( _currentScissor.copy( _scissor ).multiplyScalar( _pixelRatio ) );
     state.viewport( _currentViewport.copy( _viewport ).multiplyScalar( _pixelRatio ) );
 
     state.buffers.color.setClear( _clearColor.r, _clearColor.g, _clearColor.b, _clearAlpha, _premultipliedAlpha );
@@ -4021,18 +3995,6 @@ function WebGLRenderer( parameters ) {
 
   this.getContext = function () {
     return _gl;
-  };
-
-  this.getContextAttributes = function () {
-    return _gl.getContextAttributes();
-  };
-
-  this.forceContextLoss = function () {
-    extensions.get( 'WEBGL_lose_context' ).loseContext();
-  };
-
-  this.getMaxAnisotropy = function () {
-    return capabilities.getMaxAnisotropy();
   };
 
   this.getPrecision = function () {
@@ -4068,14 +4030,6 @@ function WebGLRenderer( parameters ) {
 
   this.setViewport = function ( x, y, width, height ) {
     state.viewport( _viewport.set( x, y, width, height ) );
-  };
-
-  this.setScissor = function ( x, y, width, height ) {
-    state.scissor( _scissor.set( x, y, width, height ) );
-  };
-
-  this.setScissorTest = function ( boolean ) {
-    state.setScissorTest( _scissorTest = boolean );
   };
 
   // Clearing
@@ -4780,15 +4734,9 @@ function WebGLRenderer( parameters ) {
 
       framebuffer = renderTargetProperties.__webglFramebuffer;
 
-      _currentScissor.copy( renderTarget.scissor );
-      _currentScissorTest = renderTarget.scissorTest;
-
       _currentViewport.copy( renderTarget.viewport );
     } else {
       framebuffer = null;
-
-      _currentScissor.copy( _scissor ).multiplyScalar( _pixelRatio );
-      _currentScissorTest = _scissorTest;
 
       _currentViewport.copy( _viewport ).multiplyScalar( _pixelRatio );
     }
@@ -4797,9 +4745,6 @@ function WebGLRenderer( parameters ) {
       _gl.bindFramebuffer( _gl.FRAMEBUFFER, framebuffer );
       _currentFramebuffer = framebuffer;
     }
-
-    state.scissor( _currentScissor );
-    state.setScissorTest( _currentScissorTest );
 
     state.viewport( _currentViewport );
   };
