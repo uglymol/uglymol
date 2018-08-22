@@ -5,7 +5,7 @@
 /* eslint-disable max-len, one-var, guard-for-in */
 /* eslint-disable prefer-rest-params, no-invalid-this */
 /* eslint-disable new-cap */
-/* eslint-disable no-extend-native, no-useless-escape, no-throw-literal */
+/* eslint-disable no-extend-native, no-useless-escape */
 
 // Polyfills
 
@@ -43,7 +43,6 @@ if ( Object.assign === undefined ) {
   } )();
 }
 
-let REVISION = '83mod';
 let NoColors = 0;
 let VertexColors = 2;
 let NoBlending = 0;
@@ -1586,8 +1585,6 @@ function Material() {
   this.depthTest = true;
   this.depthWrite = true;
 
-  this.colorWrite = true;
-
   this.precision = null; // override the renderer's default precision for this material
 
   this.polygonOffset = false;
@@ -1676,8 +1673,6 @@ Material.prototype = {
     this.depthTest = source.depthTest;
     this.depthWrite = source.depthWrite;
 
-    this.colorWrite = source.colorWrite;
-
     this.precision = source.precision;
 
     this.polygonOffset = source.polygonOffset;
@@ -1709,7 +1704,6 @@ Object.assign( Material.prototype, EventDispatcher.prototype );
 * @author alteredq / http://alteredqualia.com/
 *
 * parameters = {
-*  defines: { "label" : "value" },
 *  uniforms: { "parameter1": { value: 1.0 }, "parameter2": { value2: 2 } },
 *
 *  fragmentShader: <string>,
@@ -1724,7 +1718,6 @@ function ShaderMaterial( parameters ) {
 
   this.type = 'ShaderMaterial';
 
-  this.defines = {};
   this.uniforms = {};
 
   this.vertexShader = 'void main() {\n\tgl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );\n}';
@@ -1737,7 +1730,6 @@ function ShaderMaterial( parameters ) {
 
   this.extensions = {
     fragDepth: false, // set to use fragment depth values
-    drawBuffers: false, // set to use draw buffers
   };
 
   // When rendered geometry doesn't include these attributes but the material does,
@@ -1771,8 +1763,6 @@ ShaderMaterial.prototype.copy = function ( source ) {
   this.vertexShader = source.vertexShader;
 
   this.uniforms = UniformsUtils.clone( source.uniforms );
-
-  this.defines = source.defines;
 
   this.lights = source.lights;
 
@@ -2459,22 +2449,7 @@ function generateExtensions( extensions, parameters, rendererExtensions ) {
 
   let chunks = [
   ( extensions.fragDepth ) && rendererExtensions.get( 'EXT_frag_depth' ) ? '#extension GL_EXT_frag_depth : enable' : '',
-  ( extensions.drawBuffers ) && rendererExtensions.get( 'WEBGL_draw_buffers' ) ? '#extension GL_EXT_draw_buffers : require' : '',
   ];
-
-  return chunks.filter( filterEmptyLine ).join( '\n' );
-}
-
-function generateDefines( defines ) {
-  let chunks = [];
-
-  for ( let name in defines ) {
-    let value = defines[name];
-
-    if ( value === false ) continue;
-
-    chunks.push( '#define ' + name + ' ' + value );
-  }
 
   return chunks.join( '\n' );
 }
@@ -2494,10 +2469,6 @@ function fetchAttributeLocations( gl, program, identifiers ) {
   }
 
   return attributes;
-}
-
-function filterEmptyLine( string ) {
-  return string !== '';
 }
 
 function parseIncludes( string ) {
@@ -2520,20 +2491,15 @@ function WebGLProgram( renderer, code, material, parameters ) {
   let gl = renderer.context;
 
   let extensions = material.extensions;
-  let defines = material.defines;
 
   let vertexShader = material.__webglShader.vertexShader;
   let fragmentShader = material.__webglShader.fragmentShader;
-
-  let gammaFactorDefine = ( renderer.gammaFactor > 0 ) ? renderer.gammaFactor : 1.0;
 
   // console.log( 'building new program ' );
 
   //
 
   let customExtensions = generateExtensions( extensions, parameters, renderer.extensions );
-
-  let customDefines = generateDefines( defines );
 
   //
 
@@ -2548,10 +2514,6 @@ function WebGLProgram( renderer, code, material, parameters ) {
       'precision ' + parameters.precision + ' int;',
 
       '#define SHADER_NAME ' + material.__webglShader.name,
-
-      customDefines,
-
-      '#define GAMMA_FACTOR ' + gammaFactorDefine,
 
     parameters.vertexColors ? '#define USE_COLOR' : '',
 
@@ -2572,7 +2534,7 @@ function WebGLProgram( renderer, code, material, parameters ) {
 
       '#endif',
       '\n',
-    ].filter( filterEmptyLine ).join( '\n' );
+    ].join( '\n' );
 
     prefixFragment = [
 
@@ -2582,10 +2544,6 @@ function WebGLProgram( renderer, code, material, parameters ) {
       'precision ' + parameters.precision + ' int;',
 
       '#define SHADER_NAME ' + material.__webglShader.name,
-
-      customDefines,
-
-      '#define GAMMA_FACTOR ' + gammaFactorDefine,
 
     ( parameters.useFog && parameters.fog ) ? '#define USE_FOG' : '',
 
@@ -2600,7 +2558,7 @@ function WebGLProgram( renderer, code, material, parameters ) {
 
       '\n',
 
-    ].filter( filterEmptyLine ).join( '\n' );
+    ].join( '\n' );
   }
 
   vertexShader = parseIncludes( vertexShader, parameters );
@@ -2774,13 +2732,6 @@ function WebGLPrograms( renderer, capabilities ) {
 
     array.push( material.fragmentShader );
     array.push( material.vertexShader );
-
-    if ( material.defines !== undefined ) {
-      for ( let name in material.defines ) {
-        array.push( name );
-        array.push( material.defines[name] );
-      }
-    }
 
     for ( let i = 0; i < parameterNames.length; i ++ ) {
       array.push( parameters[parameterNames[i]] );
@@ -3253,24 +3204,10 @@ function WebGLProperties() {
 
 function WebGLState( gl, extensions, paramThreeToGL ) {
   function ColorBuffer() {
-    let locked = false;
-
     let color = new Vector4();
-    let currentColorMask = null;
     let currentColorClear = new Vector4();
 
     return {
-
-      setMask: function ( colorMask ) {
-        if ( currentColorMask !== colorMask && ! locked ) {
-          gl.colorMask( colorMask, colorMask, colorMask, colorMask );
-          currentColorMask = colorMask;
-        }
-      },
-
-      setLocked: function ( lock ) {
-        locked = lock;
-      },
 
       setClear: function ( r, g, b, a, premultipliedAlpha ) {
         if ( premultipliedAlpha === true ) {
@@ -3289,8 +3226,6 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
   }
 
   function DepthBuffer() {
-    let locked = false;
-
     let currentDepthMask = null;
     let currentDepthFunc = null;
     let currentDepthClear = null;
@@ -3306,7 +3241,7 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
       },
 
       setMask: function ( depthMask ) {
-        if ( currentDepthMask !== depthMask && ! locked ) {
+        if ( currentDepthMask !== depthMask ) {
           gl.depthMask( depthMask );
           currentDepthMask = depthMask;
         }
@@ -3319,10 +3254,6 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
         }
       },
 
-      setLocked: function ( lock ) {
-        locked = lock;
-      },
-
       setClear: function ( depth ) {
         if ( currentDepthClear !== depth ) {
           gl.clearDepth( depth );
@@ -3331,8 +3262,6 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
       },
 
       reset: function () {
-        locked = false;
-
         currentDepthMask = null;
         currentDepthFunc = null;
         currentDepthClear = null;
@@ -3544,12 +3473,6 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
     }
   }
 
-  // TODO Deprecate
-
-  function setColorWrite( colorWrite ) {
-    colorBuffer.setMask( colorWrite );
-  }
-
   function setDepthTest( depthTest ) {
     depthBuffer.setTest( depthTest );
   }
@@ -3654,7 +3577,6 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
 
     setBlending: setBlending,
 
-    setColorWrite: setColorWrite,
     setDepthTest: setDepthTest,
     setDepthWrite: setDepthWrite,
     setDepthFunc: setDepthFunc,
@@ -3789,8 +3711,6 @@ function WebGLExtensions( gl ) {
 */
 
 function WebGLRenderer( parameters ) {
-  console.log( 'THREE.WebGLRenderer', REVISION );
-
   parameters = parameters || {};
 
   let _canvas = parameters.canvas !== undefined ? parameters.canvas : document.createElementNS( 'http://www.w3.org/1999/xhtml', 'canvas' ),
@@ -3823,12 +3743,6 @@ function WebGLRenderer( parameters ) {
   // scene graph
 
   this.sortObjects = true;
-
-  // physically based shading
-
-  this.gammaFactor = 2.0; // for backwards compatibility
-  this.gammaInput = false;
-  this.gammaOutput = false;
 
   // internal properties
 
@@ -3913,9 +3827,9 @@ function WebGLRenderer( parameters ) {
 
     if ( _gl === null ) {
       if ( _canvas.getContext( 'webgl' ) !== null ) {
-        throw 'Error creating WebGL context with your selected attributes.';
+        throw new Error('Error creating WebGL context with your selected attributes.');
       } else {
-        throw 'Error creating WebGL context.';
+        throw new Error('Error creating WebGL context.');
       }
     }
 
@@ -4423,7 +4337,6 @@ function WebGLRenderer( parameters ) {
 
     state.setDepthTest( true );
     state.setDepthWrite( true );
-    state.setColorWrite( true );
 
     // _gl.finish();
   };
@@ -4577,7 +4490,6 @@ function WebGLRenderer( parameters ) {
   state.setDepthFunc( material.depthFunc );
   state.setDepthTest( material.depthTest );
   state.setDepthWrite( material.depthWrite );
-  state.setColorWrite( material.colorWrite );
   state.setPolygonOffset( material.polygonOffset, material.polygonOffsetFactor, material.polygonOffsetUnits );
   }
 
