@@ -144,19 +144,24 @@ void main() {
   gl_PointSize = size;
 }`;
 
-const point_frag = `
+const round_point_frag = `
 #include <fog_pars_fragment>
 varying vec3 vcolor;
 void main() {
-  float alpha = 1.0;
-#ifdef ROUND
   // not sure how reliable is such rounding of points
   vec2 diff = gl_PointCoord - vec2(0.5, 0.5);
   float dist_sq = 4.0 * dot(diff, diff);
   if (dist_sq >= 1.0) discard;
-  alpha = 1.0 - dist_sq * dist_sq * dist_sq;
-#endif
+  float alpha = 1.0 - dist_sq * dist_sq * dist_sq;
   gl_FragColor = vec4(vcolor, alpha);
+#include <fog_fragment>
+}`;
+
+const square_point_frag = `
+#include <fog_pars_fragment>
+varying vec3 vcolor;
+void main() {
+  gl_FragColor = vec4(vcolor, 1.0);
 #include <fog_fragment>
 }`;
 
@@ -196,11 +201,8 @@ export class ReciprocalViewer extends Viewer {
         r2_max: 100,
         r2_min: 0,
       }),
-      defines: {
-        ROUND: true,
-      },
       vertexShader: point_vert,
-      fragmentShader: point_frag,
+      fragmentShader: round_point_frag,
       vertexColors: THREE.VertexColors,
       fog: true,
       transparent: true,
@@ -226,7 +228,11 @@ export class ReciprocalViewer extends Viewer {
     // s
     kb[83] = function (evt) {
       this.select_next('spot shape', 'spot_shape', SPOT_SHAPES, evt.shiftKey);
-      this.point_material.defines.ROUND = (this.config.spot_shape === 'wheel');
+      if (this.config.spot_shape === 'wheel') {
+        this.point_material.fragmentShader = round_point_frag;
+      } else {
+        this.point_material.fragmentShader = square_point_frag;
+      }
       this.point_material.needsUpdate = true;
     };
     // u

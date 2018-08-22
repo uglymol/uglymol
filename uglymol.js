@@ -4150,7 +4150,9 @@ function parse_json(text) {
 
 var point_vert = "\nattribute float group;\nuniform float show_only;\nuniform float r2_max;\nuniform float r2_min;\nuniform float size;\nvarying vec3 vcolor;\nvoid main() {\n  vcolor = color;\n  float r2 = dot(position, position);\n  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n  if (r2 < r2_min || r2 >= r2_max || (show_only != -2.0 && show_only != group))\n    gl_Position.x = 2.0;\n  gl_PointSize = size;\n}";
 
-var point_frag = "\n#include <fog_pars_fragment>\nvarying vec3 vcolor;\nvoid main() {\n  float alpha = 1.0;\n#ifdef ROUND\n  // not sure how reliable is such rounding of points\n  vec2 diff = gl_PointCoord - vec2(0.5, 0.5);\n  float dist_sq = 4.0 * dot(diff, diff);\n  if (dist_sq >= 1.0) discard;\n  alpha = 1.0 - dist_sq * dist_sq * dist_sq;\n#endif\n  gl_FragColor = vec4(vcolor, alpha);\n#include <fog_fragment>\n}";
+var round_point_frag = "\n#include <fog_pars_fragment>\nvarying vec3 vcolor;\nvoid main() {\n  // not sure how reliable is such rounding of points\n  vec2 diff = gl_PointCoord - vec2(0.5, 0.5);\n  float dist_sq = 4.0 * dot(diff, diff);\n  if (dist_sq >= 1.0) discard;\n  float alpha = 1.0 - dist_sq * dist_sq * dist_sq;\n  gl_FragColor = vec4(vcolor, alpha);\n#include <fog_fragment>\n}";
+
+var square_point_frag = "\n#include <fog_pars_fragment>\nvarying vec3 vcolor;\nvoid main() {\n  gl_FragColor = vec4(vcolor, 1.0);\n#include <fog_fragment>\n}";
 
 
 var ReciprocalViewer = (function (Viewer$$1) {
@@ -4179,11 +4181,8 @@ var ReciprocalViewer = (function (Viewer$$1) {
         r2_max: 100,
         r2_min: 0,
       }),
-      defines: {
-        ROUND: true,
-      },
       vertexShader: point_vert,
-      fragmentShader: point_frag,
+      fragmentShader: round_point_frag,
       vertexColors: THREE.VertexColors,
       fog: true,
       transparent: true,
@@ -4213,7 +4212,11 @@ var ReciprocalViewer = (function (Viewer$$1) {
     // s
     kb[83] = function (evt) {
       this.select_next('spot shape', 'spot_shape', SPOT_SHAPES, evt.shiftKey);
-      this.point_material.defines.ROUND = (this.config.spot_shape === 'wheel');
+      if (this.config.spot_shape === 'wheel') {
+        this.point_material.fragmentShader = round_point_frag;
+      } else {
+        this.point_material.fragmentShader = square_point_frag;
+      }
       this.point_material.needsUpdate = true;
     };
     // u
