@@ -2021,9 +2021,10 @@ function makeWheels(atom_arr /*:AtomT[]*/,
   return obj;
 }
 
-var sphere_vert = "\nattribute vec2 corner;\nuniform float radius;\nvarying vec3 vcolor;\nvarying vec2 rcoor;\n\nvoid main() {\n  vcolor = color;\n  rcoor = corner;\n  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);\n  mvPosition.xy += corner * radius;\n  gl_Position = projectionMatrix * mvPosition;\n}\n";
+var sphere_vert = "\nattribute vec2 corner;\nuniform float radius;\nvarying vec3 vcolor;\nvarying vec2 vcoor;\nvarying vec3 vpos;\n\nvoid main() {\n  vcolor = color;\n  vcoor = corner;\n  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);\n  vpos = mvPosition.xyz;\n  mvPosition.xy += corner * radius;\n  gl_Position = projectionMatrix * mvPosition;\n}\n";
 
-var sphere_frag = "\n#include <fog_pars_fragment>\nvarying vec3 vcolor;\nvarying vec2 rcoor;\n\nvoid main() {\n  if (dot(rcoor, rcoor) > 1.0) discard;\n  gl_FragColor = vec4(vcolor, 1.0);\n#include <fog_fragment>\n}\n";
+// based on 3Dmol imposter shaders
+var sphere_frag = "\n#include <fog_pars_fragment>\nuniform mat4 projectionMatrix;\nuniform vec3 lightDir;\nvarying vec3 vcolor;\nvarying vec2 vcoor;\nvarying vec3 vpos;\n\nvoid main() {\n  float sq = dot(vcoor, vcoor);\n  if (sq > 1.0) discard;\n  float z = sqrt(1.0-sq);\n  vec3 xyz = vec3(vcoor.x, vcoor.y, z);\n  vec4 projPos = projectionMatrix * vec4(vpos + xyz, 1.0);\n  float ndcDepth = projPos.z / projPos.w;\n  gl_FragDepthEXT = ((gl_DepthRange.diff * ndcDepth) +\n                     gl_DepthRange.near + gl_DepthRange.far) / 2.0;\n  float weight = clamp(dot(xyz, lightDir), 0.0, 1.0);\n  gl_FragColor = vec4(weight * vcolor, 1.0);\n#include <fog_fragment>\n}\n";
 
 function makeBalls(atom_arr /*:AtomT[]*/,
                           color_arr /*:Color[]*/,
@@ -2069,12 +2070,16 @@ function makeBalls(atom_arr /*:AtomT[]*/,
   geometry.setIndex(make_quad_index_buffer(N));
 
   var material = new THREE.ShaderMaterial({
-    uniforms: makeUniforms({radius: radius}),
+    uniforms: makeUniforms({
+      radius: radius,
+      lightDir: new THREE.Vector3(-0.2, 0.3, 1.0), // length affects brightness
+    }),
     vertexShader: sphere_vert,
     fragmentShader: sphere_frag,
     fog: true,
     vertexColors: THREE.VertexColors,
   });
+  material.extensions.fragDepth = true;
   var obj = new THREE.Mesh(geometry, material);
   // currently we use only lines for picking
   obj.raycast = function () {};

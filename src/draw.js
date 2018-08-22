@@ -532,25 +532,39 @@ const sphere_vert = `
 attribute vec2 corner;
 uniform float radius;
 varying vec3 vcolor;
-varying vec2 rcoor;
+varying vec2 vcoor;
+varying vec3 vpos;
 
 void main() {
   vcolor = color;
-  rcoor = corner;
+  vcoor = corner;
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+  vpos = mvPosition.xyz;
   mvPosition.xy += corner * radius;
   gl_Position = projectionMatrix * mvPosition;
 }
 `;
 
+// based on 3Dmol imposter shaders
 const sphere_frag = `
 #include <fog_pars_fragment>
+uniform mat4 projectionMatrix;
+uniform vec3 lightDir;
 varying vec3 vcolor;
-varying vec2 rcoor;
+varying vec2 vcoor;
+varying vec3 vpos;
 
 void main() {
-  if (dot(rcoor, rcoor) > 1.0) discard;
-  gl_FragColor = vec4(vcolor, 1.0);
+  float sq = dot(vcoor, vcoor);
+  if (sq > 1.0) discard;
+  float z = sqrt(1.0-sq);
+  vec3 xyz = vec3(vcoor.x, vcoor.y, z);
+  vec4 projPos = projectionMatrix * vec4(vpos + xyz, 1.0);
+  float ndcDepth = projPos.z / projPos.w;
+  gl_FragDepthEXT = ((gl_DepthRange.diff * ndcDepth) +
+                     gl_DepthRange.near + gl_DepthRange.far) / 2.0;
+  float weight = clamp(dot(xyz, lightDir), 0.0, 1.0);
+  gl_FragColor = vec4(weight * vcolor, 1.0);
 #include <fog_fragment>
 }
 `;
@@ -599,12 +613,16 @@ export function makeBalls(atom_arr /*:AtomT[]*/,
   geometry.setIndex(make_quad_index_buffer(N));
 
   let material = new THREE.ShaderMaterial({
-    uniforms: makeUniforms({radius: radius}),
+    uniforms: makeUniforms({
+      radius: radius,
+      lightDir: new THREE.Vector3(-0.2, 0.3, 1.0), // length affects brightness
+    }),
     vertexShader: sphere_vert,
     fragmentShader: sphere_frag,
     fog: true,
     vertexColors: THREE.VertexColors,
   });
+  material.extensions.fragDepth = true;
   let obj = new THREE.Mesh(geometry, material);
   // currently we use only lines for picking
   obj.raycast = function () {};
