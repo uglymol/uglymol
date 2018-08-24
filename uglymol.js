@@ -7147,228 +7147,242 @@ function project_on_ball(x, y) {
 var STATE = { NONE: -1, ROTATE: 0, PAN: 1, ZOOM: 2, PAN_ZOOM: 3,
                        SLAB: 4, ROLL: 5, AUTO_ROTATE: 6, GO: 7 };
 
+var auto_speed = 1.0;
+
 // based on three.js/examples/js/controls/OrthographicTrackballControls.js
 var Controls = function Controls(camera /*:OrthographicCamera*/, target /*:Vector3*/) {
-  var auto_speed = 1.0;
-  var _state = STATE.NONE;
-  var _rotate_start = new Vector3();
-  var _rotate_end = new Vector3();
-  var _zoom_start = [0, 0];
-  var _zoom_end = [0, 0];
-  var _pinch_start = 0;
-  var _pinch_end = 0;
-  var _pan_start = [0, 0];
-  var _pan_end = [0, 0];
-  var _panned = true;
-  var _rotating = null;
-  var _auto_stamp = null;
-  var _go_func = null;
+  this._camera = camera;
+  this._target = target;
+  this._state = STATE.NONE;
+  this._rotate_start = new Vector3();
+  this._rotate_end = new Vector3();
+  this._zoom_start = [0, 0];
+  this._zoom_end = [0, 0];
+  this._pinch_start = 0;
+  this._pinch_end = 0;
+  this._pan_start = [0, 0];
+  this._pan_end = [0, 0];
+  this._panned = true;
+  this._rotating = 0.0;
+  this._auto_stamp = null;
+  this._go_func = null;
 
   // the far plane is more distant from the target than the near plane (3:1)
   this.slab_width = [2.5, 7.5, null];
+};
 
-  function rotate_camera(eye) {
-    var quat = new Quaternion();
-    quat.setFromUnitVectors(_rotate_end, _rotate_start);
-    eye.applyQuaternion(quat);
-    camera.up.applyQuaternion(quat);
-    _rotate_end.applyQuaternion(quat);
-    _rotate_start.copy(_rotate_end);
+Controls.prototype._rotate_camera = function _rotate_camera (eye /*:Vector3*/) {
+  var quat = new Quaternion();
+  quat.setFromUnitVectors(this._rotate_end, this._rotate_start);
+  eye.applyQuaternion(quat);
+  this._camera.up.applyQuaternion(quat);
+  this._rotate_end.applyQuaternion(quat);
+  this._rotate_start.copy(this._rotate_end);
+};
+
+Controls.prototype._zoom_camera = function _zoom_camera (eye /*:Vector3*/) {
+  var dx = this._zoom_end[0] - this._zoom_start[0];
+  var dy = this._zoom_end[1] - this._zoom_start[1];
+  if (this._state === STATE.ZOOM) {
+    this._camera.zoom /= (1 - dx + dy);
+  } else if (this._state === STATE.SLAB) {
+    this._target.addScaledVector(eye, -5.0 / eye.length() * dy);
+  } else if (this._state === STATE.ROLL) {
+    this._camera.up.applyAxisAngle(eye, 0.05 * (dx - dy));
   }
+  this._zoom_start[0] = this._zoom_end[0];
+  this._zoom_start[1] = this._zoom_end[1];
+  return this._state === STATE.SLAB ? 10*dx : null;
+};
 
-  function zoom_camera(eye) {
-    var dx = _zoom_end[0] - _zoom_start[0];
-    var dy = _zoom_end[1] - _zoom_start[1];
-    if (_state === STATE.ZOOM) {
-      camera.zoom /= (1 - dx + dy);
-    } else if (_state === STATE.SLAB) {
-      target.addScaledVector(eye, -5.0 / eye.length() * dy);
-    } else if (_state === STATE.ROLL) {
-      camera.up.applyAxisAngle(eye, 0.05 * (dx - dy));
-    }
-    _zoom_start = _zoom_end.slice();
-    return _state === STATE.SLAB ? 10*dx : null;
+Controls.prototype._pan_camera = function _pan_camera (eye /*:Vector3*/) {
+  var dx = this._pan_end[0] - this._pan_start[0];
+  var dy = this._pan_end[1] - this._pan_start[1];
+  dx *= 0.5 * (this._camera.right - this._camera.left) / this._camera.zoom;
+  dy *= 0.5 * (this._camera.bottom - this._camera.top) / this._camera.zoom;
+  var pan = eye.clone().cross(this._camera.up).setLength(dx);
+  pan.addScaledVector(this._camera.up, dy / this._camera.up.length());
+  this._camera.position.add(pan);
+  this._target.add(pan);
+  this._pan_start[0] = this._pan_end[0];
+  this._pan_start[1] = this._pan_end[1];
+};
+
+Controls.prototype._auto_rotate = function _auto_rotate (eye /*:Vector3*/) {
+  this._rotate_start.copy(eye).normalize();
+  var now = Date.now();
+  var elapsed = (this._auto_stamp !== null ? now - this._auto_stamp : 16.7);
+  var speed = 1.8e-5 * elapsed * auto_speed;
+  this._auto_stamp = now;
+  if (this._rotating === true) {
+    speed = -speed;
+  } else if (this._rotating !== false) {
+    this._rotating += 0.02;
+    speed = 4e-5 * auto_speed * Math.cos(this._rotating);
   }
+  this._rotate_end.crossVectors(this._camera.up, eye).multiplyScalar(speed)
+    .add(this._rotate_start);
+};
 
-  function pan_camera(eye) {
-    var dx = _pan_end[0] - _pan_start[0];
-    var dy = _pan_end[1] - _pan_start[1];
-    dx *= 0.5 * (camera.right - camera.left) / camera.zoom;
-    dy *= 0.5 * (camera.bottom - camera.top) / camera.zoom;
-    var pan = eye.clone().cross(camera.up).setLength(dx);
-    pan.addScaledVector(camera.up, dy / camera.up.length());
-    camera.position.add(pan);
-    target.add(pan);
-    _pan_start = _pan_end.slice();
+Controls.prototype.toggle_auto = function toggle_auto (param /*:number|boolean*/) {
+  if (this._state === STATE.AUTO_ROTATE &&
+      typeof param === typeof this._rotating) {
+    this._state = STATE.NONE;
+  } else {
+    this._state = STATE.AUTO_ROTATE;
+    this._auto_stamp = null;
+    this._rotating = param;
   }
+};
 
-  this.toggle_auto = function (param) {
-    if (_state === STATE.AUTO_ROTATE && typeof param === typeof _rotating) {
-      _state = STATE.NONE;
-    } else {
-      _state = STATE.AUTO_ROTATE;
-      _auto_stamp = null;
-      _rotating = param;
-    }
-  };
+Controls.prototype.is_going = function is_going () { return this._state === STATE.GO; };
 
-  this.is_going = function () { return _state === STATE.GO; };
+Controls.prototype.is_moving = function is_moving () { return this._state !== STATE.NONE; };
 
-  this.is_moving = function () { return _state !== STATE.NONE; };
-
-  function auto_rotate(eye) {
-    _rotate_start.copy(eye).normalize();
-    var now = Date.now();
-    var elapsed = (_auto_stamp !== null ? now - _auto_stamp : 16.7);
-    var speed = 1.8e-5 * elapsed * auto_speed;
-    _auto_stamp = now;
-    if (_rotating === true) {
-      speed = -speed;
-    } else if (_rotating !== false) {
-      _rotating += 0.02;
-      speed = 4e-5 * auto_speed * Math.cos(_rotating);
-    }
-    _rotate_end.crossVectors(camera.up, eye).multiplyScalar(speed)
-      .add(_rotate_start);
+Controls.prototype.update = function update () {
+  var changed = false;
+  var eye = this._camera.position.clone().sub(this._target);
+  if (this._state === STATE.AUTO_ROTATE) {
+    this._auto_rotate(eye);
   }
+  if (!this._rotate_start.equals(this._rotate_end)) {
+    this._rotate_camera(eye);
+    changed = true;
+  }
+  if (this._pinch_end !== this._pinch_start) {
+    this._camera.zoom *= this._pinch_end / this._pinch_start;
+    this._pinch_start = this._pinch_end;
+    changed = true;
+  }
+  if (this._zoom_end[0] !== this._zoom_start[0] ||
+      this._zoom_end[1] !== this._zoom_start[1]) {
+    var dslab = this._zoom_camera(eye);
+    if (dslab) {
+      this.slab_width[0] = Math.max(this.slab_width[0] + dslab, 0.01);
+      this.slab_width[1] = Math.max(this.slab_width[1] + dslab, 0.01);
+    }
+    changed = true;
+  }
+  if (this._pan_end[0] !== this._pan_start[0] ||
+      this._pan_end[1] !== this._pan_start[1]) {
+    this._pan_camera(eye);
+    this._panned = true;
+    changed = true;
+  }
+  this._camera.position.addVectors(this._target, eye);
+  if (this._state === STATE.GO && this._go_func) {
+    this._go_func();
+    changed = true;
+  }
+  this._camera.lookAt(this._target);
+  return changed;
+};
 
-  this.update = function () {
-    var changed = false;
-    var eye = camera.position.clone().sub(target);
-    if (_state === STATE.AUTO_ROTATE) {
-      auto_rotate(eye);
-    }
-    if (!_rotate_start.equals(_rotate_end)) {
-      rotate_camera(eye);
-      changed = true;
-    }
-    if (_pinch_end !== _pinch_start) {
-      camera.zoom *= _pinch_end / _pinch_start;
-      _pinch_start = _pinch_end;
-      changed = true;
-    }
-    if (_zoom_end[0] !== _zoom_start[0] || _zoom_end[1] !== _zoom_start[1]) {
-      var dslab = zoom_camera(eye);
-      if (dslab) {
-        this.slab_width[0] = Math.max(this.slab_width[0] + dslab, 0.01);
-        this.slab_width[1] = Math.max(this.slab_width[1] + dslab, 0.01);
-      }
-      changed = true;
-    }
-    if (_pan_end[0] !== _pan_start[0] || _pan_end[1] !== _pan_start[1]) {
-      pan_camera(eye);
-      _panned = true;
-      changed = true;
-    }
-    camera.position.addVectors(target, eye);
-    if (_state === STATE.GO && _go_func) {
-      _go_func();
-      changed = true;
-    }
-    camera.lookAt(target);
-    return changed;
-  };
+Controls.prototype.start = function start (new_state /*:number*/, x /*:number*/, y /*:number*/, dist/*:?number*/) {
+  if (this._state === STATE.NONE || this._state === STATE.AUTO_ROTATE) {
+    this._state = new_state;
+  }
+  this.move(x, y, dist);
+  switch (this._state) {
+    case STATE.ROTATE:
+      this._rotate_start.copy(this._rotate_end);
+      break;
+    case STATE.ZOOM:
+    case STATE.SLAB:
+    case STATE.ROLL:
+      this._zoom_start[0] = this._zoom_end[0];
+      this._zoom_start[1] = this._zoom_end[1];
+      break;
+    case STATE.PAN:
+      this._pan_start[0] = this._pan_end[0];
+      this._pan_start[1] = this._pan_end[1];
+      this._panned = false;
+      break;
+    case STATE.PAN_ZOOM:
+      this._pinch_start = this._pinch_end;
+      this._pan_start[0] = this._pan_end[0];
+      this._pan_start[1] = this._pan_end[1];
+      break;
+  }
+};
 
-  this.start = function (new_state, x, y, dist) {
-    if (_state === STATE.NONE || _state === STATE.AUTO_ROTATE) {
-      _state = new_state;
+Controls.prototype.move = function move (x /*:number*/, y /*:number*/, dist /*:?number*/) {
+  switch (this._state) {
+    case STATE.ROTATE: {
+      var xyz = project_on_ball(x, y);
+      //console.log(this._camera.projectionMatrix);
+      //console.log(this._camera.matrixWorld);
+      // TODO maybe use project()/unproject()/applyProjection()
+      var eye = this._camera.position.clone().sub(this._target);
+      var up = this._camera.up;
+      this._rotate_end.crossVectors(up, eye).setLength(xyz[0]);
+      this._rotate_end.addScaledVector(up, xyz[1] / up.length());
+      this._rotate_end.addScaledVector(eye, xyz[2] / eye.length());
+      break;
     }
-    this.move(x, y, dist);
-    switch (_state) {
-      case STATE.ROTATE:
-        _rotate_start.copy(_rotate_end);
-        break;
-      case STATE.ZOOM:
-      case STATE.SLAB:
-      case STATE.ROLL:
-        _zoom_start = _zoom_end.slice();
-        break;
-      case STATE.PAN:
-        _pan_start = _pan_end.slice();
-        _panned = false;
-        break;
-      case STATE.PAN_ZOOM:
-        _pinch_start = _pinch_end;
-        _pan_start = _pan_end.slice();
-        break;
-    }
-  };
+    case STATE.ZOOM:
+    case STATE.SLAB:
+    case STATE.ROLL:
+      this._zoom_end = [x, y];
+      break;
+    case STATE.PAN:
+      this._pan_end = [x, y];
+      break;
+    case STATE.PAN_ZOOM:
+      if (dist == null) { return; } // should not happen
+      this._pan_end = [x, y];
+      this._pinch_end = dist;
+      break;
+  }
+};
 
-  this.move = function (x, y, dist) {
-    switch (_state) {
-      case STATE.ROTATE: {
-        var xyz = project_on_ball(x, y);
-        //console.log(camera.projectionMatrix);
-        //console.log(camera.matrixWorld);
-        // TODO maybe use project()/unproject()/applyProjection()
-        var eye = camera.position.clone().sub(target);
-        _rotate_end.crossVectors(camera.up, eye).setLength(xyz[0]);
-        _rotate_end.addScaledVector(camera.up, xyz[1] / camera.up.length());
-        _rotate_end.addScaledVector(eye, xyz[2] / eye.length());
-        break;
-      }
-      case STATE.ZOOM:
-      case STATE.SLAB:
-      case STATE.ROLL:
-        _zoom_end = [x, y];
-        break;
-      case STATE.PAN:
-        _pan_end = [x, y];
-        break;
-      case STATE.PAN_ZOOM:
-        if (dist == null) { return; } // should not happen
-        _pan_end = [x, y];
-        _pinch_end = dist;
-        break;
-    }
-  };
+// returned coordinates can be used for atom picking
+Controls.prototype.stop = function stop () {
+  var ret = null;
+  if (this._state === STATE.PAN && !this._panned) { ret = this._pan_end; }
+  this._state = STATE.NONE;
+  this._rotate_start.copy(this._rotate_end);
+  this._pinch_start = this._pinch_end;
+  this._pan_start[0] = this._pan_end[0];
+  this._pan_start[1] = this._pan_end[1];
+  return ret;
+};
 
-  // returned coordinates can be used for atom picking
-  this.stop = function () {
-    var ret = null;
-    if (_state === STATE.PAN && !_panned) { ret = _pan_end; }
-    _state = STATE.NONE;
-    _rotate_start.copy(_rotate_end);
-    _pinch_start = _pinch_end;
-    _pan_start = _pan_end.slice();
-    return ret;
-  };
-
-  this.go_to = function (targ, cam_pos, cam_up, steps) {
-    if (targ instanceof Array) {
-      targ = new Vector3(targ[0], targ[1], targ[2]);
+Controls.prototype.go_to = function go_to (targ /*:Vector3*/, cam_pos /*:Vector3*/, cam_up /*:Vector3*/,
+      steps /*:?number*/) {
+  if (targ instanceof Array) {
+    targ = new Vector3(targ[0], targ[1], targ[2]);
+  }
+  if ((!targ || targ.distanceToSquared(this._target) < 0.001) &&
+      (!cam_pos || cam_pos.distanceToSquared(this._camera.position) < 0.1) &&
+      (!cam_up || cam_up.distanceToSquared(this._camera.up) < 0.1)) {
+    return;
+  }
+  this._state = STATE.GO;
+  steps = (steps || 60) / auto_speed;
+  var alphas = [];
+  var prev_pos = 0;
+  for (var i = 1; i <= steps; ++i) {
+    var pos = i / steps;
+    // quadratic easing
+    pos = pos < 0.5 ? 2 * pos * pos : -2 * pos * (pos-2) - 1;
+    alphas.push((pos - prev_pos) / (1 - prev_pos));
+    prev_pos = pos;
+  }
+  this._go_func = function () {
+    var a = alphas.shift();
+    if (targ) {
+      // unspecified cam_pos - _camera stays in the same distance to _target
+      if (!cam_pos) { this._camera.position.sub(this._target); }
+      this._target.lerp(targ, a);
+      if (!cam_pos) { this._camera.position.add(this._target); }
     }
-    if ((!targ || targ.distanceToSquared(target) < 0.001) &&
-        (!cam_pos || cam_pos.distanceToSquared(camera.position) < 0.1) &&
-        (!cam_up || cam_up.distanceToSquared(camera.up) < 0.1)) {
-      return;
+    if (cam_pos) { this._camera.position.lerp(cam_pos, a); }
+    if (cam_up) { this._camera.up.lerp(cam_up, a); }
+    if (alphas.length === 0) {
+      this._state = STATE.NONE;
+      this._go_func = null;
     }
-    _state = STATE.GO;
-    steps = (steps || 60) / auto_speed;
-    var alphas = [];
-    var prev_pos = 0;
-    for (var i = 1; i <= steps; ++i) {
-      var pos = i / steps;
-      // quadratic easing
-      pos = pos < 0.5 ? 2 * pos * pos : -2 * pos * (pos-2) - 1;
-      alphas.push((pos - prev_pos) / (1 - prev_pos));
-      prev_pos = pos;
-    }
-    _go_func = function () {
-      var a = alphas.shift();
-      if (targ) {
-        // unspecified cam_pos - camera stays in the same distance to target
-        if (!cam_pos) { camera.position.sub(target); }
-        target.lerp(targ, a);
-        if (!cam_pos) { camera.position.add(target); }
-      }
-      if (cam_pos) { camera.position.lerp(cam_pos, a); }
-      if (cam_up) { camera.up.lerp(cam_up, a); }
-      if (alphas.length === 0) {
-        _state = STATE.NONE;
-        _go_func = null;
-      }
-    };
   };
 };
 
