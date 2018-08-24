@@ -93,9 +93,6 @@ let TriangleFanDrawMode = 2;
 
 let _Math = {
 
-  DEG2RAD: Math.PI / 180,
-  RAD2DEG: 180 / Math.PI,
-
   generateUUID: function () {
     // http://www.broofa.com/Tools/Math.uuid.htm
 
@@ -278,47 +275,6 @@ Quaternion.prototype = {
     return this;
   },
 
-};
-
-/**
-* @author mrdoob / http://mrdoob.com/
-* @author philogb / http://blog.thejit.org/
-* @author egraether / http://egraether.com/
-* @author zz85 / http://www.lab4games.net/zz85/blog
-*/
-
-function Vector2( x, y ) {
-  this.x = x || 0;
-  this.y = y || 0;
-}
-
-Vector2.prototype = {
-
-  constructor: Vector2,
-
-  isVector2: true,
-
-  set: function ( x, y ) {
-    this.x = x;
-    this.y = y;
-
-    return this;
-  },
-
-  clone: function () {
-    return new this.constructor( this.x, this.y );
-  },
-
-  copy: function ( v ) {
-    this.x = v.x;
-    this.y = v.y;
-
-    return this;
-  },
-
-  equals: function ( v ) {
-    return ( ( v.x === this.x ) && ( v.y === this.y ) );
-  },
 };
 
 /**
@@ -1346,7 +1302,7 @@ let UniformsUtils = {
 
         if ( parameter_src && ( parameter_src.isColor ||
         parameter_src.isMatrix3 || parameter_src.isMatrix4 ||
-        parameter_src.isVector2 || parameter_src.isVector3 || parameter_src.isVector4 ||
+        parameter_src.isVector3 || parameter_src.isVector4 ||
         parameter_src.isTexture ) ) {
           uniforms_dst[u][p] = parameter_src.clone();
         } else if ( Array.isArray( parameter_src ) ) {
@@ -2829,10 +2785,6 @@ function WebGLGeometries( gl, properties, info ) {
     properties.delete( geometry );
 
     properties.delete( buffergeometry );
-
-    //
-
-    info.memory.geometries --;
   }
 
   function getAttributeBuffer( attribute ) {
@@ -2882,8 +2834,6 @@ function WebGLGeometries( gl, properties, info ) {
       }
 
       geometries[geometry.id] = buffergeometry;
-
-      info.memory.geometries ++;
 
       return buffergeometry;
     },
@@ -3014,10 +2964,6 @@ function WebGLObjects( gl, properties, info ) {
 */
 
 function WebGLTextures( _gl, extensions, state, properties, capabilities, paramThreeToGL, info ) {
-  let _infoMemory = info.memory;
-
-  //
-
   function clampToMaxSize( image, maxSize ) {
     if ( image.width > maxSize || image.height > maxSize ) {
       // Warning: Scaling through the canvas will only work with images that use
@@ -3084,8 +3030,6 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, paramT
     texture.removeEventListener( 'dispose', onTextureDispose );
 
     deallocateTexture( texture );
-
-    _infoMemory.textures --;
   }
 
   //
@@ -3163,8 +3107,6 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, paramT
       texture.addEventListener( 'dispose', onTextureDispose );
 
       textureProperties.__webglTexture = _gl.createTexture();
-
-      _infoMemory.textures ++;
     }
 
     state.activeTexture( _gl.TEXTURE0 + slot );
@@ -3825,12 +3767,6 @@ function WebGLRenderer( parameters ) {
   this.info = {
 
     render: _infoRender,
-    memory: {
-
-      geometries: 0,
-      textures: 0,
-
-    },
     programs: null,
 
   };
@@ -4887,9 +4823,9 @@ Raycaster.prototype = {
 
   linePrecision: 1,
 
-  setFromCamera: function ( coords, camera ) {
+  setFromCamera: function ( coords/*:[number,number]*/, camera ) {
     if ( (camera && camera.isOrthographicCamera) ) {
-      this.ray.origin.set( coords.x, coords.y, ( camera.near + camera.far ) / ( camera.near - camera.far ) ).unproject( camera ); // set origin in plane of camera
+      this.ray.origin.set( coords[0], coords[1], ( camera.near + camera.far ) / ( camera.near - camera.far ) ).unproject( camera ); // set origin in plane of camera
       this.ray.direction.set( 0, 0, - 1 ).transformDirection( camera.matrixWorld );
     } else {
       console.error( 'THREE.Raycaster: Unsupported camera type.' );
@@ -5107,7 +5043,6 @@ export {
   Ray,
   Matrix4,
   Vector3,
-  Vector2,
   Quaternion,
   Color,
   CatmullRomCurve3,

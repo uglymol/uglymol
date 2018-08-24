@@ -1,6 +1,6 @@
 // @flow
 
-import { OrthographicCamera, Scene, AmbientLight, Color, Vector2, Vector3,
+import { OrthographicCamera, Scene, AmbientLight, Color, Vector3,
          Object3D, Raycaster, WebGLRenderer, Fog } from './fromthree.js';
 
 import { makeLineMaterial, makeLineSegments, makeLine, makeRibbon,
@@ -533,7 +533,7 @@ export class Viewer {
     this.request_render();
   }
 
-  pick_atom(coords/*:Vector2*/, camera/*:OrthographicCamera*/) {
+  pick_atom(coords/*:[number,number]*/, camera/*:OrthographicCamera*/) {
     for (const bag of this.model_bags) {
       if (!bag.visible) continue;
       this.raycaster.setFromCamera(coords, camera);
@@ -1171,7 +1171,7 @@ export class Viewer {
       this.remove_and_dispose(this.decor.selection);
       this.decor.selection = null;
     }
-    const mouse = new Vector2(this.relX(event), this.relY(event));
+    const mouse = [this.relX(event), this.relY(event)];
     const pick = this.pick_atom(mouse, this.camera);
     if (pick) {
       const atom = pick.atom;

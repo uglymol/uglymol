@@ -1,6 +1,6 @@
 // @flow
 
-import { Vector2, Vector3, Quaternion } from './fromthree.js';
+import { Vector3, Quaternion } from './fromthree.js';
 
 /*:: import type {OrthographicCamera} from './fromthree.js' */
 
@@ -39,12 +39,12 @@ export class Controls {
     let _state = STATE.NONE;
     let _rotate_start = new Vector3();
     let _rotate_end = new Vector3();
-    let _zoom_start = new Vector2();
-    let _zoom_end = new Vector2();
+    let _zoom_start = [0, 0];
+    let _zoom_end = [0, 0];
     let _pinch_start = 0;
     let _pinch_end = 0;
-    let _pan_start = new Vector2();
-    let _pan_end = new Vector2();
+    let _pan_start = [0, 0];
+    let _pan_end = [0, 0];
     let _panned = true;
     let _rotating = null;
     let _auto_stamp = null;
@@ -63,8 +63,8 @@ export class Controls {
     }
 
     function zoom_camera(eye) {
-      const dx = _zoom_end.x - _zoom_start.x;
-      const dy = _zoom_end.y - _zoom_start.y;
+      const dx = _zoom_end[0] - _zoom_start[0];
+      const dy = _zoom_end[1] - _zoom_start[1];
       if (_state === STATE.ZOOM) {
         camera.zoom /= (1 - dx + dy);
       } else if (_state === STATE.SLAB) {
@@ -72,20 +72,20 @@ export class Controls {
       } else if (_state === STATE.ROLL) {
         camera.up.applyAxisAngle(eye, 0.05 * (dx - dy));
       }
-      _zoom_start.copy(_zoom_end);
+      _zoom_start = _zoom_end.slice();
       return _state === STATE.SLAB ? 10*dx : null;
     }
 
     function pan_camera(eye) {
-      let dx = _pan_end.x - _pan_start.x;
-      let dy = _pan_end.y - _pan_start.y;
+      let dx = _pan_end[0] - _pan_start[0];
+      let dy = _pan_end[1] - _pan_start[1];
       dx *= 0.5 * (camera.right - camera.left) / camera.zoom;
       dy *= 0.5 * (camera.bottom - camera.top) / camera.zoom;
       let pan = eye.clone().cross(camera.up).setLength(dx);
       pan.addScaledVector(camera.up, dy / camera.up.length());
       camera.position.add(pan);
       target.add(pan);
-      _pan_start.copy(_pan_end);
+      _pan_start = _pan_end.slice();
     }
 
     this.toggle_auto = function (param) {
@@ -133,7 +133,7 @@ export class Controls {
         _pinch_start = _pinch_end;
         changed = true;
       }
-      if (!_zoom_end.equals(_zoom_start)) {
+      if (_zoom_end[0] !== _zoom_start[0] || _zoom_end[1] !== _zoom_start[1]) {
         const dslab = zoom_camera(eye);
         if (dslab) {
           this.slab_width[0] = Math.max(this.slab_width[0] + dslab, 0.01);
@@ -141,7 +141,7 @@ export class Controls {
         }
         changed = true;
       }
-      if (!_pan_end.equals(_pan_start)) {
+      if (_pan_end[0] !== _pan_start[0] || _pan_end[1] !== _pan_start[1]) {
         pan_camera(eye);
         _panned = true;
         changed = true;
@@ -167,15 +167,15 @@ export class Controls {
         case STATE.ZOOM:
         case STATE.SLAB:
         case STATE.ROLL:
-          _zoom_start.copy(_zoom_end);
+          _zoom_start = _zoom_end.slice();
           break;
         case STATE.PAN:
-          _pan_start.copy(_pan_end);
+          _pan_start = _pan_end.slice();
           _panned = false;
           break;
         case STATE.PAN_ZOOM:
           _pinch_start = _pinch_end;
-          _pan_start.copy(_pan_end);
+          _pan_start = _pan_end.slice();
           break;
       }
     };
@@ -196,26 +196,27 @@ export class Controls {
         case STATE.ZOOM:
         case STATE.SLAB:
         case STATE.ROLL:
-          _zoom_end.set(x, y);
+          _zoom_end = [x, y];
           break;
         case STATE.PAN:
-          _pan_end.set(x, y);
+          _pan_end = [x, y];
           break;
         case STATE.PAN_ZOOM:
           if (dist == null) return; // should not happen
-          _pan_end.set(x, y);
+          _pan_end = [x, y];
           _pinch_end = dist;
           break;
       }
     };
 
+    // returned coordinates can be used for atom picking
     this.stop = function () {
       let ret = null;
-      if (_state === STATE.PAN && !_panned) ret = _pan_start;
+      if (_state === STATE.PAN && !_panned) ret = _pan_end;
       _state = STATE.NONE;
       _rotate_start.copy(_rotate_end);
       _pinch_start = _pinch_end;
-      _pan_start.copy(_pan_end);
+      _pan_start = _pan_end.slice();
       return ret;
     };
 

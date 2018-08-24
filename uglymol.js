@@ -1,5 +1,5 @@
 /*!
- * UglyMol v0.5.8. Macromolecular Viewer for Crystallographers.
+ * UglyMol v0.6.0. Macromolecular Viewer for Crystallographers.
  * Copyright 2014 Nat Echols
  * Copyright 2016 Diamond Light Source Ltd
  * Copyright 2016 Marcin Wojdyr
@@ -11,7 +11,7 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 (factory((global.UM = {})));
 }(this, (function (exports) { 'use strict';
 
-var VERSION = exports.VERSION = '0.5.8';
+var VERSION = exports.VERSION = '0.6.0';
 
 
 // @flow
@@ -1611,9 +1611,6 @@ var TriangleFanDrawMode = 2;
 
 var _Math = {
 
-  DEG2RAD: Math.PI / 180,
-  RAD2DEG: 180 / Math.PI,
-
   generateUUID: function () {
     // http://www.broofa.com/Tools/Math.uuid.htm
 
@@ -1796,47 +1793,6 @@ Quaternion.prototype = {
     return this;
   },
 
-};
-
-/**
-* @author mrdoob / http://mrdoob.com/
-* @author philogb / http://blog.thejit.org/
-* @author egraether / http://egraether.com/
-* @author zz85 / http://www.lab4games.net/zz85/blog
-*/
-
-function Vector2( x, y ) {
-  this.x = x || 0;
-  this.y = y || 0;
-}
-
-Vector2.prototype = {
-
-  constructor: Vector2,
-
-  isVector2: true,
-
-  set: function ( x, y ) {
-    this.x = x;
-    this.y = y;
-
-    return this;
-  },
-
-  clone: function () {
-    return new this.constructor( this.x, this.y );
-  },
-
-  copy: function ( v ) {
-    this.x = v.x;
-    this.y = v.y;
-
-    return this;
-  },
-
-  equals: function ( v ) {
-    return ( ( v.x === this.x ) && ( v.y === this.y ) );
-  },
 };
 
 /**
@@ -2860,7 +2816,7 @@ var UniformsUtils = {
 
         if ( parameter_src && ( parameter_src.isColor ||
         parameter_src.isMatrix3 || parameter_src.isMatrix4 ||
-        parameter_src.isVector2 || parameter_src.isVector3 || parameter_src.isVector4 ||
+        parameter_src.isVector3 || parameter_src.isVector4 ||
         parameter_src.isTexture ) ) {
           uniforms_dst[u][p] = parameter_src.clone();
         } else if ( Array.isArray( parameter_src ) ) {
@@ -4248,10 +4204,6 @@ function WebGLGeometries( gl, properties, info ) {
     properties.delete( geometry );
 
     properties.delete( buffergeometry );
-
-    //
-
-    info.memory.geometries --;
   }
 
   function getAttributeBuffer( attribute ) {
@@ -4301,8 +4253,6 @@ function WebGLGeometries( gl, properties, info ) {
       }
 
       geometries[geometry.id] = buffergeometry;
-
-      info.memory.geometries ++;
 
       return buffergeometry;
     },
@@ -4433,10 +4383,6 @@ function WebGLObjects( gl, properties, info ) {
 */
 
 function WebGLTextures( _gl, extensions, state, properties, capabilities, paramThreeToGL, info ) {
-  var _infoMemory = info.memory;
-
-  //
-
   function clampToMaxSize( image, maxSize ) {
     if ( image.width > maxSize || image.height > maxSize ) {
       // Warning: Scaling through the canvas will only work with images that use
@@ -4503,8 +4449,6 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, paramT
     texture.removeEventListener( 'dispose', onTextureDispose );
 
     deallocateTexture( texture );
-
-    _infoMemory.textures --;
   }
 
   //
@@ -4582,8 +4526,6 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, paramT
       texture.addEventListener( 'dispose', onTextureDispose );
 
       textureProperties.__webglTexture = _gl.createTexture();
-
-      _infoMemory.textures ++;
     }
 
     state.activeTexture( _gl.TEXTURE0 + slot );
@@ -5244,12 +5186,6 @@ function WebGLRenderer( parameters ) {
   this.info = {
 
     render: _infoRender,
-    memory: {
-
-      geometries: 0,
-      textures: 0,
-
-    },
     programs: null,
 
   };
@@ -6306,9 +6242,9 @@ Raycaster.prototype = {
 
   linePrecision: 1,
 
-  setFromCamera: function ( coords, camera ) {
+  setFromCamera: function ( coords/*:[number,number]*/, camera ) {
     if ( (camera && camera.isOrthographicCamera) ) {
-      this.ray.origin.set( coords.x, coords.y, ( camera.near + camera.far ) / ( camera.near - camera.far ) ).unproject( camera ); // set origin in plane of camera
+      this.ray.origin.set( coords[0], coords[1], ( camera.near + camera.far ) / ( camera.near - camera.far ) ).unproject( camera ); // set origin in plane of camera
       this.ray.direction.set( 0, 0, - 1 ).transformDirection( camera.matrixWorld );
     } else {
       console.error( 'THREE.Raycaster: Unsupported camera type.' );
@@ -7217,12 +7153,12 @@ var Controls = function Controls(camera /*:OrthographicCamera*/, target /*:Vecto
   var _state = STATE.NONE;
   var _rotate_start = new Vector3();
   var _rotate_end = new Vector3();
-  var _zoom_start = new Vector2();
-  var _zoom_end = new Vector2();
+  var _zoom_start = [0, 0];
+  var _zoom_end = [0, 0];
   var _pinch_start = 0;
   var _pinch_end = 0;
-  var _pan_start = new Vector2();
-  var _pan_end = new Vector2();
+  var _pan_start = [0, 0];
+  var _pan_end = [0, 0];
   var _panned = true;
   var _rotating = null;
   var _auto_stamp = null;
@@ -7241,8 +7177,8 @@ var Controls = function Controls(camera /*:OrthographicCamera*/, target /*:Vecto
   }
 
   function zoom_camera(eye) {
-    var dx = _zoom_end.x - _zoom_start.x;
-    var dy = _zoom_end.y - _zoom_start.y;
+    var dx = _zoom_end[0] - _zoom_start[0];
+    var dy = _zoom_end[1] - _zoom_start[1];
     if (_state === STATE.ZOOM) {
       camera.zoom /= (1 - dx + dy);
     } else if (_state === STATE.SLAB) {
@@ -7250,20 +7186,20 @@ var Controls = function Controls(camera /*:OrthographicCamera*/, target /*:Vecto
     } else if (_state === STATE.ROLL) {
       camera.up.applyAxisAngle(eye, 0.05 * (dx - dy));
     }
-    _zoom_start.copy(_zoom_end);
+    _zoom_start = _zoom_end.slice();
     return _state === STATE.SLAB ? 10*dx : null;
   }
 
   function pan_camera(eye) {
-    var dx = _pan_end.x - _pan_start.x;
-    var dy = _pan_end.y - _pan_start.y;
+    var dx = _pan_end[0] - _pan_start[0];
+    var dy = _pan_end[1] - _pan_start[1];
     dx *= 0.5 * (camera.right - camera.left) / camera.zoom;
     dy *= 0.5 * (camera.bottom - camera.top) / camera.zoom;
     var pan = eye.clone().cross(camera.up).setLength(dx);
     pan.addScaledVector(camera.up, dy / camera.up.length());
     camera.position.add(pan);
     target.add(pan);
-    _pan_start.copy(_pan_end);
+    _pan_start = _pan_end.slice();
   }
 
   this.toggle_auto = function (param) {
@@ -7311,7 +7247,7 @@ var Controls = function Controls(camera /*:OrthographicCamera*/, target /*:Vecto
       _pinch_start = _pinch_end;
       changed = true;
     }
-    if (!_zoom_end.equals(_zoom_start)) {
+    if (_zoom_end[0] !== _zoom_start[0] || _zoom_end[1] !== _zoom_start[1]) {
       var dslab = zoom_camera(eye);
       if (dslab) {
         this.slab_width[0] = Math.max(this.slab_width[0] + dslab, 0.01);
@@ -7319,7 +7255,7 @@ var Controls = function Controls(camera /*:OrthographicCamera*/, target /*:Vecto
       }
       changed = true;
     }
-    if (!_pan_end.equals(_pan_start)) {
+    if (_pan_end[0] !== _pan_start[0] || _pan_end[1] !== _pan_start[1]) {
       pan_camera(eye);
       _panned = true;
       changed = true;
@@ -7345,15 +7281,15 @@ var Controls = function Controls(camera /*:OrthographicCamera*/, target /*:Vecto
       case STATE.ZOOM:
       case STATE.SLAB:
       case STATE.ROLL:
-        _zoom_start.copy(_zoom_end);
+        _zoom_start = _zoom_end.slice();
         break;
       case STATE.PAN:
-        _pan_start.copy(_pan_end);
+        _pan_start = _pan_end.slice();
         _panned = false;
         break;
       case STATE.PAN_ZOOM:
         _pinch_start = _pinch_end;
-        _pan_start.copy(_pan_end);
+        _pan_start = _pan_end.slice();
         break;
     }
   };
@@ -7374,26 +7310,27 @@ var Controls = function Controls(camera /*:OrthographicCamera*/, target /*:Vecto
       case STATE.ZOOM:
       case STATE.SLAB:
       case STATE.ROLL:
-        _zoom_end.set(x, y);
+        _zoom_end = [x, y];
         break;
       case STATE.PAN:
-        _pan_end.set(x, y);
+        _pan_end = [x, y];
         break;
       case STATE.PAN_ZOOM:
         if (dist == null) { return; } // should not happen
-        _pan_end.set(x, y);
+        _pan_end = [x, y];
         _pinch_end = dist;
         break;
     }
   };
 
+  // returned coordinates can be used for atom picking
   this.stop = function () {
     var ret = null;
-    if (_state === STATE.PAN && !_panned) { ret = _pan_start; }
+    if (_state === STATE.PAN && !_panned) { ret = _pan_end; }
     _state = STATE.NONE;
     _rotate_start.copy(_rotate_end);
     _pinch_start = _pinch_end;
-    _pan_start.copy(_pan_end);
+    _pan_start = _pan_end.slice();
     return ret;
   };
 
@@ -7907,7 +7844,7 @@ var Viewer = function Viewer(options /*: {[key: string]: any}*/) {
   this.request_render();
 };
 
-Viewer.prototype.pick_atom = function pick_atom (coords/*:Vector2*/, camera/*:OrthographicCamera*/) {
+Viewer.prototype.pick_atom = function pick_atom (coords/*:[number,number]*/, camera/*:OrthographicCamera*/) {
   for (var i = 0, list = this.model_bags; i < list.length; i += 1) {
     var bag = list[i];
 
@@ -8565,7 +8502,7 @@ Viewer.prototype.dblclick = function dblclick (event/*:MouseEvent*/) {
     this.remove_and_dispose(this.decor.selection);
     this.decor.selection = null;
   }
-  var mouse = new Vector2(this.relX(event), this.relY(event));
+  var mouse = [this.relX(event), this.relY(event)];
   var pick = this.pick_atom(mouse, this.camera);
   if (pick) {
     var atom = pick.atom;
@@ -9485,7 +9422,6 @@ exports.ShaderMaterial = ShaderMaterial;
 exports.Matrix4 = Matrix4;
 exports.CatmullRomCurve3 = CatmullRomCurve3;
 exports.Texture = Texture;
-exports.Vector2 = Vector2;
 exports.VertexColors = VertexColors;
 exports.BufferGeometry = BufferGeometry;
 exports.Raycaster = Raycaster;
