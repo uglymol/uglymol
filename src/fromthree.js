@@ -93,11 +93,6 @@ let _Math = {
   euclideanModulo: function ( n, m ) {
     return ( ( n % m ) + m ) % m;
   },
-
-  isPowerOfTwo: function ( value ) {
-    return ( value & ( value - 1 ) ) === 0 && value !== 0;
-  },
-
 };
 
 /**
@@ -947,11 +942,6 @@ function Texture( image ) {
   this.name = '';
 
   this.image = image;
-
-  this.generateMipmaps = true;
-  this.premultiplyAlpha = false;
-  this.flipY = true;
-  this.unpackAlignment = 4; // valid values: 1, 2, 4, 8 (see http://www.khronos.org/opengles/sdk/docs/man/xhtml/glPixelStorei.xml)
 
   this.version = 0;
 }
@@ -2353,7 +2343,7 @@ function WebGLProgram( renderer, code, material, parameters ) {
 
       '#define SHADER_NAME ' + material.__webglShader.name,
 
-    parameters.vertexColors ? '#define USE_COLOR' : '',
+      parameters.vertexColors ? '#define USE_COLOR' : '',
 
       'uniform mat4 modelMatrix;',
       'uniform mat4 modelViewMatrix;',
@@ -2383,17 +2373,13 @@ function WebGLProgram( renderer, code, material, parameters ) {
 
       '#define SHADER_NAME ' + material.__webglShader.name,
 
-    ( parameters.useFog && parameters.fog ) ? '#define USE_FOG' : '',
+      ( parameters.useFog && parameters.fog ) ? '#define USE_FOG' : '',
 
-    parameters.vertexColors ? '#define USE_COLOR' : '',
+      parameters.vertexColors ? '#define USE_COLOR' : '',
 
       'uniform mat4 viewMatrix;',
       'uniform vec3 cameraPosition;',
-
-    parameters.depthPacking ? '#define DEPTH_PACKING ' + material.depthPacking : '',
-
       '\n',
-
     ].join( '\n' );
   }
 
@@ -2518,15 +2504,11 @@ function WebGLPrograms( renderer, capabilities ) {
 
   let parameterNames = [
     'precision',
-    'combine', 'vertexColors', 'fog', 'useFog',
+    'vertexColors', 'fog', 'useFog',
     'premultipliedAlpha',
-    'depthPacking',
   ];
 
   this.getParameters = function ( material, fog, object ) {
-    // heuristics to create shader parameters according to lights in the scene
-    // (not to blow over maxLights budget)
-
     let precision = renderer.getPrecision();
 
     if ( material.precision !== null ) {
@@ -2538,20 +2520,11 @@ function WebGLPrograms( renderer, capabilities ) {
     }
 
     let parameters = {
-
       precision: precision,
-
-      combine: material.combine,
-
       vertexColors: material.vertexColors,
-
       fog: !! fog,
       useFog: material.fog,
-
       premultipliedAlpha: material.premultipliedAlpha,
-
-      depthPacking: ( material.depthPacking !== undefined ) ? material.depthPacking : false,
-
     };
 
     return parameters;
@@ -2802,34 +2775,6 @@ function WebGLObjects( gl, properties, info ) {
 */
 
 function WebGLTextures( _gl, extensions, state, properties, capabilities, info ) {
-  function clampToMaxSize( image, maxSize ) {
-    if ( image.width > maxSize || image.height > maxSize ) {
-      // Warning: Scaling through the canvas will only work with images that use
-      // premultiplied alpha.
-
-      let scale = maxSize / Math.max( image.width, image.height );
-
-      let canvas = document.createElementNS( 'http://www.w3.org/1999/xhtml', 'canvas' );
-      canvas.width = Math.floor( image.width * scale );
-      canvas.height = Math.floor( image.height * scale );
-
-      let context = canvas.getContext( '2d' );
-      context.drawImage( image, 0, 0, image.width, image.height, 0, 0, canvas.width, canvas.height );
-
-      console.warn( 'THREE.WebGLRenderer: image is too big (' + image.width + 'x' + image.height + '). Resized to ' + canvas.width + 'x' + canvas.height, image );
-
-      return canvas;
-    }
-
-    return image;
-  }
-
-  function isPowerOfTwo( image ) {
-    return _Math.isPowerOfTwo( image.width ) && _Math.isPowerOfTwo( image.height );
-  }
-
-  //
-
   function onTextureDispose( event ) {
     let texture = event.target;
 
@@ -2874,7 +2819,7 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, info )
     state.bindTexture( _gl.TEXTURE_2D, textureProperties.__webglTexture );
   }
 
-  function setTextureParameters( textureType, texture, isPowerOfTwoImage ) {
+  function setTextureParameters( textureType, texture ) {
     _gl.texParameteri( textureType, _gl.TEXTURE_WRAP_S, _gl.CLAMP_TO_EDGE );
     _gl.texParameteri( textureType, _gl.TEXTURE_WRAP_T, _gl.CLAMP_TO_EDGE );
     _gl.texParameteri( textureType, _gl.TEXTURE_MAG_FILTER, _gl.LINEAR );
@@ -2893,21 +2838,20 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, info )
     state.activeTexture( _gl.TEXTURE0 + slot );
     state.bindTexture( _gl.TEXTURE_2D, textureProperties.__webglTexture );
 
-    _gl.pixelStorei( _gl.UNPACK_FLIP_Y_WEBGL, texture.flipY );
-    _gl.pixelStorei( _gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, texture.premultiplyAlpha );
-    _gl.pixelStorei( _gl.UNPACK_ALIGNMENT, texture.unpackAlignment );
+    _gl.pixelStorei( _gl.UNPACK_FLIP_Y_WEBGL, true );
+    _gl.pixelStorei( _gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false );
+    _gl.pixelStorei( _gl.UNPACK_ALIGNMENT, 4 );
 
-    let image = clampToMaxSize( texture.image, capabilities.maxTextureSize );
+    let image = texture.image;
 
-    let isPowerOfTwoImage = isPowerOfTwo( image );
     let glFormat = _gl.RGBA;
     let glType = _gl.UNSIGNED_BYTE;
 
-    setTextureParameters( _gl.TEXTURE_2D, texture, isPowerOfTwoImage );
+    setTextureParameters( _gl.TEXTURE_2D, texture );
 
     state.texImage2D( _gl.TEXTURE_2D, 0, glFormat, glFormat, glType, image );
 
-    if ( texture.generateMipmaps && isPowerOfTwoImage ) _gl.generateMipmap( _gl.TEXTURE_2D );
+    _gl.generateMipmap( _gl.TEXTURE_2D );
 
     textureProperties.__version = texture.version;
   }
@@ -3024,7 +2968,6 @@ function WebGLState( gl, extensions ) {
   let maxVertexAttributes = gl.getParameter( gl.MAX_VERTEX_ATTRIBS );
   let newAttributes = new Uint8Array( maxVertexAttributes );
   let enabledAttributes = new Uint8Array( maxVertexAttributes );
-  let attributeDivisors = new Uint8Array( maxVertexAttributes );
 
   let capabilities = {};
 
@@ -3086,13 +3029,6 @@ function WebGLState( gl, extensions ) {
     if ( enabledAttributes[attribute] === 0 ) {
       gl.enableVertexAttribArray( attribute );
       enabledAttributes[attribute] = 1;
-    }
-
-    if ( attributeDivisors[attribute] !== 0 ) {
-      let extension = extensions.get( 'ANGLE_instanced_arrays' );
-
-      extension.vertexAttribDivisorANGLE( attribute, 0 );
-      attributeDivisors[attribute] = 0;
     }
   }
 
@@ -3165,8 +3101,6 @@ function WebGLState( gl, extensions ) {
   // texture
 
   function activeTexture( webglSlot ) {
-    if ( webglSlot === undefined ) webglSlot = gl.TEXTURE0 + maxTextures - 1;
-
     if ( currentTextureSlot !== webglSlot ) {
       gl.activeTexture( webglSlot );
       currentTextureSlot = webglSlot;
@@ -3174,12 +3108,7 @@ function WebGLState( gl, extensions ) {
   }
 
   function bindTexture( webglType, webglTexture ) {
-    if ( currentTextureSlot === null ) {
-      activeTexture();
-    }
-
     let boundTexture = currentBoundTextures[currentTextureSlot];
-
     if ( boundTexture === undefined ) {
       boundTexture = { type: undefined, texture: undefined };
       currentBoundTextures[currentTextureSlot] = boundTexture;
@@ -3275,37 +3204,11 @@ function WebGLCapabilities( gl, extensions, parameters ) {
   }
 
   let maxTextures = gl.getParameter( gl.MAX_TEXTURE_IMAGE_UNITS );
-  let maxVertexTextures = gl.getParameter( gl.MAX_VERTEX_TEXTURE_IMAGE_UNITS );
-  let maxTextureSize = gl.getParameter( gl.MAX_TEXTURE_SIZE );
-
-  let maxAttributes = gl.getParameter( gl.MAX_VERTEX_ATTRIBS );
-  let maxVertexUniforms = gl.getParameter( gl.MAX_VERTEX_UNIFORM_VECTORS );
-  let maxVaryings = gl.getParameter( gl.MAX_VARYING_VECTORS );
-  let maxFragmentUniforms = gl.getParameter( gl.MAX_FRAGMENT_UNIFORM_VECTORS );
-
-  let vertexTextures = maxVertexTextures > 0;
-  let floatFragmentTextures = !! extensions.get( 'OES_texture_float' );
-  let floatVertexTextures = vertexTextures && floatFragmentTextures;
 
   return {
-
     getMaxPrecision: getMaxPrecision,
-
     precision: precision,
-
     maxTextures: maxTextures,
-    maxVertexTextures: maxVertexTextures,
-    maxTextureSize: maxTextureSize,
-
-    maxAttributes: maxAttributes,
-    maxVertexUniforms: maxVertexUniforms,
-    maxVaryings: maxVaryings,
-    maxFragmentUniforms: maxFragmentUniforms,
-
-    vertexTextures: vertexTextures,
-    floatFragmentTextures: floatFragmentTextures,
-    floatVertexTextures: floatVertexTextures,
-
   };
 }
 
@@ -3365,8 +3268,6 @@ function WebGLRenderer( parameters ) {
     _premultipliedAlpha = parameters.premultipliedAlpha !== undefined ? parameters.premultipliedAlpha : true,
     _preserveDrawingBuffer = parameters.preserveDrawingBuffer !== undefined ? parameters.preserveDrawingBuffer : false;
 
-  let lights = [];
-
   let opaqueObjects = [];
   let opaqueObjectsLastIndex = - 1;
   let transparentObjects = [];
@@ -3423,10 +3324,6 @@ function WebGLRenderer( parameters ) {
     _projScreenMatrix = new Matrix4(),
 
     _vector3 = new Vector3(),
-
-    // light arrays cache
-
-    _ambient_light = [0, 0, 0],
 
     // info
 
@@ -3849,8 +3746,6 @@ function WebGLRenderer( parameters ) {
 
     _projScreenMatrix.multiplyMatrices( camera.projectionMatrix, camera.matrixWorldInverse );
 
-    lights.length = 0;
-
     opaqueObjectsLastIndex = - 1;
     transparentObjectsLastIndex = - 1;
 
@@ -3862,13 +3757,6 @@ function WebGLRenderer( parameters ) {
     if ( _this.sortObjects === true ) {
       opaqueObjects.sort( painterSortStable );
       transparentObjects.sort( reversePainterSortStable );
-    }
-
-    //
-    if ( lights[0] && lights[0].isAmbientLight ) {
-      _ambient_light[0] = lights[0].color.r;
-      _ambient_light[1] = lights[0].color.g;
-      _ambient_light[2] = lights[0].color.b;
     }
 
     //
@@ -3964,9 +3852,7 @@ function WebGLRenderer( parameters ) {
   function projectObject( object, camera ) {
     if ( object.visible === false ) return;
 
-    if ( object.isAmbientLight ) {
-      lights.push( object );
-    } else if ( object.isMesh || object.isLine || object.isPoints ) {
+    if ( object.isMesh || object.isLine || object.isPoints ) {
       let material = object.material;
 
       if ( material.visible === true ) {
@@ -4175,13 +4061,7 @@ function WebGLRenderer( parameters ) {
 
   function allocTextureUnit() {
     let textureUnit = _usedTextureUnits;
-
-    if ( textureUnit >= capabilities.maxTextures ) {
-      console.warn( 'WebGLRenderer: trying to use ' + textureUnit + ' texture units while this GPU supports only ' + capabilities.maxTextures );
-    }
-
     _usedTextureUnits += 1;
-
     return textureUnit;
   }
 
