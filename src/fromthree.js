@@ -1206,40 +1206,6 @@ WebGLUniforms.seqWithValue = function ( seq, values ) {
   return r;
 };
 
-/**
-* Uniform Utilities
-*/
-
-let UniformsUtils = {
-  clone: function ( uniforms_src ) {
-    let uniforms_dst = {};
-
-    for ( let u in uniforms_src ) {
-      uniforms_dst[u] = {};
-
-      for ( let p in uniforms_src[u] ) {
-        let parameter_src = uniforms_src[u][p];
-
-        if ( parameter_src && ( parameter_src.isColor ||
-        parameter_src.isMatrix3 || parameter_src.isMatrix4 ||
-        parameter_src.isVector3 || parameter_src.isVector4 ||
-        parameter_src.isTexture ) ) {
-          throw Error('unexpected');
-        } else if ( Array.isArray( parameter_src ) ) {
-          uniforms_dst[u][p] = parameter_src.slice();
-          throw Error('unexpected');
-        } else {
-          uniforms_dst[u][p] = parameter_src;
-        }
-      }
-    }
-
-    return uniforms_dst;
-  },
-
-};
-
-
 let fog_fragment = `
 #ifdef USE_FOG
 float depth = gl_FragCoord.z / gl_FragCoord.w;
@@ -1502,63 +1468,10 @@ Material.prototype = {
   },
 
   setValues: function ( values ) {
-    if ( values === undefined ) return;
-
     for ( let key in values ) {
       let newValue = values[key];
-
-      if ( newValue === undefined ) {
-        console.warn( 'THREE.Material: \'' + key + '\' parameter is undefined.' );
-        continue;
-      }
-
-      let currentValue = this[key];
-
-      if ( currentValue === undefined ) {
-        console.warn( 'THREE.' + this.type + ': \'' + key + '\' is not a property of this material.' );
-        continue;
-      }
-
-      if ( currentValue && currentValue.isColor ) {
-        currentValue.set( newValue );
-      } else if ( (currentValue && currentValue.isVector3) && (newValue && newValue.isVector3) ) {
-        currentValue.copy( newValue );
-      } else if ( key === 'overdraw' ) {
-        // ensure overdraw is backwards-compatible with legacy boolean type
-        this[key] = Number( newValue );
-      } else {
-        this[key] = newValue;
-      }
+      this[key] = newValue;
     }
-  },
-
-  clone: function () {
-    return new this.constructor().copy( this );
-  },
-
-  copy: function ( source ) {
-    this.name = source.name;
-
-    this.fog = source.fog;
-
-    this.vertexColors = source.vertexColors;
-
-    this.opacity = source.opacity;
-    this.transparent = source.transparent;
-
-    this.depthFunc = source.depthFunc;
-    this.depthTest = source.depthTest;
-    this.depthWrite = source.depthWrite;
-
-    this.precision = source.precision;
-
-    this.premultipliedAlpha = source.premultipliedAlpha;
-
-    this.overdraw = source.overdraw;
-
-    this.visible = source.visible;
-
-    return this;
   },
 
   update: function () {
@@ -1602,33 +1515,13 @@ function ShaderMaterial( parameters ) {
     fragDepth: false, // set to use fragment depth values
   };
 
-  if ( parameters !== undefined ) {
-    if ( parameters.attributes !== undefined ) {
-      console.error( 'THREE.ShaderMaterial: attributes should now be defined in THREE.BufferGeometry instead.' );
-    }
-
-    this.setValues( parameters );
-  }
+  this.setValues( parameters );
 }
 
 ShaderMaterial.prototype = Object.create( Material.prototype );
 ShaderMaterial.prototype.constructor = ShaderMaterial;
 
 ShaderMaterial.prototype.isShaderMaterial = true;
-
-ShaderMaterial.prototype.copy = function ( source ) {
-  Material.prototype.copy.call( this, source );
-
-  this.fragmentShader = source.fragmentShader;
-  this.vertexShader = source.vertexShader;
-
-  this.uniforms = UniformsUtils.clone( source.uniforms );
-
-  this.extensions = source.extensions;
-
-  return this;
-};
-
 
 /**
 * @author bhouston / http://clara.io
@@ -2975,8 +2868,6 @@ function WebGLState( gl, extensions ) {
   let currentPremultipledAlpha = false;
 
   let currentLineWidth = null;
-
-  let maxTextures = gl.getParameter( gl.MAX_TEXTURE_IMAGE_UNITS );
 
   let version = parseFloat( /^WebGL\ ([0-9])/.exec( gl.getParameter( gl.VERSION ) )[1] );
   let lineWidthAvailable = parseFloat( version ) >= 1.0;

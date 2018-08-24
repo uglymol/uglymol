@@ -2720,40 +2720,6 @@ WebGLUniforms.seqWithValue = function ( seq, values ) {
   return r;
 };
 
-/**
-* Uniform Utilities
-*/
-
-var UniformsUtils = {
-  clone: function ( uniforms_src ) {
-    var uniforms_dst = {};
-
-    for ( var u in uniforms_src ) {
-      uniforms_dst[u] = {};
-
-      for ( var p in uniforms_src[u] ) {
-        var parameter_src = uniforms_src[u][p];
-
-        if ( parameter_src && ( parameter_src.isColor ||
-        parameter_src.isMatrix3 || parameter_src.isMatrix4 ||
-        parameter_src.isVector3 || parameter_src.isVector4 ||
-        parameter_src.isTexture ) ) {
-          throw Error('unexpected');
-        } else if ( Array.isArray( parameter_src ) ) {
-          uniforms_dst[u][p] = parameter_src.slice();
-          throw Error('unexpected');
-        } else {
-          uniforms_dst[u][p] = parameter_src;
-        }
-      }
-    }
-
-    return uniforms_dst;
-  },
-
-};
-
-
 var fog_fragment = "\n#ifdef USE_FOG\nfloat depth = gl_FragCoord.z / gl_FragCoord.w;\nfloat fogFactor = smoothstep( fogNear, fogFar, depth );\ngl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );\n#endif\n";
 
 var fog_pars_fragment = "\n#ifdef USE_FOG\nuniform vec3 fogColor;\nuniform float fogNear;\nuniform float fogFar;\n#endif";
@@ -3005,63 +2971,10 @@ Material.prototype = {
   },
 
   setValues: function ( values ) {
-    if ( values === undefined ) { return; }
-
     for ( var key in values ) {
       var newValue = values[key];
-
-      if ( newValue === undefined ) {
-        console.warn( 'THREE.Material: \'' + key + '\' parameter is undefined.' );
-        continue;
-      }
-
-      var currentValue = this[key];
-
-      if ( currentValue === undefined ) {
-        console.warn( 'THREE.' + this.type + ': \'' + key + '\' is not a property of this material.' );
-        continue;
-      }
-
-      if ( currentValue && currentValue.isColor ) {
-        currentValue.set( newValue );
-      } else if ( (currentValue && currentValue.isVector3) && (newValue && newValue.isVector3) ) {
-        currentValue.copy( newValue );
-      } else if ( key === 'overdraw' ) {
-        // ensure overdraw is backwards-compatible with legacy boolean type
-        this[key] = Number( newValue );
-      } else {
-        this[key] = newValue;
-      }
+      this[key] = newValue;
     }
-  },
-
-  clone: function () {
-    return new this.constructor().copy( this );
-  },
-
-  copy: function ( source ) {
-    this.name = source.name;
-
-    this.fog = source.fog;
-
-    this.vertexColors = source.vertexColors;
-
-    this.opacity = source.opacity;
-    this.transparent = source.transparent;
-
-    this.depthFunc = source.depthFunc;
-    this.depthTest = source.depthTest;
-    this.depthWrite = source.depthWrite;
-
-    this.precision = source.precision;
-
-    this.premultipliedAlpha = source.premultipliedAlpha;
-
-    this.overdraw = source.overdraw;
-
-    this.visible = source.visible;
-
-    return this;
   },
 
   update: function () {
@@ -3105,32 +3018,13 @@ function ShaderMaterial( parameters ) {
     fragDepth: false, // set to use fragment depth values
   };
 
-  if ( parameters !== undefined ) {
-    if ( parameters.attributes !== undefined ) {
-      console.error( 'THREE.ShaderMaterial: attributes should now be defined in THREE.BufferGeometry instead.' );
-    }
-
-    this.setValues( parameters );
-  }
+  this.setValues( parameters );
 }
 
 ShaderMaterial.prototype = Object.create( Material.prototype );
 ShaderMaterial.prototype.constructor = ShaderMaterial;
 
 ShaderMaterial.prototype.isShaderMaterial = true;
-
-ShaderMaterial.prototype.copy = function ( source ) {
-  Material.prototype.copy.call( this, source );
-
-  this.fragmentShader = source.fragmentShader;
-  this.vertexShader = source.vertexShader;
-
-  this.uniforms = UniformsUtils.clone( source.uniforms );
-
-  this.extensions = source.extensions;
-
-  return this;
-};
 
 
 /**
@@ -4395,8 +4289,6 @@ function WebGLState( gl, extensions ) {
   var currentPremultipledAlpha = false;
 
   var currentLineWidth = null;
-
-  var maxTextures = gl.getParameter( gl.MAX_TEXTURE_IMAGE_UNITS );
 
   var version = parseFloat( /^WebGL\ ([0-9])/.exec( gl.getParameter( gl.VERSION ) )[1] );
   var lineWidthAvailable = parseFloat( version ) >= 1.0;
@@ -6223,16 +6115,14 @@ function makeRibbon(vertices /*:AtomT[]*/,
   var tan = new Float32Array(tang_arr);
   // it's not 'normal', but it doesn't matter
   geometry.addAttribute('normal', new BufferAttribute(tan, 3));
-  var material0 = new ShaderMaterial({
-    uniforms: makeUniforms({shift: 0}),
-    vertexShader: ribbon_vert,
-    fragmentShader: ribbon_frag,
-    fog: true,
-    vertexColors: VertexColors,
-  });
   for (var n = -4; n < 5; n++) {
-    var material = n === 0 ? material0 : material0.clone();
-    material.uniforms.shift.value = 0.1 * n;
+    var material = new ShaderMaterial({
+      uniforms: makeUniforms({shift: 0.1 * n}),
+      vertexShader: ribbon_vert,
+      fragmentShader: ribbon_frag,
+      fog: true,
+      vertexColors: VertexColors,
+    });
     obj.add(new Line(geometry, material));
   }
   return obj;

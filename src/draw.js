@@ -365,16 +365,14 @@ export function makeRibbon(vertices /*:AtomT[]*/,
   const tan = new Float32Array(tang_arr);
   // it's not 'normal', but it doesn't matter
   geometry.addAttribute('normal', new BufferAttribute(tan, 3));
-  const material0 = new ShaderMaterial({
-    uniforms: makeUniforms({shift: 0}),
-    vertexShader: ribbon_vert,
-    fragmentShader: ribbon_frag,
-    fog: true,
-    vertexColors: VertexColors,
-  });
   for (let n = -4; n < 5; n++) {
-    let material = n === 0 ? material0 : material0.clone();
-    material.uniforms.shift.value = 0.1 * n;
+    const material = new ShaderMaterial({
+      uniforms: makeUniforms({shift: 0.1 * n}),
+      vertexShader: ribbon_vert,
+      fragmentShader: ribbon_frag,
+      fog: true,
+      vertexColors: VertexColors,
+    });
     obj.add(new Line(geometry, material));
   }
   return obj;
