@@ -4,7 +4,7 @@
 
 /* eslint-disable max-len, one-var, guard-for-in */
 /* eslint-disable prefer-rest-params, no-invalid-this, no-useless-escape */
-/* eslint-disable new-cap, eslint-disable, no-extend-native */
+/* eslint-disable new-cap, no-extend-native */
 
 // Polyfills
 
@@ -46,42 +46,7 @@ let NoColors = 0;
 let VertexColors = 2;
 let NoBlending = 0;
 let NormalBlending = 1;
-let AdditiveBlending = 2;
-let SubtractiveBlending = 3;
-let MultiplyBlending = 4;
-let CustomBlending = 5;
-let AddEquation = 100;
-let SubtractEquation = 101;
-let ReverseSubtractEquation = 102;
-let ZeroFactor = 200;
-let OneFactor = 201;
-let SrcColorFactor = 202;
-let OneMinusSrcColorFactor = 203;
-let SrcAlphaFactor = 204;
-let OneMinusSrcAlphaFactor = 205;
-let DstAlphaFactor = 206;
-let OneMinusDstAlphaFactor = 207;
-let DstColorFactor = 208;
-let OneMinusDstColorFactor = 209;
-let SrcAlphaSaturateFactor = 210;
 let LessEqualDepth = 3;
-let UVMapping = 300;
-let ClampToEdgeWrapping = 1001;
-let NearestFilter = 1003;
-let NearestMipMapNearestFilter = 1004;
-let NearestMipMapLinearFilter = 1005;
-let LinearFilter = 1006;
-let LinearMipMapLinearFilter = 1008;
-let UnsignedByteType = 1009;
-let ByteType = 1010;
-let ShortType = 1011;
-let UnsignedShortType = 1012;
-let IntType = 1013;
-let UnsignedIntType = 1014;
-let FloatType = 1015;
-let AlphaFormat = 1021;
-let RGBFormat = 1022;
-let RGBAFormat = 1023;
 let TrianglesDrawMode = 0;
 let TriangleStripDrawMode = 1;
 let TriangleFanDrawMode = 2;
@@ -927,14 +892,6 @@ Object.assign( EventDispatcher.prototype, {
     }
   },
 
-  hasEventListener: function ( type, listener ) {
-    if ( this._listeners === undefined ) return false;
-
-    let listeners = this._listeners;
-
-    return listeners[type] !== undefined && listeners[type].indexOf( listener ) !== - 1;
-  },
-
   removeEventListener: function ( type, listener ) {
     if ( this._listeners === undefined ) return;
 
@@ -989,16 +946,7 @@ function Texture( image ) {
 
   this.name = '';
 
-  this.image = image !== undefined ? image : Texture.DEFAULT_IMAGE;
-
-  this.wrapS = ClampToEdgeWrapping;
-  this.wrapT = ClampToEdgeWrapping;
-
-  this.magFilter = LinearFilter;
-  this.minFilter = LinearMipMapLinearFilter;
-
-  this.format = RGBAFormat;
-  this.type = UnsignedByteType;
+  this.image = image;
 
   this.generateMipmaps = true;
   this.premultiplyAlpha = false;
@@ -1007,9 +955,6 @@ function Texture( image ) {
 
   this.version = 0;
 }
-
-Texture.DEFAULT_IMAGE = undefined;
-Texture.DEFAULT_MAPPING = UVMapping;
 
 Texture.prototype = {
 
@@ -1276,21 +1221,6 @@ WebGLUniforms.seqWithValue = function ( seq, values ) {
 */
 
 let UniformsUtils = {
-
-  merge: function ( uniforms ) {
-    let merged = {};
-
-    for ( let u = 0; u < uniforms.length; u ++ ) {
-      let tmp = this.clone( uniforms[u] );
-
-      for ( let p in tmp ) {
-        merged[p] = tmp[p];
-      }
-    }
-
-    return merged;
-  },
-
   clone: function ( uniforms_src ) {
     let uniforms_dst = {};
 
@@ -1304,9 +1234,10 @@ let UniformsUtils = {
         parameter_src.isMatrix3 || parameter_src.isMatrix4 ||
         parameter_src.isVector3 || parameter_src.isVector4 ||
         parameter_src.isTexture ) ) {
-          uniforms_dst[u][p] = parameter_src.clone();
+          throw Error('unexpected');
         } else if ( Array.isArray( parameter_src ) ) {
           uniforms_dst[u][p] = parameter_src.slice();
+          throw Error('unexpected');
         } else {
           uniforms_dst[u][p] = parameter_src;
         }
@@ -1368,10 +1299,6 @@ Vector4.prototype = {
     this.w = w;
 
     return this;
-  },
-
-  clone: function () {
-    return new this.constructor( this.x, this.y, this.z, this.w );
   },
 
   copy: function ( v ) {
@@ -1548,30 +1475,17 @@ function Material() {
   this.type = 'Material';
 
   this.fog = true;
-  this.lights = true;
 
-  this.blending = NormalBlending;
   this.vertexColors = NoColors; // THREE.NoColors, THREE.VertexColors, THREE.FaceColors
 
   this.opacity = 1;
   this.transparent = false;
-
-  this.blendSrc = SrcAlphaFactor;
-  this.blendDst = OneMinusSrcAlphaFactor;
-  this.blendEquation = AddEquation;
-  this.blendSrcAlpha = null;
-  this.blendDstAlpha = null;
-  this.blendEquationAlpha = null;
 
   this.depthFunc = LessEqualDepth;
   this.depthTest = true;
   this.depthWrite = true;
 
   this.precision = null; // override the renderer's default precision for this material
-
-  this.polygonOffset = false;
-  this.polygonOffsetFactor = 0;
-  this.polygonOffsetUnits = 0;
 
   this.premultipliedAlpha = false;
 
@@ -1636,30 +1550,17 @@ Material.prototype = {
     this.name = source.name;
 
     this.fog = source.fog;
-    this.lights = source.lights;
 
-    this.blending = source.blending;
     this.vertexColors = source.vertexColors;
 
     this.opacity = source.opacity;
     this.transparent = source.transparent;
-
-    this.blendSrc = source.blendSrc;
-    this.blendDst = source.blendDst;
-    this.blendEquation = source.blendEquation;
-    this.blendSrcAlpha = source.blendSrcAlpha;
-    this.blendDstAlpha = source.blendDstAlpha;
-    this.blendEquationAlpha = source.blendEquationAlpha;
 
     this.depthFunc = source.depthFunc;
     this.depthTest = source.depthTest;
     this.depthWrite = source.depthWrite;
 
     this.precision = source.precision;
-
-    this.polygonOffset = source.polygonOffset;
-    this.polygonOffsetFactor = source.polygonOffsetFactor;
-    this.polygonOffsetUnits = source.polygonOffsetUnits;
 
     this.premultipliedAlpha = source.premultipliedAlpha;
 
@@ -1690,8 +1591,6 @@ Object.assign( Material.prototype, EventDispatcher.prototype );
 *
 *  fragmentShader: <string>,
 *  vertexShader: <string>,
-*
-*  lights: <bool>,
 * }
 */
 
@@ -1708,21 +1607,10 @@ function ShaderMaterial( parameters ) {
   this.linewidth = 1;
 
   this.fog = false; // set to use scene fog
-  this.lights = false; // set to use scene lights
 
   this.extensions = {
     fragDepth: false, // set to use fragment depth values
   };
-
-  // When rendered geometry doesn't include these attributes but the material does,
-  // use these default values in WebGL. This avoids errors when buffer data is missing.
-  this.defaultAttributeValues = {
-    'color': [1, 1, 1],
-    'uv': [0, 0],
-    'uv2': [0, 0],
-  };
-
-  this.index0AttributeName = undefined;
 
   if ( parameters !== undefined ) {
     if ( parameters.attributes !== undefined ) {
@@ -1745,8 +1633,6 @@ ShaderMaterial.prototype.copy = function ( source ) {
   this.vertexShader = source.vertexShader;
 
   this.uniforms = UniformsUtils.clone( source.uniforms );
-
-  this.lights = source.lights;
 
   this.extensions = source.extensions;
 
@@ -2141,22 +2027,8 @@ function BufferAttribute( array, itemSize, normalized ) {
 }
 
 BufferAttribute.prototype = {
-
   constructor: BufferAttribute,
-
   isBufferAttribute: true,
-
-  getX: function ( index ) {
-    return this.array[index * this.itemSize];
-  },
-
-  getY: function ( index ) {
-    return this.array[index * this.itemSize + 1];
-  },
-
-  getZ: function ( index ) {
-    return this.array[index * this.itemSize + 2];
-  },
 };
 
 
@@ -2196,23 +2068,7 @@ Object.assign( BufferGeometry.prototype, EventDispatcher.prototype, {
   },
 
   addAttribute: function ( name, attribute ) {
-    if ( ( attribute && attribute.isBufferAttribute ) === false ) {
-      console.warn( 'THREE.BufferGeometry: .addAttribute() now expects ( name, attribute ).' );
-
-      this.addAttribute( name, new BufferAttribute( arguments[1], arguments[2] ) );
-
-      return;
-    }
-
-    if ( name === 'index' ) {
-      console.warn( 'THREE.BufferGeometry.addAttribute: Use .setIndex() for index attribute.' );
-      this.setIndex( attribute );
-
-      return;
-    }
-
     this.attributes[name] = attribute;
-
     return this;
   },
 
@@ -2531,8 +2387,6 @@ function WebGLProgram( renderer, code, material, parameters ) {
 
     parameters.vertexColors ? '#define USE_COLOR' : '',
 
-    parameters.premultipliedAlpha ? '#define PREMULTIPLIED_ALPHA' : '',
-
       'uniform mat4 viewMatrix;',
       'uniform vec3 cameraPosition;',
 
@@ -2558,12 +2412,6 @@ function WebGLProgram( renderer, code, material, parameters ) {
 
   gl.attachShader( program, glVertexShader );
   gl.attachShader( program, glFragmentShader );
-
-  // Force a particular attribute to index 0.
-
-  if ( material.index0AttributeName !== undefined ) {
-    gl.bindAttribLocation( program, 0, material.index0AttributeName );
-  }
 
   gl.linkProgram( program );
 
@@ -2825,12 +2673,6 @@ function WebGLGeometries( gl, properties, info ) {
 
       if ( geometry.isBufferGeometry ) {
         buffergeometry = geometry;
-      } else if ( geometry.isGeometry ) {
-        if ( geometry._bufferGeometry === undefined ) {
-          geometry._bufferGeometry = new BufferGeometry().setFromObject( object );
-        }
-
-        buffergeometry = geometry._bufferGeometry;
       }
 
       geometries[geometry.id] = buffergeometry;
@@ -2852,10 +2694,6 @@ function WebGLObjects( gl, properties, info ) {
 
   function update( object ) {
     let geometry = geometries.get( object );
-
-    if ( object.geometry.isGeometry ) {
-      geometry.updateFromObject( object );
-    }
 
     let index = geometry.index;
     let attributes = geometry.attributes;
@@ -2963,7 +2801,7 @@ function WebGLObjects( gl, properties, info ) {
 * @author mrdoob / http://mrdoob.com/
 */
 
-function WebGLTextures( _gl, extensions, state, properties, capabilities, paramThreeToGL, info ) {
+function WebGLTextures( _gl, extensions, state, properties, capabilities, info ) {
   function clampToMaxSize( image, maxSize ) {
     if ( image.width > maxSize || image.height > maxSize ) {
       // Warning: Scaling through the canvas will only work with images that use
@@ -2988,38 +2826,6 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, paramT
 
   function isPowerOfTwo( image ) {
     return _Math.isPowerOfTwo( image.width ) && _Math.isPowerOfTwo( image.height );
-  }
-
-  function makePowerOfTwo( image ) {
-    if ( image instanceof HTMLImageElement || image instanceof HTMLCanvasElement ) {
-      let canvas = document.createElementNS( 'http://www.w3.org/1999/xhtml', 'canvas' );
-      canvas.width = _Math.nearestPowerOfTwo( image.width );
-      canvas.height = _Math.nearestPowerOfTwo( image.height );
-
-      let context = canvas.getContext( '2d' );
-      context.drawImage( image, 0, 0, canvas.width, canvas.height );
-
-      console.warn( 'THREE.WebGLRenderer: image is not power of two (' + image.width + 'x' + image.height + '). Resized to ' + canvas.width + 'x' + canvas.height, image );
-
-      return canvas;
-    }
-
-    return image;
-  }
-
-  function textureNeedsPowerOfTwo( texture ) {
-    return ( texture.wrapS !== ClampToEdgeWrapping || texture.wrapT !== ClampToEdgeWrapping ) ||
-    ( texture.minFilter !== NearestFilter && texture.minFilter !== LinearFilter );
-  }
-
-  // Fallback filters for non-power-of-2 textures
-
-  function filterFallback( f ) {
-    if ( f === NearestFilter || f === NearestMipMapNearestFilter || f === NearestMipMapLinearFilter ) {
-      return _gl.NEAREST;
-    }
-
-    return _gl.LINEAR;
   }
 
   //
@@ -3069,35 +2875,10 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, paramT
   }
 
   function setTextureParameters( textureType, texture, isPowerOfTwoImage ) {
-    let extension;
-
-    if ( isPowerOfTwoImage ) {
-      _gl.texParameteri( textureType, _gl.TEXTURE_WRAP_S, paramThreeToGL( texture.wrapS ) );
-      _gl.texParameteri( textureType, _gl.TEXTURE_WRAP_T, paramThreeToGL( texture.wrapT ) );
-
-      _gl.texParameteri( textureType, _gl.TEXTURE_MAG_FILTER, paramThreeToGL( texture.magFilter ) );
-      _gl.texParameteri( textureType, _gl.TEXTURE_MIN_FILTER, paramThreeToGL( texture.minFilter ) );
-    } else {
-      _gl.texParameteri( textureType, _gl.TEXTURE_WRAP_S, _gl.CLAMP_TO_EDGE );
-      _gl.texParameteri( textureType, _gl.TEXTURE_WRAP_T, _gl.CLAMP_TO_EDGE );
-
-      if ( texture.wrapS !== ClampToEdgeWrapping || texture.wrapT !== ClampToEdgeWrapping ) {
-        console.warn( 'THREE.WebGLRenderer: Texture is not power of two. Texture.wrapS and Texture.wrapT should be set to THREE.ClampToEdgeWrapping.', texture );
-      }
-
-      _gl.texParameteri( textureType, _gl.TEXTURE_MAG_FILTER, filterFallback( texture.magFilter ) );
-      _gl.texParameteri( textureType, _gl.TEXTURE_MIN_FILTER, filterFallback( texture.minFilter ) );
-
-      if ( texture.minFilter !== NearestFilter && texture.minFilter !== LinearFilter ) {
-        console.warn( 'THREE.WebGLRenderer: Texture is not power of two. Texture.minFilter should be set to THREE.NearestFilter or THREE.LinearFilter.', texture );
-      }
-    }
-
-    extension = extensions.get( 'EXT_texture_filter_anisotropic' );
-
-    if ( extension ) {
-      if ( texture.type === FloatType && extensions.get( 'OES_texture_float_linear' ) === null ) return;
-    }
+    _gl.texParameteri( textureType, _gl.TEXTURE_WRAP_S, _gl.CLAMP_TO_EDGE );
+    _gl.texParameteri( textureType, _gl.TEXTURE_WRAP_T, _gl.CLAMP_TO_EDGE );
+    _gl.texParameteri( textureType, _gl.TEXTURE_MAG_FILTER, _gl.LINEAR );
+    _gl.texParameteri( textureType, _gl.TEXTURE_MIN_FILTER, _gl.LINEAR_MIPMAP_LINEAR );
   }
 
   function uploadTexture( textureProperties, texture, slot ) {
@@ -3118,13 +2899,9 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, paramT
 
     let image = clampToMaxSize( texture.image, capabilities.maxTextureSize );
 
-    if ( textureNeedsPowerOfTwo( texture ) && isPowerOfTwo( image ) === false ) {
-      image = makePowerOfTwo( image );
-    }
-
-    let isPowerOfTwoImage = isPowerOfTwo( image ),
-      glFormat = paramThreeToGL( texture.format ),
-      glType = paramThreeToGL( texture.type );
+    let isPowerOfTwoImage = isPowerOfTwo( image );
+    let glFormat = _gl.RGBA;
+    let glType = _gl.UNSIGNED_BYTE;
 
     setTextureParameters( _gl.TEXTURE_2D, texture, isPowerOfTwoImage );
 
@@ -3170,7 +2947,7 @@ function WebGLProperties() {
 * @author mrdoob / http://mrdoob.com/
 */
 
-function WebGLState( gl, extensions, paramThreeToGL ) {
+function WebGLState( gl, extensions ) {
   function ColorBuffer() {
     let color = new Vector4();
     let currentColorClear = new Vector4();
@@ -3252,18 +3029,9 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
   let capabilities = {};
 
   let currentBlending = null;
-  let currentBlendEquation = null;
-  let currentBlendSrc = null;
-  let currentBlendDst = null;
-  let currentBlendEquationAlpha = null;
-  let currentBlendSrcAlpha = null;
-  let currentBlendDstAlpha = null;
   let currentPremultipledAlpha = false;
 
   let currentLineWidth = null;
-
-  let currentPolygonOffsetFactor = null;
-  let currentPolygonOffsetUnits = null;
 
   let maxTextures = gl.getParameter( gl.MAX_TEXTURE_IMAGE_UNITS );
 
@@ -3328,20 +3096,6 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
     }
   }
 
-  function enableAttributeAndDivisor( attribute, meshPerAttribute, extension ) {
-    newAttributes[attribute] = 1;
-
-    if ( enabledAttributes[attribute] === 0 ) {
-      gl.enableVertexAttribArray( attribute );
-      enabledAttributes[attribute] = 1;
-    }
-
-    if ( attributeDivisors[attribute] !== meshPerAttribute ) {
-      extension.vertexAttribDivisorANGLE( attribute, meshPerAttribute );
-      attributeDivisors[attribute] = meshPerAttribute;
-    }
-  }
-
   function disableUnusedAttributes() {
     for ( let i = 0, l = enabledAttributes.length; i !== l; ++ i ) {
       if ( enabledAttributes[i] !== newAttributes[i] ) {
@@ -3365,7 +3119,7 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
     }
   }
 
-  function setBlending( blending, blendEquation, blendSrc, blendDst, blendEquationAlpha, blendSrcAlpha, blendDstAlpha, premultipliedAlpha ) {
+  function setBlending( blending, premultipliedAlpha ) {
     if ( blending !== NoBlending ) {
       enable( gl.BLEND );
     } else {
@@ -3373,71 +3127,16 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
     }
 
     if ( blending !== currentBlending || premultipliedAlpha !== currentPremultipledAlpha ) {
-      if ( blending === AdditiveBlending ) {
-        if ( premultipliedAlpha ) {
-          gl.blendEquationSeparate( gl.FUNC_ADD, gl.FUNC_ADD );
-          gl.blendFuncSeparate( gl.ONE, gl.ONE, gl.ONE, gl.ONE );
-        } else {
-          gl.blendEquation( gl.FUNC_ADD );
-          gl.blendFunc( gl.SRC_ALPHA, gl.ONE );
-        }
-      } else if ( blending === SubtractiveBlending ) {
-        if ( premultipliedAlpha ) {
-          gl.blendEquationSeparate( gl.FUNC_ADD, gl.FUNC_ADD );
-          gl.blendFuncSeparate( gl.ZERO, gl.ZERO, gl.ONE_MINUS_SRC_COLOR, gl.ONE_MINUS_SRC_ALPHA );
-        } else {
-          gl.blendEquation( gl.FUNC_ADD );
-          gl.blendFunc( gl.ZERO, gl.ONE_MINUS_SRC_COLOR );
-        }
-      } else if ( blending === MultiplyBlending ) {
-        if ( premultipliedAlpha ) {
-          gl.blendEquationSeparate( gl.FUNC_ADD, gl.FUNC_ADD );
-          gl.blendFuncSeparate( gl.ZERO, gl.SRC_COLOR, gl.ZERO, gl.SRC_ALPHA );
-        } else {
-          gl.blendEquation( gl.FUNC_ADD );
-          gl.blendFunc( gl.ZERO, gl.SRC_COLOR );
-        }
+      if ( premultipliedAlpha ) {
+        gl.blendEquationSeparate( gl.FUNC_ADD, gl.FUNC_ADD );
+        gl.blendFuncSeparate( gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA );
       } else {
-        if ( premultipliedAlpha ) {
-          gl.blendEquationSeparate( gl.FUNC_ADD, gl.FUNC_ADD );
-          gl.blendFuncSeparate( gl.ONE, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA );
-        } else {
-          gl.blendEquationSeparate( gl.FUNC_ADD, gl.FUNC_ADD );
-          gl.blendFuncSeparate( gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA );
-        }
+        gl.blendEquationSeparate( gl.FUNC_ADD, gl.FUNC_ADD );
+        gl.blendFuncSeparate( gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA );
       }
 
       currentBlending = blending;
       currentPremultipledAlpha = premultipliedAlpha;
-    }
-
-    if ( blending === CustomBlending ) {
-      blendEquationAlpha = blendEquationAlpha || blendEquation;
-      blendSrcAlpha = blendSrcAlpha || blendSrc;
-      blendDstAlpha = blendDstAlpha || blendDst;
-
-      if ( blendEquation !== currentBlendEquation || blendEquationAlpha !== currentBlendEquationAlpha ) {
-        gl.blendEquationSeparate( paramThreeToGL( blendEquation ), paramThreeToGL( blendEquationAlpha ) );
-
-        currentBlendEquation = blendEquation;
-        currentBlendEquationAlpha = blendEquationAlpha;
-      }
-
-      if ( blendSrc !== currentBlendSrc || blendDst !== currentBlendDst || blendSrcAlpha !== currentBlendSrcAlpha || blendDstAlpha !== currentBlendDstAlpha ) {
-        gl.blendFuncSeparate( paramThreeToGL( blendSrc ), paramThreeToGL( blendDst ), paramThreeToGL( blendSrcAlpha ), paramThreeToGL( blendDstAlpha ) );
-
-        currentBlendSrc = blendSrc;
-        currentBlendDst = blendDst;
-        currentBlendSrcAlpha = blendSrcAlpha;
-        currentBlendDstAlpha = blendDstAlpha;
-      }
-    } else {
-      currentBlendEquation = null;
-      currentBlendSrc = null;
-      currentBlendDst = null;
-      currentBlendEquationAlpha = null;
-      currentBlendSrcAlpha = null;
-      currentBlendDstAlpha = null;
     }
   }
 
@@ -3460,21 +3159,6 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
       if ( lineWidthAvailable ) gl.lineWidth( width );
 
       currentLineWidth = width;
-    }
-  }
-
-  function setPolygonOffset( polygonOffset, factor, units ) {
-    if ( polygonOffset ) {
-      enable( gl.POLYGON_OFFSET_FILL );
-
-      if ( currentPolygonOffsetFactor !== factor || currentPolygonOffsetUnits !== units ) {
-        gl.polygonOffset( factor, units );
-
-        currentPolygonOffsetFactor = factor;
-        currentPolygonOffsetUnits = units;
-      }
-    } else {
-      disable( gl.POLYGON_OFFSET_FILL );
     }
   }
 
@@ -3529,7 +3213,6 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
   //
 
   return {
-
     buffers: {
       color: colorBuffer,
       depth: depthBuffer,
@@ -3538,7 +3221,6 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
     init: init,
     initAttributes: initAttributes,
     enableAttribute: enableAttribute,
-    enableAttributeAndDivisor: enableAttributeAndDivisor,
     disableUnusedAttributes: disableUnusedAttributes,
     enable: enable,
     disable: disable,
@@ -3550,14 +3232,12 @@ function WebGLState( gl, extensions, paramThreeToGL ) {
     setDepthFunc: setDepthFunc,
 
     setLineWidth: setLineWidth,
-    setPolygonOffset: setPolygonOffset,
 
     activeTexture: activeTexture,
     bindTexture: bindTexture,
     texImage2D: texImage2D,
 
     viewport: viewport,
-
   };
 }
 
@@ -3649,11 +3329,6 @@ function WebGLExtensions( gl ) {
         case 'WEBGL_depth_texture':
           extension = gl.getExtension( 'WEBGL_depth_texture' ) || gl.getExtension( 'MOZ_WEBGL_depth_texture' ) || gl.getExtension( 'WEBKIT_WEBGL_depth_texture' );
           break;
-
-        case 'EXT_texture_filter_anisotropic':
-          extension = gl.getExtension( 'EXT_texture_filter_anisotropic' ) || gl.getExtension( 'MOZ_EXT_texture_filter_anisotropic' ) || gl.getExtension( 'WEBKIT_EXT_texture_filter_anisotropic' );
-          break;
-
         default:
           extension = gl.getExtension( name );
       }
@@ -3824,9 +3499,9 @@ function WebGLRenderer( parameters ) {
 
   let capabilities = new WebGLCapabilities( _gl, extensions, parameters );
 
-  let state = new WebGLState( _gl, extensions, paramThreeToGL );
+  let state = new WebGLState( _gl, extensions );
   let properties = new WebGLProperties();
-  let textures = new WebGLTextures( _gl, extensions, state, properties, capabilities, paramThreeToGL, this.info );
+  let textures = new WebGLTextures( _gl, extensions, state, properties, capabilities, this.info );
   let objects = new WebGLObjects( _gl, properties, this.info );
   let programCache = new WebGLPrograms( this, capabilities );
 
@@ -3922,16 +3597,6 @@ function WebGLRenderer( parameters ) {
     state.buffers.color.setClear( _clearColor.r, _clearColor.g, _clearColor.b, _clearAlpha, _premultipliedAlpha );
   };
 
-  this.getClearAlpha = function () {
-    return _clearAlpha;
-  };
-
-  this.setClearAlpha = function ( alpha ) {
-    _clearAlpha = alpha;
-
-    state.buffers.color.setClear( _clearColor.r, _clearColor.g, _clearColor.b, _clearAlpha, _premultipliedAlpha );
-  };
-
   this.clear = function ( color, depth ) {
     let bits = 0;
 
@@ -3942,16 +3607,11 @@ function WebGLRenderer( parameters ) {
   };
 
   this.clearColor = function () {
-    this.clear( true, false, false );
+    this.clear( true, false );
   };
 
   this.clearDepth = function () {
-    this.clear( false, true, false );
-  };
-
-  this.clearTarget = function ( renderTarget, color, depth ) {
-    this.setRenderTarget( renderTarget );
-    this.clear( color, depth );
+    this.clear( false, true );
   };
 
   // Reset
@@ -4101,8 +3761,6 @@ function WebGLRenderer( parameters ) {
   };
 
   function setupVertexAttributes( material, program, geometry, startIndex ) {
-    let extension;
-
     if ( startIndex === undefined ) startIndex = 0;
 
     state.initAttributes();
@@ -4110,8 +3768,6 @@ function WebGLRenderer( parameters ) {
     let geometryAttributes = geometry.attributes;
 
     let programAttributes = program.getAttributes();
-
-    let materialDefaultAttributeValues = material.defaultAttributeValues;
 
     for ( let name in programAttributes ) {
       let programAttribute = programAttributes[name];
@@ -4129,43 +3785,15 @@ function WebGLRenderer( parameters ) {
           let type = attributeProperties.type;
           let bytesPerElement = attributeProperties.bytesPerElement;
 
-          if ( geometryAttribute.isInstancedBufferAttribute ) {
-            state.enableAttributeAndDivisor( programAttribute, geometryAttribute.meshPerAttribute, extension );
-
-            if ( geometry.maxInstancedCount === undefined ) {
-              geometry.maxInstancedCount = geometryAttribute.meshPerAttribute * geometryAttribute.count;
-            }
-          } else {
-            state.enableAttribute( programAttribute );
-          }
+          state.enableAttribute( programAttribute );
 
           _gl.bindBuffer( _gl.ARRAY_BUFFER, buffer );
           _gl.vertexAttribPointer( programAttribute, size, type, normalized, 0, startIndex * size * bytesPerElement );
-        } else if ( materialDefaultAttributeValues !== undefined ) {
-          let value = materialDefaultAttributeValues[name];
-
-          if ( value !== undefined ) {
-            switch ( value.length ) {
-              case 2:
-                _gl.vertexAttrib2fv( programAttribute, value );
-                break;
-
-              case 3:
-                _gl.vertexAttrib3fv( programAttribute, value );
-                break;
-
-              case 4:
-                _gl.vertexAttrib4fv( programAttribute, value );
-                break;
-
-              default:
-                _gl.vertexAttrib1fv( programAttribute, value );
-            }
-          }
+        } else {
+          console.error( 'undefined geometryAttribute' );
         }
       }
     }
-
     state.disableUnusedAttributes();
   }
 
@@ -4271,21 +3899,14 @@ function WebGLRenderer( parameters ) {
       this.clear( this.autoClearColor, this.autoClearDepth );
     }
 
-    if ( scene.overrideMaterial ) {
-      let overrideMaterial = scene.overrideMaterial;
+    // opaque pass (front-to-back order)
 
-      renderObjects( opaqueObjects, scene, camera, overrideMaterial );
-      renderObjects( transparentObjects, scene, camera, overrideMaterial );
-    } else {
-      // opaque pass (front-to-back order)
+    state.setBlending( NoBlending );
+    renderObjects( opaqueObjects, scene, camera );
 
-      state.setBlending( NoBlending );
-      renderObjects( opaqueObjects, scene, camera );
+    // transparent pass (back-to-front order)
 
-      // transparent pass (back-to-front order)
-
-      renderObjects( transparentObjects, scene, camera );
-    }
+    renderObjects( transparentObjects, scene, camera );
 
     // Generate mipmap if we're using any kind of mipmap filtering
 
@@ -4429,12 +4050,6 @@ function WebGLRenderer( parameters ) {
 
     materialProperties.fog = fog;
 
-    if ( material.lights ) {
-      // wire up the material to this renderer's lighting state
-
-      uniforms.ambientLightColor.value = _ambient_light;
-    }
-
     let progUniforms = materialProperties.program.getUniforms(),
       uniformsList =
       WebGLUniforms.seqWithValue( progUniforms.seq, uniforms );
@@ -4443,14 +4058,13 @@ function WebGLRenderer( parameters ) {
   }
 
   function setMaterial( material ) {
-  material.transparent === true ?
-    state.setBlending( material.blending, material.blendEquation, material.blendSrc, material.blendDst, material.blendEquationAlpha, material.blendSrcAlpha, material.blendDstAlpha, material.premultipliedAlpha )
-    : state.setBlending( NoBlending );
+    material.transparent === true ?
+      state.setBlending( NormalBlending, material.premultipliedAlpha )
+      : state.setBlending( NoBlending );
 
-  state.setDepthFunc( material.depthFunc );
-  state.setDepthTest( material.depthTest );
-  state.setDepthWrite( material.depthWrite );
-  state.setPolygonOffset( material.polygonOffset, material.polygonOffsetFactor, material.polygonOffsetUnits );
+    state.setDepthFunc( material.depthFunc );
+    state.setDepthTest( material.depthTest );
+    state.setDepthWrite( material.depthWrite );
   }
 
   function setProgram( camera, fog, material, object ) {
@@ -4620,52 +4234,6 @@ function WebGLRenderer( parameters ) {
 
     state.viewport( _currentViewport );
   };
-
-
-  // Map three.js constants to WebGL constants
-
-  function paramThreeToGL( p ) {
-    if ( p === ClampToEdgeWrapping ) return _gl.CLAMP_TO_EDGE;
-
-    if ( p === NearestFilter ) return _gl.NEAREST;
-    if ( p === NearestMipMapNearestFilter ) return _gl.NEAREST_MIPMAP_NEAREST;
-    if ( p === NearestMipMapLinearFilter ) return _gl.NEAREST_MIPMAP_LINEAR;
-
-    if ( p === LinearFilter ) return _gl.LINEAR;
-    if ( p === LinearMipMapLinearFilter ) return _gl.LINEAR_MIPMAP_LINEAR;
-
-    if ( p === UnsignedByteType ) return _gl.UNSIGNED_BYTE;
-
-    if ( p === ByteType ) return _gl.BYTE;
-    if ( p === ShortType ) return _gl.SHORT;
-    if ( p === UnsignedShortType ) return _gl.UNSIGNED_SHORT;
-    if ( p === IntType ) return _gl.INT;
-    if ( p === UnsignedIntType ) return _gl.UNSIGNED_INT;
-    if ( p === FloatType ) return _gl.FLOAT;
-
-    if ( p === AlphaFormat ) return _gl.ALPHA;
-    if ( p === RGBFormat ) return _gl.RGB;
-    if ( p === RGBAFormat ) return _gl.RGBA;
-
-    if ( p === AddEquation ) return _gl.FUNC_ADD;
-    if ( p === SubtractEquation ) return _gl.FUNC_SUBTRACT;
-    if ( p === ReverseSubtractEquation ) return _gl.FUNC_REVERSE_SUBTRACT;
-
-    if ( p === ZeroFactor ) return _gl.ZERO;
-    if ( p === OneFactor ) return _gl.ONE;
-    if ( p === SrcColorFactor ) return _gl.SRC_COLOR;
-    if ( p === OneMinusSrcColorFactor ) return _gl.ONE_MINUS_SRC_COLOR;
-    if ( p === SrcAlphaFactor ) return _gl.SRC_ALPHA;
-    if ( p === OneMinusSrcAlphaFactor ) return _gl.ONE_MINUS_SRC_ALPHA;
-    if ( p === DstAlphaFactor ) return _gl.DST_ALPHA;
-    if ( p === OneMinusDstAlphaFactor ) return _gl.ONE_MINUS_DST_ALPHA;
-
-    if ( p === DstColorFactor ) return _gl.DST_COLOR;
-    if ( p === OneMinusDstColorFactor ) return _gl.ONE_MINUS_DST_COLOR;
-    if ( p === SrcAlphaSaturateFactor ) return _gl.SRC_ALPHA_SATURATE;
-
-    return 0;
-  }
 }
 
 /**
@@ -4696,7 +4264,6 @@ function Scene() {
 
   this.background = null;
   this.fog = null;
-  this.overrideMaterial = null;
 
   this.autoUpdate = true; // checked by the renderer
 }
@@ -4801,18 +4368,9 @@ function ascSort( a, b ) {
   return a.distance - b.distance;
 }
 
-function intersectObject( object, raycaster, intersects, recursive ) {
+function intersectObject( object, raycaster, intersects ) {
   if ( object.visible === false ) return;
-
   object.raycast( raycaster, intersects );
-
-  if ( recursive === true ) {
-    let children = object.children;
-
-    for ( let i = 0, l = children.length; i < l; i ++ ) {
-      intersectObject( children[i], raycaster, intersects, true );
-    }
-  }
 }
 
 //
@@ -4832,10 +4390,10 @@ Raycaster.prototype = {
     }
   },
 
-  intersectObjects: function ( objects, recursive ) {
+  intersectObjects: function ( objects ) {
     let intersects = [];
     for ( let i = 0, l = objects.length; i < l; i ++ ) {
-      intersectObject( objects[i], this, intersects, recursive );
+      intersectObject( objects[i], this, intersects );
     }
     intersects.sort( ascSort );
     return intersects;
