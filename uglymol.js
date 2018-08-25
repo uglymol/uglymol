@@ -1851,7 +1851,7 @@ Vector3.prototype = {
   },
 
   applyMatrix4: function ( m ) {
-    // input: THREE.Matrix4 affine matrix
+    // input: Matrix4 affine matrix
 
     var x = this.x, y = this.y, z = this.z;
     var e = m.elements;
@@ -1864,7 +1864,7 @@ Vector3.prototype = {
   },
 
   applyProjection: function ( m ) {
-    // input: THREE.Matrix4 projection matrix
+    // input: Matrix4 projection matrix
 
     var x = this.x, y = this.y, z = this.z;
     var e = m.elements;
@@ -1909,7 +1909,7 @@ Vector3.prototype = {
   }(),
 
   transformDirection: function ( m ) {
-    // input: THREE.Matrix4 affine matrix
+    // input: Matrix4 affine matrix
     // vector interpreted as a direction
 
     var x = this.x, y = this.y, z = this.z;
@@ -2022,15 +2022,10 @@ Vector3.prototype = {
 
 function Matrix4() {
   this.elements = new Float32Array( [
-
     1, 0, 0, 0,
     0, 1, 0, 0,
     0, 0, 1, 0,
     0, 0, 0, 1 ] );
-
-  if ( arguments.length > 0 ) {
-    console.error( 'THREE.Matrix4: the constructor no longer reads arguments. use .set() instead.' );
-  }
 }
 
 Matrix4.prototype = {
@@ -2183,7 +2178,7 @@ Matrix4.prototype = {
     var det = n11 * t11 + n21 * t12 + n31 * t13 + n41 * t14;
 
     if ( det === 0 ) {
-      var msg = 'THREE.Matrix4.getInverse(): can\'t invert matrix, determinant is 0';
+      var msg = 'Matrix4.getInverse(): can\'t invert matrix, determinant is 0';
 
       if ( throwOnDegenerate === true ) {
         throw new Error( msg );
@@ -2435,7 +2430,7 @@ function UniformContainer() {
 function setValue1f( gl, v ) { gl.uniform1f( this.addr, v ); }
 function setValue1i( gl, v ) { gl.uniform1i( this.addr, v ); }
 
-// Single float vector (from flat array or THREE.VectorN)
+// Single float vector (from flat array or VectorN)
 
 function setValue2fv( gl, v ) {
   if ( v.x === undefined ) { gl.uniform2fv( this.addr, v ); }
@@ -2675,7 +2670,7 @@ Vector4.prototype = {
 
 function Color( r, g, b ) {
   if ( g === undefined && b === undefined ) {
-    // r is THREE.Color, hex or string
+    // r is Color, hex or string
     return this.set( r );
   }
 
@@ -2814,7 +2809,7 @@ function Material() {
 
   this.fog = true;
 
-  this.vertexColors = NoColors; // THREE.NoColors, THREE.VertexColors, THREE.FaceColors
+  this.vertexColors = NoColors; // NoColors, VertexColors, FaceColors
 
   this.opacity = 1;
   this.transparent = false;
@@ -3113,11 +3108,6 @@ Object.assign( Object3D.prototype, EventDispatcher.prototype, {
       return this;
     }
 
-    if ( object === this ) {
-      console.error( 'THREE.Object3D.add: object can\'t be added as a child of itself.', object );
-      return this;
-    }
-
     if ( ( object && object.isObject3D ) ) {
       if ( object.parent !== null ) {
         object.parent.remove( object );
@@ -3190,7 +3180,7 @@ Object.assign( Object3D.prototype, EventDispatcher.prototype, {
 
 function BufferAttribute( array, itemSize, normalized ) {
   if ( Array.isArray( array ) ) {
-    throw new TypeError( 'THREE.BufferAttribute: array should be a Typed Array.' );
+    throw new TypeError( 'BufferAttribute: array should be a Typed Array.' );
   }
 
   this.uuid = _Math.generateUUID();
@@ -3444,14 +3434,14 @@ function WebGLShader( gl, type, string ) {
   gl.compileShader( shader );
 
   if ( gl.getShaderParameter( shader, gl.COMPILE_STATUS ) === false ) {
-    console.error( 'THREE.WebGLShader: Shader couldn\'t compile.' );
+    console.error( 'WebGLShader: Shader couldn\'t compile.' );
   }
 
   if ( gl.getShaderInfoLog( shader ) !== '' ) {
     var info = gl.getShaderInfoLog( shader );
     // workaround for https://github.com/mrdoob/three.js/issues/9716
     if (info.indexOf('GL_ARB_gpu_shader5') === -1) {
-      console.warn( 'THREE.WebGLShader: gl.getShaderInfoLog()', type === gl.VERTEX_SHADER ? 'vertex' : 'fragment', info, string );
+      console.warn( 'WebGLShader: gl.getShaderInfoLog()', type === gl.VERTEX_SHADER ? 'vertex' : 'fragment', info, string );
     }
   }
 
@@ -3482,7 +3472,7 @@ function fetchAttributeLocations( gl, program, identifiers ) {
     var info = gl.getActiveAttrib( program, i );
     var name = info.name;
 
-    // console.log("THREE.WebGLProgram: ACTIVE VERTEX ATTRIBUTE:", name, i );
+    // console.log("WebGLProgram: ACTIVE VERTEX ATTRIBUTE:", name, i );
 
     attributes[name] = gl.getAttribLocation( program, name );
   }
@@ -3571,9 +3561,9 @@ function WebGLProgram( renderer, code, material, parameters ) {
   // console.log( '**FRAGMENT**', gl.getExtension( 'WEBGL_debug_shaders' ).getTranslatedShaderSource( glFragmentShader ) );
 
   if ( gl.getProgramParameter( program, gl.LINK_STATUS ) === false ) {
-    console.error( 'THREE.WebGLProgram: shader error: ', gl.getError(), 'gl.VALIDATE_STATUS', gl.getProgramParameter( program, gl.VALIDATE_STATUS ), 'gl.getProgramInfoLog', programLog, vertexLog, fragmentLog );
+    console.error( 'WebGLProgram: shader error: ', gl.getError(), 'gl.VALIDATE_STATUS', gl.getProgramParameter( program, gl.VALIDATE_STATUS ), 'gl.getProgramInfoLog', programLog, vertexLog, fragmentLog );
   } else if ( programLog !== '' ) {
-    console.warn( 'THREE.WebGLProgram: gl.getProgramInfoLog()', programLog );
+    console.warn( 'WebGLProgram: gl.getProgramInfoLog()', programLog );
   }
 
   // clean up
@@ -3644,7 +3634,7 @@ function WebGLPrograms( renderer, capabilities ) {
       precision = capabilities.getMaxPrecision( material.precision );
 
       if ( precision !== material.precision ) {
-        console.warn( 'THREE.WebGLProgram.getParameters:', material.precision, 'not supported, using', precision, 'instead.' );
+        console.warn( 'WebGLProgram.getParameters:', material.precision, 'not supported, using', precision, 'instead.' );
       }
     }
 
@@ -3869,7 +3859,7 @@ function WebGLObjects( gl, properties, info ) {
 
       gl.bufferSubData( bufferType, 0, data.array );
     } else if ( data.updateRange.count === 0 ) {
-      console.error( 'THREE.WebGLObjects.updateBuffer: dynamic THREE.BufferAttribute marked as needsUpdate but updateRange.count is 0, ensure you are using set methods or updating manually.' );
+      console.error( 'WebGLObjects.updateBuffer: updateRange.count is 0.' );
     } else {
       gl.bufferSubData( bufferType, data.updateRange.offset * data.array.BYTES_PER_ELEMENT,
                         data.array.subarray( data.updateRange.offset, data.updateRange.offset + data.updateRange.count ) );
@@ -3935,9 +3925,9 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, info )
       var image = texture.image;
 
       if ( image === undefined ) {
-        console.warn( 'THREE.WebGLRenderer: Texture marked for update but image is undefined', texture );
+        console.warn( 'WebGLRenderer: Texture marked for update but image is undefined', texture );
       } else if ( image.complete === false ) {
-        console.warn( 'THREE.WebGLRenderer: Texture marked for update but image is incomplete', texture );
+        console.warn( 'WebGLRenderer: Texture marked for update but image is incomplete', texture );
       } else {
         uploadTexture( textureProperties, texture, slot );
         return;
@@ -4326,7 +4316,7 @@ function WebGLCapabilities( gl, extensions, parameters ) {
   var maxPrecision = getMaxPrecision( precision );
 
   if ( maxPrecision !== precision ) {
-    console.warn( 'THREE.WebGLRenderer:', precision, 'not supported, using', maxPrecision, 'instead.' );
+    console.warn( 'WebGLRenderer:', precision, 'not supported, using', maxPrecision, 'instead.' );
     precision = maxPrecision;
   }
 
@@ -4364,7 +4354,7 @@ function WebGLExtensions( gl ) {
       }
 
       if ( extension === null ) {
-        console.warn( 'THREE.WebGLRenderer: ' + name + ' extension not supported.' );
+        console.warn( 'WebGLRenderer: ' + name + ' extension not supported.' );
       }
 
       extensions[name] = extension;
@@ -4496,7 +4486,7 @@ function WebGLRenderer( parameters ) {
 
     _canvas.addEventListener( 'webglcontextlost', onContextLost, false );
   } catch ( error ) {
-    console.error( 'THREE.WebGLRenderer: ' + error );
+    console.error( 'WebGLRenderer: ' + error );
   }
 
   var extensions = new WebGLExtensions( _gl );
@@ -4835,7 +4825,7 @@ function WebGLRenderer( parameters ) {
 
   this.render = function ( scene, camera, renderTarget, forceClear ) {
     if ( camera !== undefined && camera.isCamera !== true ) {
-      console.error( 'THREE.WebGLRenderer.render: camera is not an instance of THREE.Camera.' );
+      console.error( 'camera is not an instance of Camera.' );
       return;
     }
 
@@ -5174,7 +5164,7 @@ function WebGLRenderer( parameters ) {
     return function setTexture2D( texture, slot ) {
       if ( texture && texture.isWebGLRenderTarget ) {
         if ( ! warned ) {
-          console.warn( 'THREE.WebGLRenderer.setTexture2D: don\'t use render targets as textures. Use their .texture property instead.' );
+          console.warn( 'WebGLRenderer.setTexture2D: don\'t use render targets as textures. Use their .texture property instead.' );
           warned = true;
         }
 
@@ -5351,7 +5341,7 @@ Raycaster.prototype = {
       this.ray.origin.set( coords[0], coords[1], ( camera.near + camera.far ) / ( camera.near - camera.far ) ).unproject( camera ); // set origin in plane of camera
       this.ray.direction.set( 0, 0, - 1 ).transformDirection( camera.matrixWorld );
     } else {
-      console.error( 'THREE.Raycaster: Unsupported camera type.' );
+      console.error( 'Raycaster: Unsupported camera type.' );
     }
   },
 
@@ -5641,25 +5631,14 @@ function makeRgbBox(transform_func /*:Num3 => Num3*/, color /*:Color*/) {
   return new LineSegments(geometry, material);
 }
 
-function double_pos(vertex_arr /*:Vector3[] | AtomT[]*/) {
-  var pos = [];
-  var i;
-  if (vertex_arr && vertex_arr[0].xyz) {
-    for (i = 0; i < vertex_arr.length; i++) {
-      // $FlowFixMe: disjoint unions not smart enough
-      var xyz /*:Num3*/ = vertex_arr[i].xyz;
-      pos.push(xyz[0], xyz[1], xyz[2]);
-      pos.push(xyz[0], xyz[1], xyz[2]);
-    }
-  } else {
-    for (i = 0; i < vertex_arr.length; i++) {
-      // $FlowFixMe
-      var v /*:Vector3*/ = vertex_arr[i];
-      pos.push(v.x, v.y, v.z);
-      pos.push(v.x, v.y, v.z);
-    }
+function double_pos(pos /*:Num3[]*/) {
+  var double_pos = [];
+  for (var i = 0; i < pos.length; i++) {
+    var v = pos[i];
+    double_pos.push(v[0], v[1], v[2]);
+    double_pos.push(v[0], v[1], v[2]);
   }
-  return pos;
+  return double_pos;
 }
 
 function double_color(color_arr /*:Color[]*/) {
@@ -5719,7 +5698,7 @@ function make_quad_index_buffer(len) {
 }
 
 // input arrays must be of the same length
-function wide_segments_geometry(vertex_arr, color_arr) {
+function wide_segments_geometry(vertex_arr /*:Num3[]*/, color_arr) {
   // n input vertices => 2n output vertices, n triangles, 3n indexes
   var len = vertex_arr.length;
   var i;
@@ -5964,7 +5943,7 @@ function makeLineMaterial(options /*:{[key: string]: mixed}*/) {
 }
 
 function makeLine(material /*:ShaderMaterial*/,
-                         vertices /*:AtomT[]*/,
+                         vertices /*:Num3[]*/,
                          colors /*:Color[]*/) {
   var mesh = new Mesh(wide_line_geometry(vertices, colors), material);
   mesh.drawMode = TriangleStripDrawMode;
@@ -5973,7 +5952,7 @@ function makeLine(material /*:ShaderMaterial*/,
 }
 
 function makeLineSegments(material /*:ShaderMaterial*/,
-                                 vertices /*:Vector3[] | AtomT[]*/,
+                                 vertices /*:Num3[]*/,
                                  colors /*:?Color[]*/) {
   var mesh = new Mesh(wide_segments_geometry(vertices, colors), material);
   mesh.raycast = line_raycast;
@@ -6175,13 +6154,10 @@ function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
 }
 
 // Add vertices of a 3d cross (representation of an unbonded atom)
-function addXyzCross(vertices /*:Vector3[]*/, xyz /*:Num3*/, r /*:number*/) {
-  vertices.push(new Vector3(xyz[0]-r, xyz[1], xyz[2]));
-  vertices.push(new Vector3(xyz[0]+r, xyz[1], xyz[2]));
-  vertices.push(new Vector3(xyz[0], xyz[1]-r, xyz[2]));
-  vertices.push(new Vector3(xyz[0], xyz[1]+r, xyz[2]));
-  vertices.push(new Vector3(xyz[0], xyz[1], xyz[2]-r));
-  vertices.push(new Vector3(xyz[0], xyz[1], xyz[2]+r));
+function addXyzCross(vertices /*:Num3[]*/, xyz /*:Num3*/, r /*:number*/) {
+  vertices.push([xyz[0]-r, xyz[1], xyz[2]], [xyz[0]+r, xyz[1], xyz[2]]);
+  vertices.push([xyz[0], xyz[1]-r, xyz[2]], [xyz[0], xyz[1]+r, xyz[2]]);
+  vertices.push([xyz[0], xyz[1], xyz[2]-r], [xyz[0], xyz[1], xyz[2]+r]);
 }
 
 // @flow
@@ -6669,13 +6645,13 @@ ModelBag.prototype.add_bonds = function add_bonds (ligands_only, ball_size) {
         // Here we keep it simple and render such bonds like all others.
         if (ligands_only && !other.is_ligand) { continue; }
         var mid = atom.midpoint(other);
-        var vmid = new Vector3(mid[0], mid[1], mid[2]);
-        var vatom = new Vector3(atom.xyz[0], atom.xyz[1], atom.xyz[2]);
         if (ball_size != null) {
+          var vmid = new Vector3(mid[0], mid[1], mid[2]);
+          var vatom = new Vector3(atom.xyz[0], atom.xyz[1], atom.xyz[2]);
           var lerp_factor = vatom.distanceTo(vmid) / ball_size;
           vatom.lerp(vmid, lerp_factor);
         }
-        vertex_arr.push(vatom, vmid);
+        vertex_arr.push(atom.xyz, mid);
         color_arr.push(color, color);
       }
     }
@@ -6706,12 +6682,18 @@ ModelBag.prototype.add_trace = function add_trace () {
     win_size: this.win_size,
   });
   var k = 0;
-  for (var i = 0, list = segments; i < list.length; i += 1) {
-    var seg = list[i];
+  for (var i$1 = 0, list$1 = segments; i$1 < list$1.length; i$1 += 1) {
+    var seg = list$1[i$1];
 
       var color_slice = colors.slice(k, k + seg.length);
     k += seg.length;
-    var line = makeLine(material, seg, color_slice);
+    var pos = [];
+    for (var i = 0, list = seg; i < list.length; i += 1) {
+      var atom = list[i];
+
+        pos.push(atom.xyz);
+    }
+    var line = makeLine(material, pos, color_slice);
     this.atomic_objects.push(line);
   }
 };

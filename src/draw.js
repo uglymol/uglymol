@@ -125,25 +125,14 @@ export function makeRgbBox(transform_func /*:Num3 => Num3*/, color /*:Color*/) {
   return new LineSegments(geometry, material);
 }
 
-function double_pos(vertex_arr /*:Vector3[] | AtomT[]*/) {
-  let pos = [];
-  let i;
-  if (vertex_arr && vertex_arr[0].xyz) {
-    for (i = 0; i < vertex_arr.length; i++) {
-      // $FlowFixMe: disjoint unions not smart enough
-      const xyz /*:Num3*/ = vertex_arr[i].xyz;
-      pos.push(xyz[0], xyz[1], xyz[2]);
-      pos.push(xyz[0], xyz[1], xyz[2]);
-    }
-  } else {
-    for (i = 0; i < vertex_arr.length; i++) {
-      // $FlowFixMe
-      const v /*:Vector3*/ = vertex_arr[i];
-      pos.push(v.x, v.y, v.z);
-      pos.push(v.x, v.y, v.z);
-    }
+function double_pos(pos /*:Num3[]*/) {
+  let double_pos = [];
+  for (let i = 0; i < pos.length; i++) {
+    const v = pos[i];
+    double_pos.push(v[0], v[1], v[2]);
+    double_pos.push(v[0], v[1], v[2]);
   }
-  return pos;
+  return double_pos;
 }
 
 function double_color(color_arr /*:Color[]*/) {
@@ -203,7 +192,7 @@ function make_quad_index_buffer(len) {
 }
 
 // input arrays must be of the same length
-function wide_segments_geometry(vertex_arr, color_arr) {
+function wide_segments_geometry(vertex_arr /*:Num3[]*/, color_arr) {
   // n input vertices => 2n output vertices, n triangles, 3n indexes
   const len = vertex_arr.length;
   let i;
@@ -483,7 +472,7 @@ export function makeLineMaterial(options /*:{[key: string]: mixed}*/) {
 }
 
 export function makeLine(material /*:ShaderMaterial*/,
-                         vertices /*:AtomT[]*/,
+                         vertices /*:Num3[]*/,
                          colors /*:Color[]*/) {
   let mesh = new Mesh(wide_line_geometry(vertices, colors), material);
   mesh.drawMode = TriangleStripDrawMode;
@@ -492,7 +481,7 @@ export function makeLine(material /*:ShaderMaterial*/,
 }
 
 export function makeLineSegments(material /*:ShaderMaterial*/,
-                                 vertices /*:Vector3[] | AtomT[]*/,
+                                 vertices /*:Num3[]*/,
                                  colors /*:?Color[]*/) {
   let mesh = new Mesh(wide_segments_geometry(vertices, colors), material);
   mesh.raycast = line_raycast;
@@ -757,11 +746,8 @@ export function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
 
 // Add vertices of a 3d cross (representation of an unbonded atom)
 export
-function addXyzCross(vertices /*:Vector3[]*/, xyz /*:Num3*/, r /*:number*/) {
-  vertices.push(new Vector3(xyz[0]-r, xyz[1], xyz[2]));
-  vertices.push(new Vector3(xyz[0]+r, xyz[1], xyz[2]));
-  vertices.push(new Vector3(xyz[0], xyz[1]-r, xyz[2]));
-  vertices.push(new Vector3(xyz[0], xyz[1]+r, xyz[2]));
-  vertices.push(new Vector3(xyz[0], xyz[1], xyz[2]-r));
-  vertices.push(new Vector3(xyz[0], xyz[1], xyz[2]+r));
+function addXyzCross(vertices /*:Num3[]*/, xyz /*:Num3*/, r /*:number*/) {
+  vertices.push([xyz[0]-r, xyz[1], xyz[2]], [xyz[0]+r, xyz[1], xyz[2]]);
+  vertices.push([xyz[0], xyz[1]-r, xyz[2]], [xyz[0], xyz[1]+r, xyz[2]]);
+  vertices.push([xyz[0], xyz[1], xyz[2]-r], [xyz[0], xyz[1], xyz[2]+r]);
 }

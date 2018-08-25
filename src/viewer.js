@@ -254,13 +254,13 @@ class ModelBag {
           // Here we keep it simple and render such bonds like all others.
           if (ligands_only && !other.is_ligand) continue;
           const mid = atom.midpoint(other);
-          const vmid = new Vector3(mid[0], mid[1], mid[2]);
-          const vatom = new Vector3(atom.xyz[0], atom.xyz[1], atom.xyz[2]);
           if (ball_size != null) {
+            const vmid = new Vector3(mid[0], mid[1], mid[2]);
+            const vatom = new Vector3(atom.xyz[0], atom.xyz[1], atom.xyz[2]);
             const lerp_factor = vatom.distanceTo(vmid) / ball_size;
             vatom.lerp(vmid, lerp_factor);
           }
-          vertex_arr.push(vatom, vmid);
+          vertex_arr.push(atom.xyz, mid);
           color_arr.push(color, color);
         }
       }
@@ -294,7 +294,11 @@ class ModelBag {
     for (const seg of segments) {
       const color_slice = colors.slice(k, k + seg.length);
       k += seg.length;
-      const line = makeLine(material, seg, color_slice);
+      let pos = [];
+      for (const atom of seg) {
+        pos.push(atom.xyz);
+      }
+      const line = makeLine(material, pos, color_slice);
       this.atomic_objects.push(line);
     }
   }
