@@ -2,7 +2,7 @@
 import { ElMap } from './elmap.js';
 import { Viewer } from './viewer.js';
 import { addXyzCross, makeLineMaterial, makeLineSegments,
-         makeUniforms } from './draw.js';
+         makeUniforms, fog_pars_fragment, fog_end_fragment } from './draw.js';
 import { Points, BufferAttribute, BufferGeometry, ShaderMaterial,
          VertexColors } from './fromthree.js';
 
@@ -146,7 +146,7 @@ void main() {
 }`;
 
 const round_point_frag = `
-#include <fog_pars_fragment>
+${fog_pars_fragment}
 varying vec3 vcolor;
 void main() {
   // not sure how reliable is such rounding of points
@@ -155,15 +155,15 @@ void main() {
   if (dist_sq >= 1.0) discard;
   float alpha = 1.0 - dist_sq * dist_sq * dist_sq;
   gl_FragColor = vec4(vcolor, alpha);
-#include <fog_fragment>
+${fog_end_fragment}
 }`;
 
 const square_point_frag = `
-#include <fog_pars_fragment>
+${fog_pars_fragment}
 varying vec3 vcolor;
 void main() {
   gl_FragColor = vec4(vcolor, 1.0);
-#include <fog_fragment>
+${fog_end_fragment}
 }`;
 
 
@@ -207,6 +207,7 @@ export class ReciprocalViewer extends Viewer {
       vertexColors: VertexColors,
       fog: true,
       transparent: true,
+      type: 'um_point',
     });
   }
 

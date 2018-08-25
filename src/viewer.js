@@ -435,8 +435,7 @@ export class Viewer {
     this.selected = {bag: null, atom: null};
     this.scene = new Scene();
     this.scene.fog = new Fog(this.config.colors.bg, 0, 1);
-    this.light = new AmbientLight(0xffffff);
-    this.scene.add(this.light);
+    this.scene.add(new AmbientLight(0xffffff));
     this.default_camera_pos = [0, 0, 100];
     if (options.share_view) {
       this.target = options.share_view.target;
@@ -668,7 +667,7 @@ export class Viewer {
 
   set_atomic_objects(model_bag/*:ModelBag*/) {
     model_bag.atomic_objects = [];
-    const ball_size = 0.3;
+    const ball_size = 0.4;
     switch (model_bag.conf.render_style) {
       case 'lines':
         model_bag.add_bonds();
@@ -1313,7 +1312,6 @@ export class Viewer {
     const scale = w[2] || this.camera.zoom;
     this.camera.near = dxyz * (1 - w[0] / scale);
     this.camera.far = dxyz * (1 + w[1] / scale);
-    //this.light.position.copy(this.camera.position);
     this.camera.updateProjectionMatrix();
   }
 
@@ -1580,8 +1578,7 @@ export class Viewer {
     inset.appendChild(nav.renderer.domElement);
     //nav.scene = new Scene();
     nav.scene = this.scene;
-    //var light = new AmbientLight(0xffffff);
-    //nav.scene.add(light);
+    //nav.scene.add(new AmbientLight(0xffffff));
     this.nav = nav;
   };
   */

@@ -2609,16 +2609,6 @@ WebGLUniforms.seqWithValue = function ( seq, values ) {
   return r;
 };
 
-var fog_fragment = "\n#ifdef USE_FOG\nfloat depth = gl_FragCoord.z / gl_FragCoord.w;\nfloat fogFactor = smoothstep( fogNear, fogFar, depth );\ngl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );\n#endif\n";
-
-var fog_pars_fragment = "\n#ifdef USE_FOG\nuniform vec3 fogColor;\nuniform float fogNear;\nuniform float fogFar;\n#endif";
-
-
-var ShaderChunk = {
-  fog_fragment: fog_fragment,
-  fog_pars_fragment: fog_pars_fragment,
-};
-
 /**
 * @author supereggbert / http://www.paulbrunt.co.uk/
 * @author philogb / http://blog.thejit.org/
@@ -2896,8 +2886,8 @@ function ShaderMaterial( parameters ) {
 
   this.uniforms = {};
 
-  this.vertexShader = 'void main() {\n\tgl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );\n}';
-  this.fragmentShader = 'void main() {\n\tgl_FragColor = vec4( 1.0, 0.0, 0.0, 1.0 );\n}';
+  this.vertexShader = '';
+  this.fragmentShader = '';
 
   this.linewidth = 1;
 
@@ -3137,8 +3127,6 @@ Object.assign( Object3D.prototype, EventDispatcher.prototype, {
       object.dispatchEvent( { type: 'added' } );
 
       this.children.push( object );
-    } else {
-      console.error( 'THREE.Object3D.add: object not an instance of THREE.Object3D.', object );
     }
 
     return this;
@@ -3502,22 +3490,6 @@ function fetchAttributeLocations( gl, program, identifiers ) {
   return attributes;
 }
 
-function parseIncludes( string ) {
-  var pattern = /#include +<([\w\d.]+)>/g;
-
-  function replace( match, include ) {
-    var replace = ShaderChunk[include];
-
-    if ( replace === undefined ) {
-      throw new Error( 'Can not resolve #include <' + include + '>' );
-    }
-
-    return parseIncludes( replace );
-  }
-
-  return string.replace( pattern, replace );
-}
-
 function WebGLProgram( renderer, code, material, parameters ) {
   var gl = renderer.context;
 
@@ -3538,54 +3510,44 @@ function WebGLProgram( renderer, code, material, parameters ) {
 
   var prefixVertex, prefixFragment;
 
-  {
-    prefixVertex = [
+  prefixVertex = [
+    'precision ' + parameters.precision + ' float;',
+    'precision ' + parameters.precision + ' int;',
 
-      'precision ' + parameters.precision + ' float;',
-      'precision ' + parameters.precision + ' int;',
+    '#define SHADER_NAME ' + material.__webglShader.name,
 
-      '#define SHADER_NAME ' + material.__webglShader.name,
+    parameters.vertexColors ? '#define USE_COLOR' : '',
 
-      parameters.vertexColors ? '#define USE_COLOR' : '',
+    'uniform mat4 modelMatrix;',
+    'uniform mat4 modelViewMatrix;',
+    'uniform mat4 projectionMatrix;',
+    'uniform mat4 viewMatrix;',
+    'uniform vec3 cameraPosition;',
 
-      'uniform mat4 modelMatrix;',
-      'uniform mat4 modelViewMatrix;',
-      'uniform mat4 projectionMatrix;',
-      'uniform mat4 viewMatrix;',
-      'uniform vec3 cameraPosition;',
+    'attribute vec3 position;',
+    'attribute vec3 normal;',
 
-      'attribute vec3 position;',
-      'attribute vec3 normal;',
-      'attribute vec2 uv;',
+    '#ifdef USE_COLOR',
+    ' attribute vec3 color;',
+    '#endif',
+    '' ].join( '\n' );
 
-      '#ifdef USE_COLOR',
+  prefixFragment = [
 
-      ' attribute vec3 color;',
+    customExtensions,
 
-      '#endif',
-      '\n' ].join( '\n' );
+    'precision ' + parameters.precision + ' float;',
+    'precision ' + parameters.precision + ' int;',
 
-    prefixFragment = [
+    '#define SHADER_NAME ' + material.__webglShader.name,
 
-      customExtensions,
+    ( parameters.useFog && parameters.fog ) ? '#define USE_FOG' : '',
 
-      'precision ' + parameters.precision + ' float;',
-      'precision ' + parameters.precision + ' int;',
+    parameters.vertexColors ? '#define USE_COLOR' : '',
 
-      '#define SHADER_NAME ' + material.__webglShader.name,
-
-      ( parameters.useFog && parameters.fog ) ? '#define USE_FOG' : '',
-
-      parameters.vertexColors ? '#define USE_COLOR' : '',
-
-      'uniform mat4 viewMatrix;',
-      'uniform vec3 cameraPosition;',
-      '\n' ].join( '\n' );
-  }
-
-  vertexShader = parseIncludes( vertexShader, parameters );
-
-  fragmentShader = parseIncludes( fragmentShader, parameters );
+    'uniform mat4 viewMatrix;',
+    'uniform vec3 cameraPosition;',
+    '' ].join( '\n' );
 
   var vertexGlsl = prefixVertex + vertexShader;
   var fragmentGlsl = prefixFragment + fragmentShader;
@@ -3605,45 +3567,13 @@ function WebGLProgram( renderer, code, material, parameters ) {
   var vertexLog = gl.getShaderInfoLog( glVertexShader );
   var fragmentLog = gl.getShaderInfoLog( glFragmentShader );
 
-  var runnable = true;
-  var haveDiagnostics = true;
-
   // console.log( '**VERTEX**', gl.getExtension( 'WEBGL_debug_shaders' ).getTranslatedShaderSource( glVertexShader ) );
   // console.log( '**FRAGMENT**', gl.getExtension( 'WEBGL_debug_shaders' ).getTranslatedShaderSource( glFragmentShader ) );
 
   if ( gl.getProgramParameter( program, gl.LINK_STATUS ) === false ) {
-    runnable = false;
-
     console.error( 'THREE.WebGLProgram: shader error: ', gl.getError(), 'gl.VALIDATE_STATUS', gl.getProgramParameter( program, gl.VALIDATE_STATUS ), 'gl.getProgramInfoLog', programLog, vertexLog, fragmentLog );
   } else if ( programLog !== '' ) {
     console.warn( 'THREE.WebGLProgram: gl.getProgramInfoLog()', programLog );
-  } else if ( vertexLog === '' || fragmentLog === '' ) {
-    haveDiagnostics = false;
-  }
-
-  if ( haveDiagnostics ) {
-    this.diagnostics = {
-
-      runnable: runnable,
-      material: material,
-
-      programLog: programLog,
-
-      vertexShader: {
-
-        log: vertexLog,
-        prefix: prefixVertex,
-
-      },
-
-      fragmentShader: {
-
-        log: fragmentLog,
-        prefix: prefixFragment,
-
-      },
-
-    };
   }
 
   // clean up
@@ -4458,12 +4388,8 @@ function WebGLRenderer( parameters ) {
 
   var _canvas = parameters.canvas !== undefined ? parameters.canvas : document.createElementNS( 'http://www.w3.org/1999/xhtml', 'canvas' ),
     _context = parameters.context !== undefined ? parameters.context : null,
-
-    _alpha = parameters.alpha !== undefined ? parameters.alpha : false,
-    _depth = parameters.depth !== undefined ? parameters.depth : true,
     _antialias = parameters.antialias !== undefined ? parameters.antialias : false,
-    _premultipliedAlpha = parameters.premultipliedAlpha !== undefined ? parameters.premultipliedAlpha : true,
-    _preserveDrawingBuffer = parameters.preserveDrawingBuffer !== undefined ? parameters.preserveDrawingBuffer : false;
+    _premultipliedAlpha = parameters.premultipliedAlpha !== undefined ? parameters.premultipliedAlpha : true;
 
   var opaqueObjects = [];
   var opaqueObjectsLastIndex = - 1;
@@ -4525,19 +4451,15 @@ function WebGLRenderer( parameters ) {
     // info
 
     _infoRender = {
-
       calls: 0,
       vertices: 0,
       faces: 0,
       points: 0,
-
     };
 
   this.info = {
-
     render: _infoRender,
     programs: null,
-
   };
 
 
@@ -4547,11 +4469,11 @@ function WebGLRenderer( parameters ) {
 
   try {
     var attributes = {
-      alpha: _alpha,
-      depth: _depth,
+      alpha: false,
+      depth: true,
       antialias: _antialias,
       premultipliedAlpha: _premultipliedAlpha,
-      preserveDrawingBuffer: _preserveDrawingBuffer,
+      preserveDrawingBuffer: false,
     };
 
     _gl = _context || _canvas.getContext( 'webgl', attributes ) || _canvas.getContext( 'experimental-webgl', attributes );
@@ -4578,15 +4500,7 @@ function WebGLRenderer( parameters ) {
   }
 
   var extensions = new WebGLExtensions( _gl );
-
   extensions.get( 'WEBGL_depth_texture' );
-  extensions.get( 'OES_texture_float' );
-  extensions.get( 'OES_texture_float_linear' );
-  extensions.get( 'OES_texture_half_float' );
-  extensions.get( 'OES_texture_half_float_linear' );
-  extensions.get( 'OES_standard_derivatives' );
-  extensions.get( 'ANGLE_instanced_arrays' );
-
   if ( extensions.get( 'OES_element_index_uint' ) ) {
     BufferGeometry.MaxIndex = 4294967296;
   }
@@ -4969,16 +4883,7 @@ function WebGLRenderer( parameters ) {
 
     this.setRenderTarget( renderTarget );
 
-    //
-
-    var background = scene.background;
-
-    if ( background === null ) {
-      state.buffers.color.setClear( _clearColor.r, _clearColor.g, _clearColor.b, _clearAlpha, _premultipliedAlpha );
-    } else if ( background && background.isColor ) {
-      state.buffers.color.setClear( background.r, background.g, background.b, 1, _premultipliedAlpha );
-      forceClear = true;
-    }
+    state.buffers.color.setClear( _clearColor.r, _clearColor.g, _clearColor.b, _clearAlpha, _premultipliedAlpha );
 
     if ( this.autoClear || forceClear ) {
       this.clear( this.autoClearColor, this.autoClearDepth );
@@ -5336,7 +5241,6 @@ function Scene() {
 
   this.type = 'Scene';
 
-  this.background = null;
   this.fog = null;
 
   this.autoUpdate = true; // checked by the renderer
@@ -5408,21 +5312,8 @@ Points.prototype = Object.assign( Object.create( Object3D.prototype ), {
 
 } );
 
-/**
-* @author mrdoob / http://mrdoob.com/
-* @author alteredq / http://alteredqualia.com/
-*/
-
-function AmbientLight( color ) {
-  Object3D.call( this );
-  this.type = 'AmbientLight';
-  this.color = new Color( color );
-}
-
-AmbientLight.prototype = Object.assign( Object.create( Object3D.prototype ), {
-  constructor: AmbientLight,
-  isAmbientLight: true,
-} );
+// kept for compatibility with THREE
+function AmbientLight( color ) {}
 
 /**
 * @author mrdoob / http://mrdoob.com/
@@ -5685,9 +5576,16 @@ function makeColorAttribute(colors /*:Color[]*/) {
   return new BufferAttribute(col, 3);
 }
 
+var fog_pars_fragment =
+"#ifdef USE_FOG\nuniform vec3 fogColor;\nuniform float fogNear;\nuniform float fogFar;\n#endif";
+
+var fog_end_fragment =
+"#ifdef USE_FOG\n  float depth = gl_FragCoord.z / gl_FragCoord.w;\n  float fogFactor = smoothstep(fogNear, fogFar, depth);\n  gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, fogFactor);\n#endif";
+
+
 var line_vert = "\n#ifdef USE_COLOR\nvarying vec3 vcolor;\n#endif\nvoid main() {\n#ifdef USE_COLOR\n  vcolor = color;\n#endif\n  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n}\n";
 
-var line_frag = "\n#include <fog_pars_fragment>\n#ifdef USE_COLOR\nvarying vec3 vcolor;\n#else\nuniform vec3 vcolor;\n#endif\nvoid main() {\n  gl_FragColor = vec4(vcolor, 1.0);\n#include <fog_fragment>\n}\n";
+var line_frag = "\n" + fog_pars_fragment + "\n#ifdef USE_COLOR\n varying vec3 vcolor;\n#else\n uniform vec3 vcolor;\n#endif\nvoid main() {\n  gl_FragColor = vec4(vcolor, 1.0);\n" + fog_end_fragment + "\n}";
 
 function makeCube(size /*:number*/,
                          ctr /*:Vector3*/,
@@ -5705,6 +5603,7 @@ function makeCube(size /*:number*/,
     fragmentShader: line_frag,
     fog: true,
     linewidth: options.linewidth,
+    type: 'um_line_cube',
   });
   var geometry = new BufferGeometry();
   geometry.addAttribute('position', new BufferAttribute(pos, 3));
@@ -5734,6 +5633,7 @@ function makeRgbBox(transform_func /*:Num3 => Num3*/, color /*:Color*/) {
     vertexColors: VertexColors,
     fog: true,
     linewidth: 1,
+    type: 'um_line_box',
   });
   var geometry = new BufferGeometry();
   geometry.addAttribute('position', new BufferAttribute(pos, 3));
@@ -5878,29 +5778,9 @@ var wide_line_vert = [
   '  gl_Position.xy += side * linewidth / angle_factor * normal / win_size;',
   '}'].join('\n');
 
-var wide_segments_vert = [
-  'attribute vec3 other;',
-  'attribute float side;',
-  'uniform vec2 win_size;',
-  'uniform float linewidth;',
-  'varying vec3 vcolor;',
+var wide_segments_vert = "\nattribute vec3 other;\nattribute float side;\nuniform vec2 win_size;\nuniform float linewidth;\nvarying vec3 vcolor;\n\nvoid main() {\n  vcolor = color;\n  mat4 mat = projectionMatrix * modelViewMatrix;\n  vec2 dir = normalize((mat * vec4(position - other, 0.0)).xy);\n  vec2 normal = vec2(-dir.y, dir.x);\n  gl_Position = mat * vec4(position, 1.0);\n  gl_Position.xy += side * linewidth * normal / win_size;\n}";
 
-  'void main() {',
-  '  vcolor = color;',
-  '  mat4 mat = projectionMatrix * modelViewMatrix;',
-  '  vec2 dir = normalize((mat * vec4(position - other, 0.0)).xy);',
-  '  vec2 normal = vec2(-dir.y, dir.x);',
-  '  gl_Position = mat * vec4(position, 1.0);',
-  '  gl_Position.xy += side * linewidth * normal / win_size;',
-  '}'].join('\n');
-
-var wide_line_frag = [
-  '#include <fog_pars_fragment>',
-  'varying vec3 vcolor;',
-  'void main() {',
-  '  gl_FragColor = vec4(vcolor, 1.0);',
-  '#include <fog_fragment>',
-  '}'].join('\n');
+var wide_line_frag = "\n" + fog_pars_fragment + "\nvarying vec3 vcolor;\nvoid main() {\n  gl_FragColor = vec4(vcolor, 1.0);\n" + fog_end_fragment + "\n}";
 
 
 function interpolate_vertices(segment, smooth) /*:Vector3[]*/{
@@ -5957,23 +5837,9 @@ function makeUniforms(params/*:{[id:string]:mixed}*/) {
   return uniforms;
 }
 
-var ribbon_vert = [
-  //'attribute vec3 normal;' is added by default for ShaderMaterial
-  'uniform float shift;',
-  'varying vec3 vcolor;',
-  'void main() {',
-  '  vcolor = color;',
-  '  vec3 pos = position + shift * normalize(normal);',
-  '  gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);',
-  '}'].join('\n');
+var ribbon_vert = "\nattribute vec3 tan;\nuniform float shift;\nvarying vec3 vcolor;\nvoid main() {\n  vcolor = color;\n  vec3 pos = position + shift * normalize(tan);\n  gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);\n}";
 
-var ribbon_frag = [
-  '#include <fog_pars_fragment>',
-  'varying vec3 vcolor;',
-  'void main() {',
-  '  gl_FragColor = vec4(vcolor, 1.0);',
-  '#include <fog_fragment>',
-  '}'].join('\n');
+var ribbon_frag = "\n" + fog_pars_fragment + "\nvarying vec3 vcolor;\nvoid main() {\n  gl_FragColor = vec4(vcolor, 1.0);\n" + fog_end_fragment + "\n}";
 
 // 9-line ribbon
 function makeRibbon(vertices /*:AtomT[]*/,
@@ -5995,8 +5861,7 @@ function makeRibbon(vertices /*:AtomT[]*/,
   geometry.addAttribute('position', new BufferAttribute(pos, 3));
   geometry.addAttribute('color', makeColorAttribute(color_arr));
   var tan = new Float32Array(tang_arr);
-  // it's not 'normal', but it doesn't matter
-  geometry.addAttribute('normal', new BufferAttribute(tan, 3));
+  geometry.addAttribute('tan', new BufferAttribute(tan, 3));
   for (var n = -4; n < 5; n++) {
     var material = new ShaderMaterial({
       uniforms: makeUniforms({shift: 0.1 * n}),
@@ -6004,6 +5869,7 @@ function makeRibbon(vertices /*:AtomT[]*/,
       fragmentShader: ribbon_frag,
       fog: true,
       vertexColors: VertexColors,
+      type: 'um_ribbon',
     });
     obj.add(new Line(geometry, material));
   }
@@ -6029,6 +5895,7 @@ function makeChickenWire(data /*:{vertices: number[], segments: number[]}*/,
     fragmentShader: line_frag,
     fog: true,
     linewidth: options.linewidth,
+    type: 'um_line_chickenwire',
   });
   return new LineSegments(geom, material);
 }
@@ -6071,6 +5938,7 @@ function makeGrid() {
     vertexShader: grid_vert,
     fragmentShader: grid_frag,
     fog: true, // no really, but we use fogColor
+    type: 'um_grid',
   });
   material.transparent = true;
   var obj = new LineSegments(geom, material);
@@ -6091,6 +5959,7 @@ function makeLineMaterial(options /*:{[key: string]: mixed}*/) {
     fragmentShader: wide_line_frag,
     fog: true,
     vertexColors: VertexColors,
+    type: 'um_line',
   });
 }
 
@@ -6121,15 +5990,7 @@ var wheel_vert = [
   '}'].join('\n');
 
 // not sure how portable it is
-var wheel_frag = [
-  '#include <fog_pars_fragment>',
-  'varying vec3 vcolor;',
-  'void main() {',
-  '  vec2 diff = gl_PointCoord - vec2(0.5, 0.5);',
-  '  if (dot(diff, diff) >= 0.25) discard;',
-  '  gl_FragColor = vec4(vcolor, 1.0);',
-  '#include <fog_fragment>',
-  '}'].join('\n');
+var wheel_frag = "\n" + fog_pars_fragment + "\nvarying vec3 vcolor;\nvoid main() {\n  vec2 diff = gl_PointCoord - vec2(0.5, 0.5);\n  if (dot(diff, diff) >= 0.25) discard;\n  gl_FragColor = vec4(vcolor, 1.0);\n" + fog_end_fragment + "\n}";
 
 function makeWheels(atom_arr /*:AtomT[]*/,
                            color_arr /*:Color[]*/,
@@ -6150,6 +6011,7 @@ function makeWheels(atom_arr /*:AtomT[]*/,
     fragmentShader: wheel_frag,
     fog: true,
     vertexColors: VertexColors,
+    type: 'um_wheel',
   });
   var obj = new Points(geometry, material);
   // currently we use only lines for picking
@@ -6160,7 +6022,7 @@ function makeWheels(atom_arr /*:AtomT[]*/,
 var sphere_vert = "\nattribute vec2 corner;\nuniform float radius;\nvarying vec3 vcolor;\nvarying vec2 vcoor;\nvarying vec3 vpos;\n\nvoid main() {\n  vcolor = color;\n  vcoor = corner;\n  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);\n  vpos = mvPosition.xyz;\n  mvPosition.xy += corner * radius;\n  gl_Position = projectionMatrix * mvPosition;\n}\n";
 
 // based on 3Dmol imposter shaders
-var sphere_frag = "\n#include <fog_pars_fragment>\nuniform mat4 projectionMatrix;\nuniform vec3 lightDir;\nvarying vec3 vcolor;\nvarying vec2 vcoor;\nvarying vec3 vpos;\n\nvoid main() {\n  float sq = dot(vcoor, vcoor);\n  if (sq > 1.0) discard;\n  float z = sqrt(1.0-sq);\n  vec3 xyz = vec3(vcoor.x, vcoor.y, z);\n  vec4 projPos = projectionMatrix * vec4(vpos + xyz, 1.0);\n  float ndcDepth = projPos.z / projPos.w;\n  gl_FragDepthEXT = ((gl_DepthRange.diff * ndcDepth) +\n                     gl_DepthRange.near + gl_DepthRange.far) / 2.0;\n  float weight = clamp(dot(xyz, lightDir), 0.0, 1.0);\n  gl_FragColor = vec4(weight * vcolor, 1.0);\n#include <fog_fragment>\n}\n";
+var sphere_frag = "\n" + fog_pars_fragment + "\nuniform mat4 projectionMatrix;\nuniform vec3 lightDir;\nvarying vec3 vcolor;\nvarying vec2 vcoor;\nvarying vec3 vpos;\n\nvoid main() {\n  float sq = dot(vcoor, vcoor);\n  if (sq > 1.0) discard;\n  float z = sqrt(1.0-sq);\n  vec3 xyz = vec3(vcoor.x, vcoor.y, z);\n  vec4 projPos = projectionMatrix * vec4(vpos + xyz, 1.0);\n  float ndcDepth = projPos.z / projPos.w;\n  gl_FragDepthEXT = ((gl_DepthRange.diff * ndcDepth) +\n                     gl_DepthRange.near + gl_DepthRange.far) / 2.0;\n  float weight = clamp(dot(xyz, lightDir), 0.0, 1.0);\n  gl_FragColor = vec4(weight * vcolor, 1.0);\n  " + fog_end_fragment + "\n}\n";
 
 function makeBalls(atom_arr /*:AtomT[]*/,
                           color_arr /*:Color[]*/,
@@ -6214,6 +6076,7 @@ function makeBalls(atom_arr /*:AtomT[]*/,
     fragmentShader: sphere_frag,
     fog: true,
     vertexColors: VertexColors,
+    type: 'um_sphere',
   });
   material.extensions.fragDepth = true;
   var obj = new Mesh(geometry, material);
@@ -6272,26 +6135,9 @@ function makeCanvasWithText(text, options) {
   return canvas;
 }
 
-var label_vert = [
-  'uniform vec2 canvas_size;',
-  'uniform vec2 win_size;',
-  'varying vec2 vUv;',
-  'void main() {',
-  '  vUv = uv;',
-  '  vec2 rel_offset = vec2(0.02, -0.3);',
-  '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
-  '  gl_Position.xy += (uv + rel_offset) * 2.0 * canvas_size / win_size;',
-  '  gl_Position.z += 0.2 * projectionMatrix[2][2];',
-  '}'].join('\n');
+var label_vert = "\nattribute vec2 uvs;\nuniform vec2 canvas_size;\nuniform vec2 win_size;\nvarying vec2 vUv;\nvoid main() {\n  vUv = uvs;\n  vec2 rel_offset = vec2(0.02, -0.3);\n  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n  gl_Position.xy += (uvs + rel_offset) * 2.0 * canvas_size / win_size;\n  gl_Position.z += 0.2 * projectionMatrix[2][2];\n}";
 
-var label_frag = [
-  '#include <fog_pars_fragment>',
-  'varying vec2 vUv;',
-  'uniform sampler2D map;',
-  'void main() {',
-  '  gl_FragColor = texture2D(map, vUv);',
-  '#include <fog_fragment>',
-  '}'].join('\n');
+var label_frag = "\n" + fog_pars_fragment + "\nvarying vec2 vUv;\nuniform sampler2D map;\nvoid main() {\n  gl_FragColor = texture2D(map, vUv);\n" + fog_end_fragment + "\n}";
 
 
 function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
@@ -6308,7 +6154,7 @@ function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
   var indices = new Uint16Array([0, 2, 1, 2, 3, 1]);
   geometry.setIndex(new BufferAttribute(indices, 1));
   geometry.addAttribute('position', new BufferAttribute(position, 3));
-  geometry.addAttribute('uv', new BufferAttribute(uvs, 2));
+  geometry.addAttribute('uvs', new BufferAttribute(uvs, 2));
 
   var material = new ShaderMaterial({
     uniforms: makeUniforms({map: texture,
@@ -6317,6 +6163,7 @@ function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
     vertexShader: label_vert,
     fragmentShader: label_frag,
     fog: true,
+    type: 'um_label',
   });
   material.transparent = true;
   var mesh = new Mesh(geometry, material);
@@ -6971,8 +6818,7 @@ var Viewer = function Viewer(options /*: {[key: string]: any}*/) {
   this.selected = {bag: null, atom: null};
   this.scene = new Scene();
   this.scene.fog = new Fog(this.config.colors.bg, 0, 1);
-  this.light = new AmbientLight(0xffffff);
-  this.scene.add(this.light);
+  this.scene.add(new AmbientLight(0xffffff));
   this.default_camera_pos = [0, 0, 100];
   if (options.share_view) {
     this.target = options.share_view.target;
@@ -7216,7 +7062,7 @@ Viewer.prototype.clear_atomic_objects = function clear_atomic_objects (model_bag
 
 Viewer.prototype.set_atomic_objects = function set_atomic_objects (model_bag/*:ModelBag*/) {
   model_bag.atomic_objects = [];
-  var ball_size = 0.3;
+  var ball_size = 0.4;
   switch (model_bag.conf.render_style) {
     case 'lines':
       model_bag.add_bonds();
@@ -7871,7 +7717,6 @@ Viewer.prototype.update_camera = function update_camera () {
   var scale = w[2] || this.camera.zoom;
   this.camera.near = dxyz * (1 - w[0] / scale);
   this.camera.far = dxyz * (1 + w[1] / scale);
-  //this.light.position.copy(this.camera.position);
   this.camera.updateProjectionMatrix();
 };
 
@@ -8305,9 +8150,9 @@ function parse_json(text) {
 
 var point_vert = "\nattribute float group;\nuniform float show_only;\nuniform float r2_max;\nuniform float r2_min;\nuniform float size;\nvarying vec3 vcolor;\nvoid main() {\n  vcolor = color;\n  float r2 = dot(position, position);\n  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n  if (r2 < r2_min || r2 >= r2_max || (show_only != -2.0 && show_only != group))\n    gl_Position.x = 2.0;\n  gl_PointSize = size;\n}";
 
-var round_point_frag = "\n#include <fog_pars_fragment>\nvarying vec3 vcolor;\nvoid main() {\n  // not sure how reliable is such rounding of points\n  vec2 diff = gl_PointCoord - vec2(0.5, 0.5);\n  float dist_sq = 4.0 * dot(diff, diff);\n  if (dist_sq >= 1.0) discard;\n  float alpha = 1.0 - dist_sq * dist_sq * dist_sq;\n  gl_FragColor = vec4(vcolor, alpha);\n#include <fog_fragment>\n}";
+var round_point_frag = "\n" + fog_pars_fragment + "\nvarying vec3 vcolor;\nvoid main() {\n  // not sure how reliable is such rounding of points\n  vec2 diff = gl_PointCoord - vec2(0.5, 0.5);\n  float dist_sq = 4.0 * dot(diff, diff);\n  if (dist_sq >= 1.0) discard;\n  float alpha = 1.0 - dist_sq * dist_sq * dist_sq;\n  gl_FragColor = vec4(vcolor, alpha);\n" + fog_end_fragment + "\n}";
 
-var square_point_frag = "\n#include <fog_pars_fragment>\nvarying vec3 vcolor;\nvoid main() {\n  gl_FragColor = vec4(vcolor, 1.0);\n#include <fog_fragment>\n}";
+var square_point_frag = "\n" + fog_pars_fragment + "\nvarying vec3 vcolor;\nvoid main() {\n  gl_FragColor = vec4(vcolor, 1.0);\n" + fog_end_fragment + "\n}";
 
 
 var ReciprocalViewer = (function (Viewer$$1) {
@@ -8341,6 +8186,7 @@ var ReciprocalViewer = (function (Viewer$$1) {
       vertexColors: VertexColors,
       fog: true,
       transparent: true,
+      type: 'um_point',
     });
   }
 
@@ -8666,6 +8512,8 @@ exports.LineSegments = LineSegments;
 exports.Scene = Scene;
 exports.TriangleStripDrawMode = TriangleStripDrawMode;
 exports.Line = Line;
+exports.fog_pars_fragment = fog_pars_fragment;
+exports.fog_end_fragment = fog_end_fragment;
 exports.makeCube = makeCube;
 exports.makeRgbBox = makeRgbBox;
 exports.makeUniforms = makeUniforms;

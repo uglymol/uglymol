@@ -31,6 +31,21 @@ function makeColorAttribute(colors /*:Color[]*/) {
   return new BufferAttribute(col, 3);
 }
 
+export const fog_pars_fragment =
+`#ifdef USE_FOG
+uniform vec3 fogColor;
+uniform float fogNear;
+uniform float fogFar;
+#endif`;
+
+export const fog_end_fragment =
+`#ifdef USE_FOG
+  float depth = gl_FragCoord.z / gl_FragCoord.w;
+  float fogFactor = smoothstep(fogNear, fogFar, depth);
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, fogFactor);
+#endif`;
+
+
 const line_vert = `
 #ifdef USE_COLOR
 varying vec3 vcolor;
@@ -44,17 +59,16 @@ void main() {
 `;
 
 const line_frag = `
-#include <fog_pars_fragment>
+${fog_pars_fragment}
 #ifdef USE_COLOR
-varying vec3 vcolor;
+ varying vec3 vcolor;
 #else
-uniform vec3 vcolor;
+ uniform vec3 vcolor;
 #endif
 void main() {
   gl_FragColor = vec4(vcolor, 1.0);
-#include <fog_fragment>
-}
-`;
+${fog_end_fragment}
+}`;
 
 export function makeCube(size /*:number*/,
                          ctr /*:Vector3*/,
@@ -72,6 +86,7 @@ export function makeCube(size /*:number*/,
     fragmentShader: line_frag,
     fog: true,
     linewidth: options.linewidth,
+    type: 'um_line_cube',
   });
   let geometry = new BufferGeometry();
   geometry.addAttribute('position', new BufferAttribute(pos, 3));
@@ -102,6 +117,7 @@ export function makeRgbBox(transform_func /*:Num3 => Num3*/, color /*:Color*/) {
     vertexColors: VertexColors,
     fog: true,
     linewidth: 1,
+    type: 'um_line_box',
   });
   let geometry = new BufferGeometry();
   geometry.addAttribute('position', new BufferAttribute(pos, 3));
@@ -246,29 +262,29 @@ const wide_line_vert = [
   '  gl_Position.xy += side * linewidth / angle_factor * normal / win_size;',
   '}'].join('\n');
 
-const wide_segments_vert = [
-  'attribute vec3 other;',
-  'attribute float side;',
-  'uniform vec2 win_size;',
-  'uniform float linewidth;',
-  'varying vec3 vcolor;',
+const wide_segments_vert = `
+attribute vec3 other;
+attribute float side;
+uniform vec2 win_size;
+uniform float linewidth;
+varying vec3 vcolor;
 
-  'void main() {',
-  '  vcolor = color;',
-  '  mat4 mat = projectionMatrix * modelViewMatrix;',
-  '  vec2 dir = normalize((mat * vec4(position - other, 0.0)).xy);',
-  '  vec2 normal = vec2(-dir.y, dir.x);',
-  '  gl_Position = mat * vec4(position, 1.0);',
-  '  gl_Position.xy += side * linewidth * normal / win_size;',
-  '}'].join('\n');
+void main() {
+  vcolor = color;
+  mat4 mat = projectionMatrix * modelViewMatrix;
+  vec2 dir = normalize((mat * vec4(position - other, 0.0)).xy);
+  vec2 normal = vec2(-dir.y, dir.x);
+  gl_Position = mat * vec4(position, 1.0);
+  gl_Position.xy += side * linewidth * normal / win_size;
+}`;
 
-const wide_line_frag = [
-  '#include <fog_pars_fragment>',
-  'varying vec3 vcolor;',
-  'void main() {',
-  '  gl_FragColor = vec4(vcolor, 1.0);',
-  '#include <fog_fragment>',
-  '}'].join('\n');
+const wide_line_frag = `
+${fog_pars_fragment}
+varying vec3 vcolor;
+void main() {
+  gl_FragColor = vec4(vcolor, 1.0);
+${fog_end_fragment}
+}`;
 
 
 function interpolate_vertices(segment, smooth) /*:Vector3[]*/{
@@ -325,23 +341,23 @@ export function makeUniforms(params/*:{[id:string]:mixed}*/) {
   return uniforms;
 }
 
-const ribbon_vert = [
-  //'attribute vec3 normal;' is added by default for ShaderMaterial
-  'uniform float shift;',
-  'varying vec3 vcolor;',
-  'void main() {',
-  '  vcolor = color;',
-  '  vec3 pos = position + shift * normalize(normal);',
-  '  gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);',
-  '}'].join('\n');
+const ribbon_vert = `
+attribute vec3 tan;
+uniform float shift;
+varying vec3 vcolor;
+void main() {
+  vcolor = color;
+  vec3 pos = position + shift * normalize(tan);
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+}`;
 
-const ribbon_frag = [
-  '#include <fog_pars_fragment>',
-  'varying vec3 vcolor;',
-  'void main() {',
-  '  gl_FragColor = vec4(vcolor, 1.0);',
-  '#include <fog_fragment>',
-  '}'].join('\n');
+const ribbon_frag = `
+${fog_pars_fragment}
+varying vec3 vcolor;
+void main() {
+  gl_FragColor = vec4(vcolor, 1.0);
+${fog_end_fragment}
+}`;
 
 // 9-line ribbon
 export function makeRibbon(vertices /*:AtomT[]*/,
@@ -363,8 +379,7 @@ export function makeRibbon(vertices /*:AtomT[]*/,
   geometry.addAttribute('position', new BufferAttribute(pos, 3));
   geometry.addAttribute('color', makeColorAttribute(color_arr));
   const tan = new Float32Array(tang_arr);
-  // it's not 'normal', but it doesn't matter
-  geometry.addAttribute('normal', new BufferAttribute(tan, 3));
+  geometry.addAttribute('tan', new BufferAttribute(tan, 3));
   for (let n = -4; n < 5; n++) {
     const material = new ShaderMaterial({
       uniforms: makeUniforms({shift: 0.1 * n}),
@@ -372,6 +387,7 @@ export function makeRibbon(vertices /*:AtomT[]*/,
       fragmentShader: ribbon_frag,
       fog: true,
       vertexColors: VertexColors,
+      type: 'um_ribbon',
     });
     obj.add(new Line(geometry, material));
   }
@@ -398,6 +414,7 @@ function makeChickenWire(data /*:{vertices: number[], segments: number[]}*/,
     fragmentShader: line_frag,
     fog: true,
     linewidth: options.linewidth,
+    type: 'um_line_chickenwire',
   });
   return new LineSegments(geom, material);
 }
@@ -440,6 +457,7 @@ export function makeGrid() {
     vertexShader: grid_vert,
     fragmentShader: grid_frag,
     fog: true, // no really, but we use fogColor
+    type: 'um_grid',
   });
   material.transparent = true;
   let obj = new LineSegments(geom, material);
@@ -460,6 +478,7 @@ export function makeLineMaterial(options /*:{[key: string]: mixed}*/) {
     fragmentShader: wide_line_frag,
     fog: true,
     vertexColors: VertexColors,
+    type: 'um_line',
   });
 }
 
@@ -490,15 +509,15 @@ const wheel_vert = [
   '}'].join('\n');
 
 // not sure how portable it is
-const wheel_frag = [
-  '#include <fog_pars_fragment>',
-  'varying vec3 vcolor;',
-  'void main() {',
-  '  vec2 diff = gl_PointCoord - vec2(0.5, 0.5);',
-  '  if (dot(diff, diff) >= 0.25) discard;',
-  '  gl_FragColor = vec4(vcolor, 1.0);',
-  '#include <fog_fragment>',
-  '}'].join('\n');
+const wheel_frag = `
+${fog_pars_fragment}
+varying vec3 vcolor;
+void main() {
+  vec2 diff = gl_PointCoord - vec2(0.5, 0.5);
+  if (dot(diff, diff) >= 0.25) discard;
+  gl_FragColor = vec4(vcolor, 1.0);
+${fog_end_fragment}
+}`;
 
 export function makeWheels(atom_arr /*:AtomT[]*/,
                            color_arr /*:Color[]*/,
@@ -519,6 +538,7 @@ export function makeWheels(atom_arr /*:AtomT[]*/,
     fragmentShader: wheel_frag,
     fog: true,
     vertexColors: VertexColors,
+    type: 'um_wheel',
   });
   let obj = new Points(geometry, material);
   // currently we use only lines for picking
@@ -545,7 +565,7 @@ void main() {
 
 // based on 3Dmol imposter shaders
 const sphere_frag = `
-#include <fog_pars_fragment>
+${fog_pars_fragment}
 uniform mat4 projectionMatrix;
 uniform vec3 lightDir;
 varying vec3 vcolor;
@@ -563,7 +583,7 @@ void main() {
                      gl_DepthRange.near + gl_DepthRange.far) / 2.0;
   float weight = clamp(dot(xyz, lightDir), 0.0, 1.0);
   gl_FragColor = vec4(weight * vcolor, 1.0);
-#include <fog_fragment>
+  ${fog_end_fragment}
 }
 `;
 
@@ -619,6 +639,7 @@ export function makeBalls(atom_arr /*:AtomT[]*/,
     fragmentShader: sphere_frag,
     fog: true,
     vertexColors: VertexColors,
+    type: 'um_sphere',
   });
   material.extensions.fragDepth = true;
   let obj = new Mesh(geometry, material);
@@ -677,26 +698,27 @@ function makeCanvasWithText(text, options) {
   return canvas;
 }
 
-const label_vert = [
-  'uniform vec2 canvas_size;',
-  'uniform vec2 win_size;',
-  'varying vec2 vUv;',
-  'void main() {',
-  '  vUv = uv;',
-  '  vec2 rel_offset = vec2(0.02, -0.3);',
-  '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
-  '  gl_Position.xy += (uv + rel_offset) * 2.0 * canvas_size / win_size;',
-  '  gl_Position.z += 0.2 * projectionMatrix[2][2];',
-  '}'].join('\n');
+const label_vert = `
+attribute vec2 uvs;
+uniform vec2 canvas_size;
+uniform vec2 win_size;
+varying vec2 vUv;
+void main() {
+  vUv = uvs;
+  vec2 rel_offset = vec2(0.02, -0.3);
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  gl_Position.xy += (uvs + rel_offset) * 2.0 * canvas_size / win_size;
+  gl_Position.z += 0.2 * projectionMatrix[2][2];
+}`;
 
-const label_frag = [
-  '#include <fog_pars_fragment>',
-  'varying vec2 vUv;',
-  'uniform sampler2D map;',
-  'void main() {',
-  '  gl_FragColor = texture2D(map, vUv);',
-  '#include <fog_fragment>',
-  '}'].join('\n');
+const label_frag = `
+${fog_pars_fragment}
+varying vec2 vUv;
+uniform sampler2D map;
+void main() {
+  gl_FragColor = texture2D(map, vUv);
+${fog_end_fragment}
+}`;
 
 
 export function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
@@ -713,7 +735,7 @@ export function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
   const indices = new Uint16Array([0, 2, 1, 2, 3, 1]);
   geometry.setIndex(new BufferAttribute(indices, 1));
   geometry.addAttribute('position', new BufferAttribute(position, 3));
-  geometry.addAttribute('uv', new BufferAttribute(uvs, 2));
+  geometry.addAttribute('uvs', new BufferAttribute(uvs, 2));
 
   let material = new ShaderMaterial({
     uniforms: makeUniforms({map: texture,
@@ -722,6 +744,7 @@ export function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
     vertexShader: label_vert,
     fragmentShader: label_frag,
     fog: true,
+    type: 'um_label',
   });
   material.transparent = true;
   let mesh = new Mesh(geometry, material);

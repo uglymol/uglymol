@@ -12,6 +12,7 @@ const banner = `/*!
 
 let build = {
   input: 'src/all.js',
+  //treeshake: false,
   plugins: [],
   output: {
     file: 'uglymol.js',

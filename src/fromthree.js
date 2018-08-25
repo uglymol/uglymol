@@ -1093,27 +1093,6 @@ WebGLUniforms.seqWithValue = function ( seq, values ) {
   return r;
 };
 
-let fog_fragment = `
-#ifdef USE_FOG
-float depth = gl_FragCoord.z / gl_FragCoord.w;
-float fogFactor = smoothstep( fogNear, fogFar, depth );
-gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
-#endif
-`;
-
-let fog_pars_fragment = `
-#ifdef USE_FOG
-uniform vec3 fogColor;
-uniform float fogNear;
-uniform float fogFar;
-#endif`;
-
-
-let ShaderChunk = {
-  fog_fragment: fog_fragment,
-  fog_pars_fragment: fog_pars_fragment,
-};
-
 /**
 * @author supereggbert / http://www.paulbrunt.co.uk/
 * @author philogb / http://blog.thejit.org/
@@ -1391,8 +1370,8 @@ function ShaderMaterial( parameters ) {
 
   this.uniforms = {};
 
-  this.vertexShader = 'void main() {\n\tgl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );\n}';
-  this.fragmentShader = 'void main() {\n\tgl_FragColor = vec4( 1.0, 0.0, 0.0, 1.0 );\n}';
+  this.vertexShader = '';
+  this.fragmentShader = '';
 
   this.linewidth = 1;
 
@@ -1632,8 +1611,6 @@ Object.assign( Object3D.prototype, EventDispatcher.prototype, {
       object.dispatchEvent( { type: 'added' } );
 
       this.children.push( object );
-    } else {
-      console.error( 'THREE.Object3D.add: object not an instance of THREE.Object3D.', object );
     }
 
     return this;
@@ -1998,22 +1975,6 @@ function fetchAttributeLocations( gl, program, identifiers ) {
   return attributes;
 }
 
-function parseIncludes( string ) {
-  let pattern = /#include +<([\w\d.]+)>/g;
-
-  function replace( match, include ) {
-    let replace = ShaderChunk[include];
-
-    if ( replace === undefined ) {
-      throw new Error( 'Can not resolve #include <' + include + '>' );
-    }
-
-    return parseIncludes( replace );
-  }
-
-  return string.replace( pattern, replace );
-}
-
 function WebGLProgram( renderer, code, material, parameters ) {
   let gl = renderer.context;
 
@@ -2034,56 +1995,46 @@ function WebGLProgram( renderer, code, material, parameters ) {
 
   let prefixVertex, prefixFragment;
 
-  {
-    prefixVertex = [
+  prefixVertex = [
+    'precision ' + parameters.precision + ' float;',
+    'precision ' + parameters.precision + ' int;',
 
-      'precision ' + parameters.precision + ' float;',
-      'precision ' + parameters.precision + ' int;',
+    '#define SHADER_NAME ' + material.__webglShader.name,
 
-      '#define SHADER_NAME ' + material.__webglShader.name,
+    parameters.vertexColors ? '#define USE_COLOR' : '',
 
-      parameters.vertexColors ? '#define USE_COLOR' : '',
+    'uniform mat4 modelMatrix;',
+    'uniform mat4 modelViewMatrix;',
+    'uniform mat4 projectionMatrix;',
+    'uniform mat4 viewMatrix;',
+    'uniform vec3 cameraPosition;',
 
-      'uniform mat4 modelMatrix;',
-      'uniform mat4 modelViewMatrix;',
-      'uniform mat4 projectionMatrix;',
-      'uniform mat4 viewMatrix;',
-      'uniform vec3 cameraPosition;',
+    'attribute vec3 position;',
+    'attribute vec3 normal;',
 
-      'attribute vec3 position;',
-      'attribute vec3 normal;',
-      'attribute vec2 uv;',
+    '#ifdef USE_COLOR',
+    ' attribute vec3 color;',
+    '#endif',
+    '',
+  ].join( '\n' );
 
-      '#ifdef USE_COLOR',
+  prefixFragment = [
 
-      ' attribute vec3 color;',
+    customExtensions,
 
-      '#endif',
-      '\n',
-    ].join( '\n' );
+    'precision ' + parameters.precision + ' float;',
+    'precision ' + parameters.precision + ' int;',
 
-    prefixFragment = [
+    '#define SHADER_NAME ' + material.__webglShader.name,
 
-      customExtensions,
+    ( parameters.useFog && parameters.fog ) ? '#define USE_FOG' : '',
 
-      'precision ' + parameters.precision + ' float;',
-      'precision ' + parameters.precision + ' int;',
+    parameters.vertexColors ? '#define USE_COLOR' : '',
 
-      '#define SHADER_NAME ' + material.__webglShader.name,
-
-      ( parameters.useFog && parameters.fog ) ? '#define USE_FOG' : '',
-
-      parameters.vertexColors ? '#define USE_COLOR' : '',
-
-      'uniform mat4 viewMatrix;',
-      'uniform vec3 cameraPosition;',
-      '\n',
-    ].join( '\n' );
-  }
-
-  vertexShader = parseIncludes( vertexShader, parameters );
-
-  fragmentShader = parseIncludes( fragmentShader, parameters );
+    'uniform mat4 viewMatrix;',
+    'uniform vec3 cameraPosition;',
+    '',
+  ].join( '\n' );
 
   let vertexGlsl = prefixVertex + vertexShader;
   let fragmentGlsl = prefixFragment + fragmentShader;
@@ -2103,45 +2054,13 @@ function WebGLProgram( renderer, code, material, parameters ) {
   let vertexLog = gl.getShaderInfoLog( glVertexShader );
   let fragmentLog = gl.getShaderInfoLog( glFragmentShader );
 
-  let runnable = true;
-  let haveDiagnostics = true;
-
   // console.log( '**VERTEX**', gl.getExtension( 'WEBGL_debug_shaders' ).getTranslatedShaderSource( glVertexShader ) );
   // console.log( '**FRAGMENT**', gl.getExtension( 'WEBGL_debug_shaders' ).getTranslatedShaderSource( glFragmentShader ) );
 
   if ( gl.getProgramParameter( program, gl.LINK_STATUS ) === false ) {
-    runnable = false;
-
     console.error( 'THREE.WebGLProgram: shader error: ', gl.getError(), 'gl.VALIDATE_STATUS', gl.getProgramParameter( program, gl.VALIDATE_STATUS ), 'gl.getProgramInfoLog', programLog, vertexLog, fragmentLog );
   } else if ( programLog !== '' ) {
     console.warn( 'THREE.WebGLProgram: gl.getProgramInfoLog()', programLog );
-  } else if ( vertexLog === '' || fragmentLog === '' ) {
-    haveDiagnostics = false;
-  }
-
-  if ( haveDiagnostics ) {
-    this.diagnostics = {
-
-      runnable: runnable,
-      material: material,
-
-      programLog: programLog,
-
-      vertexShader: {
-
-        log: vertexLog,
-        prefix: prefixVertex,
-
-      },
-
-      fragmentShader: {
-
-        log: fragmentLog,
-        prefix: prefixFragment,
-
-      },
-
-    };
   }
 
   // clean up
@@ -2957,12 +2876,8 @@ function WebGLRenderer( parameters ) {
 
   let _canvas = parameters.canvas !== undefined ? parameters.canvas : document.createElementNS( 'http://www.w3.org/1999/xhtml', 'canvas' ),
     _context = parameters.context !== undefined ? parameters.context : null,
-
-    _alpha = parameters.alpha !== undefined ? parameters.alpha : false,
-    _depth = parameters.depth !== undefined ? parameters.depth : true,
     _antialias = parameters.antialias !== undefined ? parameters.antialias : false,
-    _premultipliedAlpha = parameters.premultipliedAlpha !== undefined ? parameters.premultipliedAlpha : true,
-    _preserveDrawingBuffer = parameters.preserveDrawingBuffer !== undefined ? parameters.preserveDrawingBuffer : false;
+    _premultipliedAlpha = parameters.premultipliedAlpha !== undefined ? parameters.premultipliedAlpha : true;
 
   let opaqueObjects = [];
   let opaqueObjectsLastIndex = - 1;
@@ -3024,19 +2939,15 @@ function WebGLRenderer( parameters ) {
     // info
 
     _infoRender = {
-
       calls: 0,
       vertices: 0,
       faces: 0,
       points: 0,
-
     };
 
   this.info = {
-
     render: _infoRender,
     programs: null,
-
   };
 
 
@@ -3046,11 +2957,11 @@ function WebGLRenderer( parameters ) {
 
   try {
     let attributes = {
-      alpha: _alpha,
-      depth: _depth,
+      alpha: false,
+      depth: true,
       antialias: _antialias,
       premultipliedAlpha: _premultipliedAlpha,
-      preserveDrawingBuffer: _preserveDrawingBuffer,
+      preserveDrawingBuffer: false,
     };
 
     _gl = _context || _canvas.getContext( 'webgl', attributes ) || _canvas.getContext( 'experimental-webgl', attributes );
@@ -3077,15 +2988,7 @@ function WebGLRenderer( parameters ) {
   }
 
   let extensions = new WebGLExtensions( _gl );
-
   extensions.get( 'WEBGL_depth_texture' );
-  extensions.get( 'OES_texture_float' );
-  extensions.get( 'OES_texture_float_linear' );
-  extensions.get( 'OES_texture_half_float' );
-  extensions.get( 'OES_texture_half_float_linear' );
-  extensions.get( 'OES_standard_derivatives' );
-  extensions.get( 'ANGLE_instanced_arrays' );
-
   if ( extensions.get( 'OES_element_index_uint' ) ) {
     BufferGeometry.MaxIndex = 4294967296;
   }
@@ -3468,16 +3371,7 @@ function WebGLRenderer( parameters ) {
 
     this.setRenderTarget( renderTarget );
 
-    //
-
-    let background = scene.background;
-
-    if ( background === null ) {
-      state.buffers.color.setClear( _clearColor.r, _clearColor.g, _clearColor.b, _clearAlpha, _premultipliedAlpha );
-    } else if ( background && background.isColor ) {
-      state.buffers.color.setClear( background.r, background.g, background.b, 1, _premultipliedAlpha );
-      forceClear = true;
-    }
+    state.buffers.color.setClear( _clearColor.r, _clearColor.g, _clearColor.b, _clearAlpha, _premultipliedAlpha );
 
     if ( this.autoClear || forceClear ) {
       this.clear( this.autoClearColor, this.autoClearDepth );
@@ -3835,7 +3729,6 @@ function Scene() {
 
   this.type = 'Scene';
 
-  this.background = null;
   this.fog = null;
 
   this.autoUpdate = true; // checked by the renderer
@@ -3907,21 +3800,8 @@ Points.prototype = Object.assign( Object.create( Object3D.prototype ), {
 
 } );
 
-/**
-* @author mrdoob / http://mrdoob.com/
-* @author alteredq / http://alteredqualia.com/
-*/
-
-function AmbientLight( color ) {
-  Object3D.call( this );
-  this.type = 'AmbientLight';
-  this.color = new Color( color );
-}
-
-AmbientLight.prototype = Object.assign( Object.create( Object3D.prototype ), {
-  constructor: AmbientLight,
-  isAmbientLight: true,
-} );
+// kept for compatibility with THREE
+function AmbientLight( color ) {}
 
 /**
 * @author mrdoob / http://mrdoob.com/
