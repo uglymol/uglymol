@@ -333,7 +333,7 @@ Vector3.prototype = {
   },
 
   applyMatrix4: function ( m ) {
-    // input: THREE.Matrix4 affine matrix
+    // input: Matrix4 affine matrix
 
     let x = this.x, y = this.y, z = this.z;
     let e = m.elements;
@@ -346,7 +346,7 @@ Vector3.prototype = {
   },
 
   applyProjection: function ( m ) {
-    // input: THREE.Matrix4 projection matrix
+    // input: Matrix4 projection matrix
 
     let x = this.x, y = this.y, z = this.z;
     let e = m.elements;
@@ -391,7 +391,7 @@ Vector3.prototype = {
   }(),
 
   transformDirection: function ( m ) {
-    // input: THREE.Matrix4 affine matrix
+    // input: Matrix4 affine matrix
     // vector interpreted as a direction
 
     let x = this.x, y = this.y, z = this.z;
@@ -504,17 +504,11 @@ Vector3.prototype = {
 
 function Matrix4() {
   this.elements = new Float32Array( [
-
     1, 0, 0, 0,
     0, 1, 0, 0,
     0, 0, 1, 0,
     0, 0, 0, 1,
-
   ] );
-
-  if ( arguments.length > 0 ) {
-    console.error( 'THREE.Matrix4: the constructor no longer reads arguments. use .set() instead.' );
-  }
 }
 
 Matrix4.prototype = {
@@ -667,7 +661,7 @@ Matrix4.prototype = {
     let det = n11 * t11 + n21 * t12 + n31 * t13 + n41 * t14;
 
     if ( det === 0 ) {
-      let msg = 'THREE.Matrix4.getInverse(): can\'t invert matrix, determinant is 0';
+      let msg = 'Matrix4.getInverse(): can\'t invert matrix, determinant is 0';
 
       if ( throwOnDegenerate === true ) {
         throw new Error( msg );
@@ -919,7 +913,7 @@ function UniformContainer() {
 function setValue1f( gl, v ) { gl.uniform1f( this.addr, v ); }
 function setValue1i( gl, v ) { gl.uniform1i( this.addr, v ); }
 
-// Single float vector (from flat array or THREE.VectorN)
+// Single float vector (from flat array or VectorN)
 
 function setValue2fv( gl, v ) {
   if ( v.x === undefined ) gl.uniform2fv( this.addr, v );
@@ -1159,7 +1153,7 @@ Vector4.prototype = {
 
 function Color( r, g, b ) {
   if ( g === undefined && b === undefined ) {
-    // r is THREE.Color, hex or string
+    // r is Color, hex or string
     return this.set( r );
   }
 
@@ -1298,7 +1292,7 @@ function Material() {
 
   this.fog = true;
 
-  this.vertexColors = NoColors; // THREE.NoColors, THREE.VertexColors, THREE.FaceColors
+  this.vertexColors = NoColors; // NoColors, VertexColors, FaceColors
 
   this.opacity = 1;
   this.transparent = false;
@@ -1597,11 +1591,6 @@ Object.assign( Object3D.prototype, EventDispatcher.prototype, {
       return this;
     }
 
-    if ( object === this ) {
-      console.error( 'THREE.Object3D.add: object can\'t be added as a child of itself.', object );
-      return this;
-    }
-
     if ( ( object && object.isObject3D ) ) {
       if ( object.parent !== null ) {
         object.parent.remove( object );
@@ -1674,7 +1663,7 @@ Object.assign( Object3D.prototype, EventDispatcher.prototype, {
 
 function BufferAttribute( array, itemSize, normalized ) {
   if ( Array.isArray( array ) ) {
-    throw new TypeError( 'THREE.BufferAttribute: array should be a Typed Array.' );
+    throw new TypeError( 'BufferAttribute: array should be a Typed Array.' );
   }
 
   this.uuid = _Math.generateUUID();
@@ -1928,14 +1917,14 @@ function WebGLShader( gl, type, string ) {
   gl.compileShader( shader );
 
   if ( gl.getShaderParameter( shader, gl.COMPILE_STATUS ) === false ) {
-    console.error( 'THREE.WebGLShader: Shader couldn\'t compile.' );
+    console.error( 'WebGLShader: Shader couldn\'t compile.' );
   }
 
   if ( gl.getShaderInfoLog( shader ) !== '' ) {
     let info = gl.getShaderInfoLog( shader );
     // workaround for https://github.com/mrdoob/three.js/issues/9716
     if (info.indexOf('GL_ARB_gpu_shader5') === -1) {
-      console.warn( 'THREE.WebGLShader: gl.getShaderInfoLog()', type === gl.VERTEX_SHADER ? 'vertex' : 'fragment', info, string );
+      console.warn( 'WebGLShader: gl.getShaderInfoLog()', type === gl.VERTEX_SHADER ? 'vertex' : 'fragment', info, string );
     }
   }
 
@@ -1967,7 +1956,7 @@ function fetchAttributeLocations( gl, program, identifiers ) {
     let info = gl.getActiveAttrib( program, i );
     let name = info.name;
 
-    // console.log("THREE.WebGLProgram: ACTIVE VERTEX ATTRIBUTE:", name, i );
+    // console.log("WebGLProgram: ACTIVE VERTEX ATTRIBUTE:", name, i );
 
     attributes[name] = gl.getAttribLocation( program, name );
   }
@@ -2058,9 +2047,9 @@ function WebGLProgram( renderer, code, material, parameters ) {
   // console.log( '**FRAGMENT**', gl.getExtension( 'WEBGL_debug_shaders' ).getTranslatedShaderSource( glFragmentShader ) );
 
   if ( gl.getProgramParameter( program, gl.LINK_STATUS ) === false ) {
-    console.error( 'THREE.WebGLProgram: shader error: ', gl.getError(), 'gl.VALIDATE_STATUS', gl.getProgramParameter( program, gl.VALIDATE_STATUS ), 'gl.getProgramInfoLog', programLog, vertexLog, fragmentLog );
+    console.error( 'WebGLProgram: shader error: ', gl.getError(), 'gl.VALIDATE_STATUS', gl.getProgramParameter( program, gl.VALIDATE_STATUS ), 'gl.getProgramInfoLog', programLog, vertexLog, fragmentLog );
   } else if ( programLog !== '' ) {
-    console.warn( 'THREE.WebGLProgram: gl.getProgramInfoLog()', programLog );
+    console.warn( 'WebGLProgram: gl.getProgramInfoLog()', programLog );
   }
 
   // clean up
@@ -2132,7 +2121,7 @@ function WebGLPrograms( renderer, capabilities ) {
       precision = capabilities.getMaxPrecision( material.precision );
 
       if ( precision !== material.precision ) {
-        console.warn( 'THREE.WebGLProgram.getParameters:', material.precision, 'not supported, using', precision, 'instead.' );
+        console.warn( 'WebGLProgram.getParameters:', material.precision, 'not supported, using', precision, 'instead.' );
       }
     }
 
@@ -2357,7 +2346,7 @@ function WebGLObjects( gl, properties, info ) {
 
       gl.bufferSubData( bufferType, 0, data.array );
     } else if ( data.updateRange.count === 0 ) {
-      console.error( 'THREE.WebGLObjects.updateBuffer: dynamic THREE.BufferAttribute marked as needsUpdate but updateRange.count is 0, ensure you are using set methods or updating manually.' );
+      console.error( 'WebGLObjects.updateBuffer: updateRange.count is 0.' );
     } else {
       gl.bufferSubData( bufferType, data.updateRange.offset * data.array.BYTES_PER_ELEMENT,
                         data.array.subarray( data.updateRange.offset, data.updateRange.offset + data.updateRange.count ) );
@@ -2423,9 +2412,9 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, info )
       let image = texture.image;
 
       if ( image === undefined ) {
-        console.warn( 'THREE.WebGLRenderer: Texture marked for update but image is undefined', texture );
+        console.warn( 'WebGLRenderer: Texture marked for update but image is undefined', texture );
       } else if ( image.complete === false ) {
-        console.warn( 'THREE.WebGLRenderer: Texture marked for update but image is incomplete', texture );
+        console.warn( 'WebGLRenderer: Texture marked for update but image is incomplete', texture );
       } else {
         uploadTexture( textureProperties, texture, slot );
         return;
@@ -2814,7 +2803,7 @@ function WebGLCapabilities( gl, extensions, parameters ) {
   let maxPrecision = getMaxPrecision( precision );
 
   if ( maxPrecision !== precision ) {
-    console.warn( 'THREE.WebGLRenderer:', precision, 'not supported, using', maxPrecision, 'instead.' );
+    console.warn( 'WebGLRenderer:', precision, 'not supported, using', maxPrecision, 'instead.' );
     precision = maxPrecision;
   }
 
@@ -2852,7 +2841,7 @@ function WebGLExtensions( gl ) {
       }
 
       if ( extension === null ) {
-        console.warn( 'THREE.WebGLRenderer: ' + name + ' extension not supported.' );
+        console.warn( 'WebGLRenderer: ' + name + ' extension not supported.' );
       }
 
       extensions[name] = extension;
@@ -2984,7 +2973,7 @@ function WebGLRenderer( parameters ) {
 
     _canvas.addEventListener( 'webglcontextlost', onContextLost, false );
   } catch ( error ) {
-    console.error( 'THREE.WebGLRenderer: ' + error );
+    console.error( 'WebGLRenderer: ' + error );
   }
 
   let extensions = new WebGLExtensions( _gl );
@@ -3323,7 +3312,7 @@ function WebGLRenderer( parameters ) {
 
   this.render = function ( scene, camera, renderTarget, forceClear ) {
     if ( camera !== undefined && camera.isCamera !== true ) {
-      console.error( 'THREE.WebGLRenderer.render: camera is not an instance of THREE.Camera.' );
+      console.error( 'camera is not an instance of Camera.' );
       return;
     }
 
@@ -3662,7 +3651,7 @@ function WebGLRenderer( parameters ) {
     return function setTexture2D( texture, slot ) {
       if ( texture && texture.isWebGLRenderTarget ) {
         if ( ! warned ) {
-          console.warn( 'THREE.WebGLRenderer.setTexture2D: don\'t use render targets as textures. Use their .texture property instead.' );
+          console.warn( 'WebGLRenderer.setTexture2D: don\'t use render targets as textures. Use their .texture property instead.' );
           warned = true;
         }
 
@@ -3839,7 +3828,7 @@ Raycaster.prototype = {
       this.ray.origin.set( coords[0], coords[1], ( camera.near + camera.far ) / ( camera.near - camera.far ) ).unproject( camera ); // set origin in plane of camera
       this.ray.direction.set( 0, 0, - 1 ).transformDirection( camera.matrixWorld );
     } else {
-      console.error( 'THREE.Raycaster: Unsupported camera type.' );
+      console.error( 'Raycaster: Unsupported camera type.' );
     }
   },
 
