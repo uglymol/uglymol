@@ -129,6 +129,20 @@ Quaternion.prototype = {
     return this._w;
   },
 
+  setFromAxisAngle: function ( axis, angle ) {
+    // http://www.euclideanspace.com/maths/geometry/rotations/conversions/angleToQuaternion/index.htm
+
+    // assumes axis is normalized
+    var halfAngle = angle / 2, s = Math.sin( halfAngle );
+
+    this._x = axis.x * s;
+    this._y = axis.y * s;
+    this._z = axis.z * s;
+    this._w = Math.cos( halfAngle );
+
+    return this;
+  },
+
   setFromRotationMatrix: function ( m ) {
     // http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/index.htm
 

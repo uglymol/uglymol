@@ -81,7 +81,9 @@ export class Controls {
     } else if (this._state === STATE.SLAB) {
       this._target.addScaledVector(eye, -5.0 / eye.length() * dy);
     } else if (this._state === STATE.ROLL) {
-      this._camera.up.applyAxisAngle(eye, 0.05 * (dx - dy));
+      let quat = new Quaternion();
+      quat.setFromAxisAngle(eye, 0.05 * (dx - dy));
+      this._camera.up.applyQuaternion(quat);
     }
     this._zoom_start[0] = this._zoom_end[0];
     this._zoom_start[1] = this._zoom_end[1];
