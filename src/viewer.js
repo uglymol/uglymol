@@ -106,7 +106,7 @@ const INIT_HUD_TEXT = 'This is UglyMol not Coot. ' +
 
 // options handled by select_next()
 
-const COLOR_AIMS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
+const COLOR_PROPS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
 const RENDER_STYLES = ['lines', 'trace', 'ribbon'/*, 'ball&stick'*/];
 const LIGAND_STYLES = ['normal', 'ball&stick'];
 const MAP_STYLES = ['marching cubes', 'squarish'/*, 'snapped MC'*/];
@@ -123,14 +123,14 @@ function rainbow_value(v/*:number*/, vmin/*:number*/, vmax/*:number*/) {
   return c;
 }
 
-function color_by(style, atoms /*:AtomT[]*/, elem_colors, hue_shift) {
+function color_by(prop, atoms /*:AtomT[]*/, elem_colors, hue_shift) {
   let color_func;
   const last_atom = atoms[atoms.length-1];
-  if (style === 'index') {
+  if (prop === 'index') {
     color_func = function (atom) {
       return rainbow_value(atom.i_seq, 0, last_atom.i_seq);
     };
-  } else if (style === 'B-factor') {
+  } else if (prop === 'B-factor') {
     let vmin = Infinity;
     let vmax = -Infinity;
     for (let i = 0; i < atoms.length; i++) {
@@ -142,11 +142,11 @@ function color_by(style, atoms /*:AtomT[]*/, elem_colors, hue_shift) {
     color_func = function (atom) {
       return rainbow_value(atom.b, vmin, vmax);
     };
-  } else if (style === 'occupancy') {
+  } else if (prop === 'occupancy') {
     color_func = function (atom) {
       return rainbow_value(atom.occ, 0, 1);
     };
-  } else if (style === 'chain') {
+  } else if (prop === 'chain') {
     color_func = function (atom) {
       return rainbow_value(atom.chain_index, 0, last_atom.chain_index);
     };
@@ -231,8 +231,8 @@ class ModelBag {
 
   add_bonds(ligands_only, ball_size) {
     const visible_atoms = this.get_visible_atoms();
-    const color_style = ligands_only ? 'element' : this.conf.color_aim;
-    const colors = color_by(color_style, visible_atoms,
+    const color_prop = ligands_only ? 'element' : this.conf.color_prop;
+    const colors = color_by(color_prop, visible_atoms,
                             this.conf.colors, this.hue_shift);
     let vertex_arr /*:Vector3[]*/ = [];
     let color_arr = [];
@@ -284,7 +284,7 @@ class ModelBag {
   add_trace() {
     const segments = this.model.extract_trace();
     const visible_atoms = [].concat.apply([], segments);
-    const colors = color_by(this.conf.color_aim, visible_atoms,
+    const colors = color_by(this.conf.color_prop, visible_atoms,
                             this.conf.colors, this.hue_shift);
     const material = makeLineMaterial({
       linewidth: scale_by_height(this.conf.bond_line, this.win_size),
@@ -307,7 +307,7 @@ class ModelBag {
     const segments = this.model.extract_trace();
     const res_map = this.model.get_residues();
     const visible_atoms = [].concat.apply([], segments);
-    const colors = color_by(this.conf.color_aim, visible_atoms,
+    const colors = color_by(this.conf.color_prop, visible_atoms,
                             this.conf.colors, this.hue_shift);
     let k = 0;
     for (const seg of segments) {
@@ -424,7 +424,7 @@ export class Viewer {
       map_style: MAP_STYLES[0],
       render_style: RENDER_STYLES[0],
       ligand_style: LIGAND_STYLES[0],
-      color_aim: COLOR_AIMS[0],
+      color_prop: COLOR_PROPS[0],
       line_style: LINE_STYLES[0],
       label_font: LABEL_FONTS[0],
       colors: this.ColorSchemes[0],
@@ -1019,7 +1019,7 @@ export class Viewer {
     };
     // c
     kb[67] = function (evt) {
-      this.select_next('coloring by', 'color_aim', COLOR_AIMS, evt.shiftKey);
+      this.select_next('coloring by', 'color_prop', COLOR_PROPS, evt.shiftKey);
       this.redraw_models();
     };
     // e

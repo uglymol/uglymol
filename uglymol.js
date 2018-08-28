@@ -6545,7 +6545,7 @@ var INIT_HUD_TEXT = 'This is UglyMol not Coot. ' +
 
 // options handled by select_next()
 
-var COLOR_AIMS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
+var COLOR_PROPS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
 var RENDER_STYLES = ['lines', 'trace', 'ribbon' ];
 var LIGAND_STYLES = ['normal', 'ball&stick'];
 var MAP_STYLES = ['marching cubes', 'squarish' ];
@@ -6562,14 +6562,14 @@ function rainbow_value(v/*:number*/, vmin/*:number*/, vmax/*:number*/) {
   return c;
 }
 
-function color_by(style, atoms /*:AtomT[]*/, elem_colors, hue_shift) {
+function color_by(prop, atoms /*:AtomT[]*/, elem_colors, hue_shift) {
   var color_func;
   var last_atom = atoms[atoms.length-1];
-  if (style === 'index') {
+  if (prop === 'index') {
     color_func = function (atom) {
       return rainbow_value(atom.i_seq, 0, last_atom.i_seq);
     };
-  } else if (style === 'B-factor') {
+  } else if (prop === 'B-factor') {
     var vmin = Infinity;
     var vmax = -Infinity;
     for (var i = 0; i < atoms.length; i++) {
@@ -6581,11 +6581,11 @@ function color_by(style, atoms /*:AtomT[]*/, elem_colors, hue_shift) {
     color_func = function (atom) {
       return rainbow_value(atom.b, vmin, vmax);
     };
-  } else if (style === 'occupancy') {
+  } else if (prop === 'occupancy') {
     color_func = function (atom) {
       return rainbow_value(atom.occ, 0, 1);
     };
-  } else if (style === 'chain') {
+  } else if (prop === 'chain') {
     color_func = function (atom) {
       return rainbow_value(atom.chain_index, 0, last_atom.chain_index);
     };
@@ -6650,8 +6650,8 @@ ModelBag.prototype.get_visible_atoms = function get_visible_atoms () {
 
 ModelBag.prototype.add_bonds = function add_bonds (ligands_only, ball_size) {
   var visible_atoms = this.get_visible_atoms();
-  var color_style = ligands_only ? 'element' : this.conf.color_aim;
-  var colors = color_by(color_style, visible_atoms,
+  var color_prop = ligands_only ? 'element' : this.conf.color_prop;
+  var colors = color_by(color_prop, visible_atoms,
                           this.conf.colors, this.hue_shift);
   var vertex_arr /*:Vector3[]*/ = [];
   var color_arr = [];
@@ -6703,7 +6703,7 @@ ModelBag.prototype.add_bonds = function add_bonds (ligands_only, ball_size) {
 ModelBag.prototype.add_trace = function add_trace () {
   var segments = this.model.extract_trace();
   var visible_atoms = [].concat.apply([], segments);
-  var colors = color_by(this.conf.color_aim, visible_atoms,
+  var colors = color_by(this.conf.color_prop, visible_atoms,
                           this.conf.colors, this.hue_shift);
   var material = makeLineMaterial({
     linewidth: scale_by_height(this.conf.bond_line, this.win_size),
@@ -6730,7 +6730,7 @@ ModelBag.prototype.add_ribbon = function add_ribbon (smoothness) {
   var segments = this.model.extract_trace();
   var res_map = this.model.get_residues();
   var visible_atoms = [].concat.apply([], segments);
-  var colors = color_by(this.conf.color_aim, visible_atoms,
+  var colors = color_by(this.conf.color_prop, visible_atoms,
                           this.conf.colors, this.hue_shift);
   var k = 0;
   for (var i$1 = 0, list$1 = segments; i$1 < list$1.length; i$1 += 1) {
@@ -6814,7 +6814,7 @@ var Viewer = function Viewer(options /*: {[key: string]: any}*/) {
     map_style: MAP_STYLES[0],
     render_style: RENDER_STYLES[0],
     ligand_style: LIGAND_STYLES[0],
-    color_aim: COLOR_AIMS[0],
+    color_prop: COLOR_PROPS[0],
     line_style: LINE_STYLES[0],
     label_font: LABEL_FONTS[0],
     colors: this.ColorSchemes[0],
@@ -7431,7 +7431,7 @@ Viewer.prototype.set_common_key_bindings = function set_common_key_bindings () {
   };
   // c
   kb[67] = function (evt) {
-    this.select_next('coloring by', 'color_aim', COLOR_AIMS, evt.shiftKey);
+    this.select_next('coloring by', 'color_prop', COLOR_PROPS, evt.shiftKey);
     this.redraw_models();
   };
   // e
