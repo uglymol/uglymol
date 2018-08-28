@@ -1,7 +1,7 @@
 // @flow
 
 import { OrthographicCamera, Scene, AmbientLight, Color, Vector3,
-         Object3D, Raycaster, WebGLRenderer, Fog } from './fromthree.js';
+         Raycaster, WebGLRenderer, Fog } from './fromthree.js';
 
 import { makeLineMaterial, makeLineSegments, makeLine, makeRibbon,
          makeChickenWire, makeGrid, makeBalls, makeWheels, makeCube,
@@ -400,7 +400,6 @@ export class Viewer {
   MOUSE_HELP: string
   KEYBOARD_HELP: string
   ABOUT_HELP: string
-  stats: ?Object
   mousemove: (MouseEvent) => void
   mouseup: (MouseEvent) => void
   key_bindings: Array<Function|false>
@@ -431,6 +430,14 @@ export class Viewer {
       colors: this.ColorSchemes[0],
       hydrogens: false,
     };
+
+    // options of the constructor overwrite default values of the config
+    for (let o of options) {
+      if (o in this.config) {
+        this.config[o] = options[o];
+      }
+    }
+
     this.set_colors();
     this.window_size = [1, 1]; // it will be set in resize()
     this.window_offset = [0, 0];
@@ -1260,18 +1267,16 @@ export class Viewer {
   // Otherwise recenter on the model center looking along the z axis.
   recenter(xyz/*:?Num3*/, cam/*:?Num3*/, steps/*:?number*/) {
     const bag = this.selected.bag;
-    let new_up;
+    let new_up = new Vector3(0, 1, 0);
+    let eye;
     if (xyz != null && cam == null && bag != null) {
       // look from specified point toward the center of the molecule,
       // i.e. shift camera away from the molecule center.
       const mc = bag.model.get_center();
-      let d = new Vector3(xyz[0] - mc[0], xyz[1] - mc[1], xyz[2] - mc[2]);
-      d.setLength(100);
-      new_up = d.y < 90 ? new Vector3(0, 1, 0)
-                        : new Vector3(1, 0, 0);
-      new_up.projectOnPlane(d).normalize();
+      eye = new Vector3(xyz[0] - mc[0], xyz[1] - mc[1], xyz[2] - mc[2]);
+      eye.setLength(100);
       xyz = new Vector3(xyz[0], xyz[1], xyz[2]);
-      cam = d.add(xyz);
+      cam = eye.clone().add(xyz);
     } else {
       if (xyz == null) {
         if (bag != null) {
@@ -1281,14 +1286,20 @@ export class Viewer {
           xyz = uc_func ? uc_func([0.5, 0.5, 0.5]) : [0, 0, 0];
         }
       }
+      xyz = new Vector3(xyz[0], xyz[1], xyz[2]);
       if (cam != null) {
         cam = new Vector3(cam[0], cam[1], cam[2]);
-        new_up = null; // preserve the up direction
+        eye = cam.clone().sub(xyz);
+        new_up.copy(this.camera.up); // preserve the up direction
       } else {
         const dc = this.default_camera_pos;
-        cam = new Vector3(xyz[0] + dc[0], xyz[1] + dc[1], xyz[2] + dc[2]);
-        new_up = Object3D.DefaultUp; // Vector3(0, 1, 0)
+        cam = new Vector3(xyz.x + dc[0], xyz.y + dc[1], xyz.z + dc[2]);
       }
+    }
+    if (eye != null) {
+      new_up.projectOnPlane(eye);
+      if (new_up.lengthSq() < 0.0001) new_up.x += 1;
+      new_up.normalize();
     }
     this.controls.go_to(xyz, cam, new_up, steps);
   }
@@ -1304,7 +1315,9 @@ export class Viewer {
 
   select_atom(pick/*:{bag:ModelBag, atom:AtomT}*/, options/*:Object*/={}) {
     this.hud('-> ' + pick.bag.label + ' ' + pick.atom.long_label());
-    this.controls.go_to(pick.atom.xyz, null, null, options.steps);
+    let xyz = pick.atom.xyz;
+    this.controls.go_to(new Vector3(xyz[0], xyz[1], xyz[2]),
+                        null, null, options.steps);
     this.toggle_label(this.selected, false);
     this.selected = {bag: pick.bag, atom: pick.atom}; // not ...=pick b/c flow
     this.toggle_label(this.selected, true);
@@ -1341,9 +1354,6 @@ export class Viewer {
     this.scheduled = false;
     if (this.controls.is_moving()) {
       this.request_render();
-    }
-    if (this.stats) {
-      this.stats.update();
     }
   }
 

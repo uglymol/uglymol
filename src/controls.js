@@ -243,11 +243,9 @@ export class Controls {
     return ret;
   }
 
-  go_to(targ /*:Vector3*/, cam_pos /*:Vector3*/, cam_up /*:Vector3*/,
+  // cam_up (if set) must be orthogonal to the view
+  go_to(targ /*:Vector3*/, cam_pos /*:?Vector3*/, cam_up /*:?Vector3*/,
         steps /*:?number*/) {
-    if (targ instanceof Array) {
-      targ = new Vector3(targ[0], targ[1], targ[2]);
-    }
     if ((!targ || targ.distanceToSquared(this._target) < 0.001) &&
         (!cam_pos || cam_pos.distanceToSquared(this._camera.position) < 0.1) &&
         (!cam_up || cam_up.distanceToSquared(this._camera.up) < 0.1)) {

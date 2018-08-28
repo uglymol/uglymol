@@ -1647,6 +1647,20 @@ Quaternion.prototype = {
     return this._w;
   },
 
+  setFromAxisAngle: function ( axis, angle ) {
+    // http://www.euclideanspace.com/maths/geometry/rotations/conversions/angleToQuaternion/index.htm
+
+    // assumes axis is normalized
+    var halfAngle = angle / 2, s = Math.sin( halfAngle );
+
+    this._x = axis.x * s;
+    this._y = axis.y * s;
+    this._z = axis.z * s;
+    this._w = Math.cos( halfAngle );
+
+    return this;
+  },
+
   setFromRotationMatrix: function ( m ) {
     // http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/index.htm
 
@@ -1974,6 +1988,20 @@ Vector3.prototype = {
 
     return this;
   },
+
+  projectOnVector: function ( vector ) {
+    var scalar = vector.dot( this ) / vector.lengthSq();
+    return this.copy( vector ).multiplyScalar( scalar );
+  },
+
+  projectOnPlane: function () {
+    var v1;
+    return function projectOnPlane( planeNormal ) {
+      if ( v1 === undefined ) { v1 = new Vector3(); }
+      v1.copy( this ).projectOnVector( planeNormal );
+      return this.sub( v1 );
+    };
+  }(),
 
   distanceTo: function ( v ) {
     return Math.sqrt( this.distanceToSquared( v ) );
@@ -6222,7 +6250,9 @@ Controls.prototype._zoom_camera = function _zoom_camera (eye /*:Vector3*/) {
   } else if (this._state === STATE.SLAB) {
     this._target.addScaledVector(eye, -5.0 / eye.length() * dy);
   } else if (this._state === STATE.ROLL) {
-    this._camera.up.applyAxisAngle(eye, 0.05 * (dx - dy));
+    var quat = new Quaternion();
+    quat.setFromAxisAngle(eye, 0.05 * (dx - dy));
+    this._camera.up.applyQuaternion(quat);
   }
   this._zoom_start[0] = this._zoom_end[0];
   this._zoom_start[1] = this._zoom_end[1];
@@ -6382,11 +6412,9 @@ Controls.prototype.stop = function stop () {
   return ret;
 };
 
-Controls.prototype.go_to = function go_to (targ /*:Vector3*/, cam_pos /*:Vector3*/, cam_up /*:Vector3*/,
+// cam_up (if set) must be orthogonal to the view
+Controls.prototype.go_to = function go_to (targ /*:Vector3*/, cam_pos /*:?Vector3*/, cam_up /*:?Vector3*/,
       steps /*:?number*/) {
-  if (targ instanceof Array) {
-    targ = new Vector3(targ[0], targ[1], targ[2]);
-  }
   if ((!targ || targ.distanceToSquared(this._target) < 0.001) &&
       (!cam_pos || cam_pos.distanceToSquared(this._camera.position) < 0.1) &&
       (!cam_up || cam_up.distanceToSquared(this._camera.up) < 0.1)) {
@@ -6792,6 +6820,16 @@ var Viewer = function Viewer(options /*: {[key: string]: any}*/) {
     colors: this.ColorSchemes[0],
     hydrogens: false,
   };
+
+  // options of the constructor overwrite default values of the config
+  for (var i = 0, list = options; i < list.length; i += 1) {
+    var o = list[i];
+
+    if (o in this.config) {
+      this.config[o] = options[o];
+    }
+  }
+
   this.set_colors();
   this.window_size = [1, 1]; // it will be set in resize()
   this.window_offset = [0, 0];
@@ -7641,18 +7679,16 @@ Viewer.prototype.resize = function resize (/*evt*/) {
 // Otherwise recenter on the model center looking along the z axis.
 Viewer.prototype.recenter = function recenter (xyz/*:?Num3*/, cam/*:?Num3*/, steps/*:?number*/) {
   var bag = this.selected.bag;
-  var new_up;
+  var new_up = new Vector3(0, 1, 0);
+  var eye;
   if (xyz != null && cam == null && bag != null) {
     // look from specified point toward the center of the molecule,
     // i.e. shift camera away from the molecule center.
     var mc = bag.model.get_center();
-    var d = new Vector3(xyz[0] - mc[0], xyz[1] - mc[1], xyz[2] - mc[2]);
-    d.setLength(100);
-    new_up = d.y < 90 ? new Vector3(0, 1, 0)
-                      : new Vector3(1, 0, 0);
-    new_up.projectOnPlane(d).normalize();
+    eye = new Vector3(xyz[0] - mc[0], xyz[1] - mc[1], xyz[2] - mc[2]);
+    eye.setLength(100);
     xyz = new Vector3(xyz[0], xyz[1], xyz[2]);
-    cam = d.add(xyz);
+    cam = eye.clone().add(xyz);
   } else {
     if (xyz == null) {
       if (bag != null) {
@@ -7662,14 +7698,20 @@ Viewer.prototype.recenter = function recenter (xyz/*:?Num3*/, cam/*:?Num3*/, ste
         xyz = uc_func ? uc_func([0.5, 0.5, 0.5]) : [0, 0, 0];
       }
     }
+    xyz = new Vector3(xyz[0], xyz[1], xyz[2]);
     if (cam != null) {
       cam = new Vector3(cam[0], cam[1], cam[2]);
-      new_up = null; // preserve the up direction
+      eye = cam.clone().sub(xyz);
+      new_up.copy(this.camera.up); // preserve the up direction
     } else {
       var dc = this.default_camera_pos;
-      cam = new Vector3(xyz[0] + dc[0], xyz[1] + dc[1], xyz[2] + dc[2]);
-      new_up = Object3D.DefaultUp; // Vector3(0, 1, 0)
+      cam = new Vector3(xyz.x + dc[0], xyz.y + dc[1], xyz.z + dc[2]);
     }
+  }
+  if (eye != null) {
+    new_up.projectOnPlane(eye);
+    if (new_up.lengthSq() < 0.0001) { new_up.x += 1; }
+    new_up.normalize();
   }
   this.controls.go_to(xyz, cam, new_up, steps);
 };
@@ -7687,7 +7729,9 @@ Viewer.prototype.select_atom = function select_atom (pick/*:{bag:ModelBag, atom:
     if ( options === void 0 ) options/*:Object*/={};
 
   this.hud('-> ' + pick.bag.label + ' ' + pick.atom.long_label());
-  this.controls.go_to(pick.atom.xyz, null, null, options.steps);
+  var xyz = pick.atom.xyz;
+  this.controls.go_to(new Vector3(xyz[0], xyz[1], xyz[2]),
+                      null, null, options.steps);
   this.toggle_label(this.selected, false);
   this.selected = {bag: pick.bag, atom: pick.atom}; // not ...=pick b/c flow
   this.toggle_label(this.selected, true);
@@ -7724,9 +7768,6 @@ Viewer.prototype.render = function render () {
   this.scheduled = false;
   if (this.controls.is_moving()) {
     this.request_render();
-  }
-  if (this.stats) {
-    this.stats.update();
   }
 };
 

@@ -133,7 +133,7 @@ Quaternion.prototype = {
     // http://www.euclideanspace.com/maths/geometry/rotations/conversions/angleToQuaternion/index.htm
 
     // assumes axis is normalized
-    var halfAngle = angle / 2, s = Math.sin( halfAngle );
+    let halfAngle = angle / 2, s = Math.sin( halfAngle );
 
     this._x = axis.x * s;
     this._y = axis.y * s;
@@ -470,6 +470,20 @@ Vector3.prototype = {
 
     return this;
   },
+
+  projectOnVector: function ( vector ) {
+    let scalar = vector.dot( this ) / vector.lengthSq();
+    return this.copy( vector ).multiplyScalar( scalar );
+  },
+
+  projectOnPlane: function () {
+    let v1;
+    return function projectOnPlane( planeNormal ) {
+      if ( v1 === undefined ) v1 = new Vector3();
+      v1.copy( this ).projectOnVector( planeNormal );
+      return this.sub( v1 );
+    };
+  }(),
 
   distanceTo: function ( v ) {
     return Math.sqrt( this.distanceToSquared( v ) );
