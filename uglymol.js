@@ -1,5 +1,5 @@
 /*!
- * UglyMol v0.6.0. Macromolecular Viewer for Crystallographers.
+ * UglyMol v0.6.1. Macromolecular Viewer for Crystallographers.
  * Copyright 2014 Nat Echols
  * Copyright 2016 Diamond Light Source Ltd
  * Copyright 2016 Marcin Wojdyr
@@ -11,7 +11,7 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 (factory((global.UM = {})));
 }(this, (function (exports) { 'use strict';
 
-var VERSION = exports.VERSION = '0.6.0';
+var VERSION = exports.VERSION = '0.6.1';
 
 
 // @flow
@@ -5605,6 +5605,21 @@ var line_vert = "\n#ifdef USE_COLOR\nvarying vec3 vcolor;\n#endif\nvoid main() {
 
 var line_frag = "\n" + fog_pars_fragment + "\n#ifdef USE_COLOR\n varying vec3 vcolor;\n#else\n uniform vec3 vcolor;\n#endif\nvoid main() {\n  gl_FragColor = vec4(vcolor, 1.0);\n" + fog_end_fragment + "\n}";
 
+function makeLines(pos /*:Float32Array*/, color /*:Color*/,
+                          linewidth /*:number*/) {
+  var material = new ShaderMaterial({
+    uniforms: makeUniforms({vcolor: color}),
+    vertexShader: line_vert,
+    fragmentShader: line_frag,
+    fog: true,
+    linewidth: linewidth,
+    type: 'um_lines',
+  });
+  var geometry = new BufferGeometry();
+  geometry.addAttribute('position', new BufferAttribute(pos, 3));
+  return new LineSegments(geometry, material);
+}
+
 function makeCube(size /*:number*/,
                          ctr /*:Vector3*/,
                          options /*:{[key:string]: any}*/) {
@@ -5615,16 +5630,24 @@ function makeCube(size /*:number*/,
     pos[3*i+1] = ctr.y + size * (coor[1] - 0.5);
     pos[3*i+2] = ctr.z + size * (coor[2] - 0.5);
   }
+  return makeLines(pos, options.color, options.linewidth);
+}
+
+function makeMultiColorLines(pos /*:Float32Array*/,
+                                    colors /*:Color[]*/,
+                                    linewidth /*:number*/) {
   var material = new ShaderMaterial({
-    uniforms: makeUniforms({vcolor: options.color}),
+    uniforms: makeUniforms({}),
     vertexShader: line_vert,
     fragmentShader: line_frag,
+    vertexColors: VertexColors,
     fog: true,
-    linewidth: options.linewidth,
-    type: 'um_line_cube',
+    linewidth: linewidth,
+    type: 'um_multicolor_lines',
   });
   var geometry = new BufferGeometry();
   geometry.addAttribute('position', new BufferAttribute(pos, 3));
+  geometry.addAttribute('color', makeColorAttribute(colors));
   return new LineSegments(geometry, material);
 }
 
@@ -5644,19 +5667,7 @@ function makeRgbBox(transform_func /*:Num3 => Num3*/, color /*:Color*/) {
   for (var j = 6; j < CUBE_EDGES.length; j++) {
     colors.push(color);
   }
-  var material = new ShaderMaterial({
-    uniforms: makeUniforms({}),
-    vertexShader: line_vert,
-    fragmentShader: line_frag,
-    vertexColors: VertexColors,
-    fog: true,
-    linewidth: 1,
-    type: 'um_line_box',
-  });
-  var geometry = new BufferGeometry();
-  geometry.addAttribute('position', new BufferAttribute(pos, 3));
-  geometry.addAttribute('color', makeColorAttribute(colors));
-  return new LineSegments(geometry, material);
+  return makeMultiColorLines(pos, colors, 1);
 }
 
 function double_pos(pos /*:Num3[]*/) {
@@ -8355,7 +8366,7 @@ var ReciprocalViewer = (function (Viewer$$1) {
     var map_range = map.box_size[0] / 2;
     this.config.map_radius = Math.round(map_range / 2 * 100) / 100;
     this.config.max_map_radius = Math.round(1.5 * map_range * 100) / 100;
-    this.config.default_isolevel = 0.3;
+    this.config.default_isolevel = 2.0;
     this.add_map(map, false);
     var map_dmin = 1 / map_range;
     var msg = 'Loaded density map (' + map_dmin.toFixed(2) + 'Å).\n';
@@ -8537,7 +8548,9 @@ exports.TriangleStripDrawMode = TriangleStripDrawMode;
 exports.Line = Line;
 exports.fog_pars_fragment = fog_pars_fragment;
 exports.fog_end_fragment = fog_end_fragment;
+exports.makeLines = makeLines;
 exports.makeCube = makeCube;
+exports.makeMultiColorLines = makeMultiColorLines;
 exports.makeRgbBox = makeRgbBox;
 exports.makeUniforms = makeUniforms;
 exports.makeRibbon = makeRibbon;
