@@ -70,6 +70,21 @@ void main() {
 ${fog_end_fragment}
 }`;
 
+export function makeLines(pos /*:Float32Array*/, color /*:Color*/,
+                          linewidth /*:number*/) {
+  const material = new ShaderMaterial({
+    uniforms: makeUniforms({vcolor: color}),
+    vertexShader: line_vert,
+    fragmentShader: line_frag,
+    fog: true,
+    linewidth: linewidth,
+    type: 'um_lines',
+  });
+  let geometry = new BufferGeometry();
+  geometry.addAttribute('position', new BufferAttribute(pos, 3));
+  return new LineSegments(geometry, material);
+}
+
 export function makeCube(size /*:number*/,
                          ctr /*:Vector3*/,
                          options /*:{[key:string]: any}*/) {
@@ -80,16 +95,24 @@ export function makeCube(size /*:number*/,
     pos[3*i+1] = ctr.y + size * (coor[1] - 0.5);
     pos[3*i+2] = ctr.z + size * (coor[2] - 0.5);
   }
+  return makeLines(pos, options.color, options.linewidth);
+}
+
+export function makeMultiColorLines(pos /*:Float32Array*/,
+                                    colors /*:Color[]*/,
+                                    linewidth /*:number*/) {
   const material = new ShaderMaterial({
-    uniforms: makeUniforms({vcolor: options.color}),
+    uniforms: makeUniforms({}),
     vertexShader: line_vert,
     fragmentShader: line_frag,
+    vertexColors: VertexColors,
     fog: true,
-    linewidth: options.linewidth,
-    type: 'um_line_cube',
+    linewidth: linewidth,
+    type: 'um_multicolor_lines',
   });
   let geometry = new BufferGeometry();
   geometry.addAttribute('position', new BufferAttribute(pos, 3));
+  geometry.addAttribute('color', makeColorAttribute(colors));
   return new LineSegments(geometry, material);
 }
 
@@ -110,19 +133,7 @@ export function makeRgbBox(transform_func /*:Num3 => Num3*/, color /*:Color*/) {
   for (let j = 6; j < CUBE_EDGES.length; j++) {
     colors.push(color);
   }
-  const material = new ShaderMaterial({
-    uniforms: makeUniforms({}),
-    vertexShader: line_vert,
-    fragmentShader: line_frag,
-    vertexColors: VertexColors,
-    fog: true,
-    linewidth: 1,
-    type: 'um_line_box',
-  });
-  let geometry = new BufferGeometry();
-  geometry.addAttribute('position', new BufferAttribute(pos, 3));
-  geometry.addAttribute('color', makeColorAttribute(colors));
-  return new LineSegments(geometry, material);
+  return makeMultiColorLines(pos, colors, 1);
 }
 
 function double_pos(pos /*:Num3[]*/) {
