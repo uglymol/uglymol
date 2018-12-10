@@ -4,7 +4,7 @@ import { OrthographicCamera, Scene, AmbientLight, Color, Vector3,
          Raycaster, WebGLRenderer, Fog } from './fromthree.js';
 
 import { makeLineMaterial, makeLineSegments, makeLine, makeRibbon,
-         makeChickenWire, makeGrid, makeBalls, makeWheels, makeCube,
+         makeChickenWire, makeGrid, makeSticks, makeBalls, makeWheels, makeCube,
          makeRgbBox, makeLabel, addXyzCross } from './draw.js';
 import { STATE, Controls } from './controls.js';
 import { ElMap } from './elmap.js';
@@ -107,7 +107,7 @@ const INIT_HUD_TEXT = 'This is UglyMol not Coot. ' +
 // options handled by select_next()
 
 const COLOR_PROPS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
-const RENDER_STYLES = ['lines', 'trace', 'ribbon'/*, 'ball&stick'*/];
+const RENDER_STYLES = ['lines', 'trace', 'ribbon', 'ball&stick'];
 const LIGAND_STYLES = ['normal', 'ball&stick'];
 const MAP_STYLES = ['marching cubes', 'squarish'/*, 'snapped MC'*/];
 const LINE_STYLES = ['normal', 'simplistic'];
@@ -202,7 +202,7 @@ class ModelBag {
   hue_shift: number
   conf: Object
   win_size: [number, number]
-  atomic_objects: Object[]
+  objects: Object[]
   static ctor_counter: number
   */
   constructor(model, config, win_size) {
@@ -212,7 +212,7 @@ class ModelBag {
     this.hue_shift = 0;
     this.conf = config;
     this.win_size = win_size;
-    this.atomic_objects = []; // list of three.js objects
+    this.objects = []; // list of three.js objects
   }
 
   get_visible_atoms() {
@@ -254,12 +254,6 @@ class ModelBag {
           // Here we keep it simple and render such bonds like all others.
           if (ligands_only && !other.is_ligand) continue;
           const mid = atom.midpoint(other);
-          if (ball_size != null) {
-            const vmid = new Vector3(mid[0], mid[1], mid[2]);
-            const vatom = new Vector3(atom.xyz[0], atom.xyz[1], atom.xyz[2]);
-            const lerp_factor = vatom.distanceTo(vmid) / ball_size;
-            vatom.lerp(vmid, lerp_factor);
-          }
           vertex_arr.push(atom.xyz, mid);
           color_arr.push(color, color);
         }
@@ -267,17 +261,20 @@ class ModelBag {
     }
     if (vertex_arr.length === 0) return;
     const linewidth = scale_by_height(this.conf.bond_line, this.win_size);
-    const material = makeLineMaterial({
-      linewidth: linewidth,
-      win_size: this.win_size,
-      segments: true,
-    });
-    this.atomic_objects.push(makeLineSegments(material, vertex_arr, color_arr));
     if (ball_size != null) {
-      this.atomic_objects.push(makeBalls(visible_atoms, colors, ball_size));
-    } else if (this.conf.line_style !== 'simplistic' && !ligands_only) {
-      // wheels (discs) as round caps
-      this.atomic_objects.push(makeWheels(visible_atoms, colors, linewidth));
+      this.objects.push(makeSticks(vertex_arr, color_arr, ball_size));
+      this.objects.push(makeBalls(visible_atoms, colors, ball_size));
+    } else {
+      const material = makeLineMaterial({
+        linewidth: linewidth,
+        win_size: this.win_size,
+        segments: true,
+      });
+      this.objects.push(makeLineSegments(material, vertex_arr, color_arr));
+      if (this.conf.line_style !== 'simplistic' && !ligands_only) {
+        // wheels (discs) as round caps
+        this.objects.push(makeWheels(visible_atoms, colors, linewidth));
+      }
     }
   }
 
@@ -299,7 +296,7 @@ class ModelBag {
         pos.push(atom.xyz);
       }
       const line = makeLine(material, pos, color_slice);
-      this.atomic_objects.push(line);
+      this.objects.push(line);
     }
   }
 
@@ -328,7 +325,7 @@ class ModelBag {
       const color_slice = colors.slice(k, k + seg.length);
       k += seg.length;
       const obj = makeRibbon(seg, color_slice, tangents, smoothness);
-      this.atomic_objects.push(obj);
+      this.objects.push(obj);
     }
   }
 }
@@ -551,7 +548,7 @@ export class Viewer {
       // '0.15' b/c the furthest 15% is hardly visible in the fog
       this.raycaster.far = camera.far - 0.15 * (camera.far - camera.near);
       this.raycaster.linePrecision = 0.3;
-      let intersects = this.raycaster.intersectObjects(bag.atomic_objects);
+      let intersects = this.raycaster.intersectObjects(bag.objects);
       if (intersects.length > 0) {
         intersects.sort(function (x) { return x.line_dist || Infinity; });
         const p = intersects[0].point;
@@ -669,15 +666,15 @@ export class Viewer {
     map_bag.el_objects = [];
   }
 
-  clear_atomic_objects(model_bag/*:ModelBag*/) {
-    for (let o of model_bag.atomic_objects) {
+  clear_model_objects(model_bag/*:ModelBag*/) {
+    for (let o of model_bag.objects) {
       this.remove_and_dispose(o);
     }
-    model_bag.atomic_objects = [];
+    model_bag.objects = [];
   }
 
-  set_atomic_objects(model_bag/*:ModelBag*/) {
-    model_bag.atomic_objects = [];
+  set_model_objects(model_bag/*:ModelBag*/) {
+    model_bag.objects = [];
     const ball_size = 0.4;
     switch (model_bag.conf.render_style) {
       case 'lines':
@@ -690,7 +687,7 @@ export class Viewer {
           const colors = color_by('element', ligand_atoms,
                                   model_bag.conf.colors, model_bag.hue_shift);
           const obj = makeBalls(ligand_atoms, colors, ball_size);
-          model_bag.atomic_objects.push(obj);
+          model_bag.objects.push(obj);
         }
         break;
       case 'ball&stick':
@@ -705,7 +702,7 @@ export class Viewer {
         model_bag.add_bonds(true);
         break;
     }
-    for (let o of model_bag.atomic_objects) {
+    for (let o of model_bag.objects) {
       this.scene.add(o);
     }
   }
@@ -773,9 +770,9 @@ export class Viewer {
   }
 
   redraw_model(model_bag/*:ModelBag*/) {
-    this.clear_atomic_objects(model_bag);
+    this.clear_model_objects(model_bag);
     if (model_bag.visible) {
-      this.set_atomic_objects(model_bag);
+      this.set_model_objects(model_bag);
     }
   }
 
@@ -1368,7 +1365,7 @@ export class Viewer {
     const model_bag = new ModelBag(model, this.config, this.window_size);
     model_bag.hue_shift = options.hue_shift || 0.06 * this.model_bags.length;
     this.model_bags.push(model_bag);
-    this.set_atomic_objects(model_bag);
+    this.set_model_objects(model_bag);
     this.request_render();
   }
 

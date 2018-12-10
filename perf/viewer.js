@@ -16,20 +16,20 @@ emap.from_ccp4(cmap_buf);
 
 util.bench('add trace', function () {
   viewer.config.render_style = 'trace';
-  viewer.set_atomic_objects(viewer.model_bags[0]);
-  viewer.clear_atomic_objects(viewer.model_bags[0]);
+  viewer.set_model_objects(viewer.model_bags[0]);
+  viewer.clear_model_objects(viewer.model_bags[0]);
 });
 
 util.bench('add bonds', function () {
   viewer.config.render_style = 'lines';
-  viewer.set_atomic_objects(viewer.model_bags[0]);
-  viewer.clear_atomic_objects(viewer.model_bags[0]);
+  viewer.set_model_objects(viewer.model_bags[0]);
+  viewer.clear_model_objects(viewer.model_bags[0]);
 });
 
 util.bench('add ribbon', function () {
   viewer.config.render_style = 'ribbon';
-  viewer.set_atomic_objects(viewer.model_bags[0]);
-  viewer.clear_atomic_objects(viewer.model_bags[0]);
+  viewer.set_model_objects(viewer.model_bags[0]);
+  viewer.clear_model_objects(viewer.model_bags[0]);
 });
 
 util.bench('add_map+clear', function () {

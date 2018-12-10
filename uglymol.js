@@ -1,5 +1,5 @@
 /*!
- * UglyMol v0.6.1. Macromolecular Viewer for Crystallographers.
+ * UglyMol v0.6.2. Macromolecular Viewer for Crystallographers.
  * Copyright 2014 Nat Echols
  * Copyright 2016 Diamond Light Source Ltd
  * Copyright 2016 Marcin Wojdyr
@@ -11,7 +11,7 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 (factory((global.UM = {})));
 }(this, (function (exports) { 'use strict';
 
-var VERSION = exports.VERSION = '0.6.1';
+var VERSION = exports.VERSION = '0.6.2';
 
 
 // @flow
@@ -5695,34 +5695,6 @@ function double_color(color_arr /*:Color[]*/) {
   return color;
 }
 
-// input arrays must be of the same length
-function wide_line_geometry(vertex_arr, color_arr) {
-  var len = vertex_arr.length;
-  var pos = double_pos(vertex_arr);
-  var position = new Float32Array(pos);
-  // could we use three overlapping views of the same buffer?
-  var previous = new Float32Array(6*len);
-  var i;
-  for (i = 0; i < 6; i++) { previous[i] = pos[i]; }
-  for (; i < 6 * len; i++) { previous[i] = pos[i-6]; }
-  var next = new Float32Array(6*len);
-  for (i = 0; i < 6 * (len-1); i++) { next[i] = pos[i+6]; }
-  for (; i < 6 * len; i++) { next[i] = pos[i]; }
-  var side = new Float32Array(2*len);
-  for (i = 0; i < len; i++) {
-    side[2*i] = 1;
-    side[2*i+1] = -1;
-  }
-  var color = double_color(color_arr);
-  var geometry = new BufferGeometry();
-  geometry.addAttribute('position', new BufferAttribute(position, 3));
-  geometry.addAttribute('previous', new BufferAttribute(previous, 3));
-  geometry.addAttribute('next', new BufferAttribute(next, 3));
-  geometry.addAttribute('side', new BufferAttribute(side, 1));
-  geometry.addAttribute('color', new BufferAttribute(color, 3));
-  return geometry;
-}
-
 // draw quads as 2 triangles: 4 attributes / quad, 6 indices / quad
 function make_quad_index_buffer(len) {
   var index = (4*len < 65536 ? new Uint16Array(6*len)
@@ -5734,36 +5706,6 @@ function make_quad_index_buffer(len) {
     }
   }
   return new BufferAttribute(index, 1);
-}
-
-// input arrays must be of the same length
-function wide_segments_geometry(vertex_arr /*:Num3[]*/, color_arr) {
-  // n input vertices => 2n output vertices, n triangles, 3n indexes
-  var len = vertex_arr.length;
-  var i;
-  var pos = double_pos(vertex_arr);
-  var position = new Float32Array(pos);
-  var other_vert = new Float32Array(6*len);
-  for (i = 0; i < 6 * len; i += 12) {
-    var j = (void 0);
-    for (j = 0; j < 6; j++) { other_vert[i+j] = pos[i+j+6]; }
-    for (; j < 12; j++) { other_vert[i+j] = pos[i+j-6]; }
-  }
-  var side = new Float32Array(2*len);
-  for (i = 0; i < len; i++) {
-    side[2*i] = -1;
-    side[2*i+1] = 1;
-  }
-  var geometry = new BufferGeometry();
-  geometry.addAttribute('position', new BufferAttribute(position, 3));
-  geometry.addAttribute('other', new BufferAttribute(other_vert, 3));
-  geometry.addAttribute('side', new BufferAttribute(side, 1));
-  if (color_arr != null) {
-    var color = double_color(color_arr);
-    geometry.addAttribute('color', new BufferAttribute(color, 3));
-  }
-  geometry.setIndex(make_quad_index_buffer(len/2));
-  return geometry;
 }
 
 
@@ -5981,19 +5923,71 @@ function makeLineMaterial(options /*:{[key: string]: mixed}*/) {
   });
 }
 
+// vertex_arr and color_arr must be of the same length
 function makeLine(material /*:ShaderMaterial*/,
-                         vertices /*:Num3[]*/,
-                         colors /*:Color[]*/) {
-  var mesh = new Mesh(wide_line_geometry(vertices, colors), material);
+                         vertex_arr /*:Num3[]*/,
+                         color_arr /*:Color[]*/) {
+  var len = vertex_arr.length;
+  var pos = double_pos(vertex_arr);
+  var position = new Float32Array(pos);
+  // could we use three overlapping views of the same buffer?
+  var previous = new Float32Array(6*len);
+  var i;
+  for (i = 0; i < 6; i++) { previous[i] = pos[i]; }
+  for (; i < 6 * len; i++) { previous[i] = pos[i-6]; }
+  var next = new Float32Array(6*len);
+  for (i = 0; i < 6 * (len-1); i++) { next[i] = pos[i+6]; }
+  for (; i < 6 * len; i++) { next[i] = pos[i]; }
+  var side = new Float32Array(2*len);
+  for (i = 0; i < len; i++) {
+    side[2*i] = 1;
+    side[2*i+1] = -1;
+  }
+  var color = double_color(color_arr);
+  var geometry = new BufferGeometry();
+  geometry.addAttribute('position', new BufferAttribute(position, 3));
+  geometry.addAttribute('previous', new BufferAttribute(previous, 3));
+  geometry.addAttribute('next', new BufferAttribute(next, 3));
+  geometry.addAttribute('side', new BufferAttribute(side, 1));
+  geometry.addAttribute('color', new BufferAttribute(color, 3));
+
+  var mesh = new Mesh(geometry, material);
   mesh.drawMode = TriangleStripDrawMode;
   mesh.raycast = line_raycast;
   return mesh;
 }
 
+// vertex_arr and color_arr must be of the same length
 function makeLineSegments(material /*:ShaderMaterial*/,
-                                 vertices /*:Num3[]*/,
-                                 colors /*:?Color[]*/) {
-  var mesh = new Mesh(wide_segments_geometry(vertices, colors), material);
+                                 vertex_arr /*:Num3[]*/,
+                                 color_arr /*:?Color[]*/) {
+  // n input vertices => 2n output vertices, n triangles, 3n indexes
+  var len = vertex_arr.length;
+  var i;
+  var pos = double_pos(vertex_arr);
+  var position = new Float32Array(pos);
+  var other_vert = new Float32Array(6*len);
+  for (i = 0; i < 6 * len; i += 12) {
+    var j = (void 0);
+    for (j = 0; j < 6; j++) { other_vert[i+j] = pos[i+j+6]; }
+    for (; j < 12; j++) { other_vert[i+j] = pos[i+j-6]; }
+  }
+  var side = new Float32Array(2*len);
+  for (i = 0; i < len; i++) {
+    side[2*i] = -1;
+    side[2*i+1] = 1;
+  }
+  var geometry = new BufferGeometry();
+  geometry.addAttribute('position', new BufferAttribute(position, 3));
+  geometry.addAttribute('other', new BufferAttribute(other_vert, 3));
+  geometry.addAttribute('side', new BufferAttribute(side, 1));
+  if (color_arr != null) {
+    var color = double_color(color_arr);
+    geometry.addAttribute('color', new BufferAttribute(color, 3));
+  }
+  geometry.setIndex(make_quad_index_buffer(len/2));
+
+  var mesh = new Mesh(geometry, material);
   mesh.raycast = line_raycast;
   return mesh;
 }
@@ -6041,6 +6035,18 @@ var sphere_vert = "\nattribute vec2 corner;\nuniform float radius;\nvarying vec3
 
 // based on 3Dmol imposter shaders
 var sphere_frag = "\n" + fog_pars_fragment + "\nuniform mat4 projectionMatrix;\nuniform vec3 lightDir;\nvarying vec3 vcolor;\nvarying vec2 vcoor;\nvarying vec3 vpos;\n\nvoid main() {\n  float sq = dot(vcoor, vcoor);\n  if (sq > 1.0) discard;\n  float z = sqrt(1.0-sq);\n  vec3 xyz = vec3(vcoor.x, vcoor.y, z);\n  vec4 projPos = projectionMatrix * vec4(vpos + xyz, 1.0);\n  float ndcDepth = projPos.z / projPos.w;\n  gl_FragDepthEXT = ((gl_DepthRange.diff * ndcDepth) +\n                     gl_DepthRange.near + gl_DepthRange.far) / 2.0;\n  float weight = clamp(dot(xyz, lightDir), 0.0, 1.0);\n  gl_FragColor = vec4(weight * vcolor, 1.0);\n  " + fog_end_fragment + "\n}\n";
+
+function makeSticks(vertex_arr /*:Num3[]*/,
+                           color_arr /*:Color[]*/,
+                           radius /*:number*/) {
+  // TODO: real sticks
+  var material = makeLineMaterial({
+    linewidth: radius / 3,
+    win_size: [20, 20],
+    segments: true,
+  });
+  return makeLineSegments(material, vertex_arr, color_arr);
+}
 
 function makeBalls(atom_arr /*:AtomT[]*/,
                           color_arr /*:Color[]*/,
@@ -6557,7 +6563,7 @@ var INIT_HUD_TEXT = 'This is UglyMol not Coot. ' +
 // options handled by select_next()
 
 var COLOR_PROPS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
-var RENDER_STYLES = ['lines', 'trace', 'ribbon' ];
+var RENDER_STYLES = ['lines', 'trace', 'ribbon', 'ball&stick'];
 var LIGAND_STYLES = ['normal', 'ball&stick'];
 var MAP_STYLES = ['marching cubes', 'squarish' ];
 var LINE_STYLES = ['normal', 'simplistic'];
@@ -6640,7 +6646,7 @@ var ModelBag = function ModelBag(model, config, win_size) {
   this.hue_shift = 0;
   this.conf = config;
   this.win_size = win_size;
-  this.atomic_objects = []; // list of three.js objects
+  this.objects = []; // list of three.js objects
 };
 
 ModelBag.prototype.get_visible_atoms = function get_visible_atoms () {
@@ -6684,12 +6690,6 @@ ModelBag.prototype.add_bonds = function add_bonds (ligands_only, ball_size) {
         // Here we keep it simple and render such bonds like all others.
         if (ligands_only && !other.is_ligand) { continue; }
         var mid = atom.midpoint(other);
-        if (ball_size != null) {
-          var vmid = new Vector3(mid[0], mid[1], mid[2]);
-          var vatom = new Vector3(atom.xyz[0], atom.xyz[1], atom.xyz[2]);
-          var lerp_factor = vatom.distanceTo(vmid) / ball_size;
-          vatom.lerp(vmid, lerp_factor);
-        }
         vertex_arr.push(atom.xyz, mid);
         color_arr.push(color, color);
       }
@@ -6697,17 +6697,20 @@ ModelBag.prototype.add_bonds = function add_bonds (ligands_only, ball_size) {
   }
   if (vertex_arr.length === 0) { return; }
   var linewidth = scale_by_height(this.conf.bond_line, this.win_size);
-  var material = makeLineMaterial({
-    linewidth: linewidth,
-    win_size: this.win_size,
-    segments: true,
-  });
-  this.atomic_objects.push(makeLineSegments(material, vertex_arr, color_arr));
   if (ball_size != null) {
-    this.atomic_objects.push(makeBalls(visible_atoms, colors, ball_size));
-  } else if (this.conf.line_style !== 'simplistic' && !ligands_only) {
-    // wheels (discs) as round caps
-    this.atomic_objects.push(makeWheels(visible_atoms, colors, linewidth));
+    this.objects.push(makeSticks(vertex_arr, color_arr, ball_size));
+    this.objects.push(makeBalls(visible_atoms, colors, ball_size));
+  } else {
+    var material = makeLineMaterial({
+      linewidth: linewidth,
+      win_size: this.win_size,
+      segments: true,
+    });
+    this.objects.push(makeLineSegments(material, vertex_arr, color_arr));
+    if (this.conf.line_style !== 'simplistic' && !ligands_only) {
+      // wheels (discs) as round caps
+      this.objects.push(makeWheels(visible_atoms, colors, linewidth));
+    }
   }
 };
 
@@ -6733,7 +6736,7 @@ ModelBag.prototype.add_trace = function add_trace () {
         pos.push(atom.xyz);
     }
     var line = makeLine(material, pos, color_slice);
-    this.atomic_objects.push(line);
+    this.objects.push(line);
   }
 };
 
@@ -6766,7 +6769,7 @@ ModelBag.prototype.add_ribbon = function add_ribbon (smoothness) {
     var color_slice = colors.slice(k, k + seg.length);
     k += seg.length;
     var obj = makeRibbon(seg, color_slice, tangents, smoothness);
-    this.atomic_objects.push(obj);
+    this.objects.push(obj);
   }
 };
 
@@ -6956,7 +6959,7 @@ Viewer.prototype.pick_atom = function pick_atom (coords/*:[number,number]*/, cam
     // '0.15' b/c the furthest 15% is hardly visible in the fog
     this.raycaster.far = camera.far - 0.15 * (camera.far - camera.near);
     this.raycaster.linePrecision = 0.3;
-    var intersects = this.raycaster.intersectObjects(bag.atomic_objects);
+    var intersects = this.raycaster.intersectObjects(bag.objects);
     if (intersects.length > 0) {
       intersects.sort(function (x) { return x.line_dist || Infinity; });
       var p = intersects[0].point;
@@ -7082,17 +7085,17 @@ Viewer.prototype.clear_el_objects = function clear_el_objects (map_bag/*:MapBag*
   map_bag.el_objects = [];
 };
 
-Viewer.prototype.clear_atomic_objects = function clear_atomic_objects (model_bag/*:ModelBag*/) {
-  for (var i = 0, list = model_bag.atomic_objects; i < list.length; i += 1) {
+Viewer.prototype.clear_model_objects = function clear_model_objects (model_bag/*:ModelBag*/) {
+  for (var i = 0, list = model_bag.objects; i < list.length; i += 1) {
     var o = list[i];
 
       this.remove_and_dispose(o);
   }
-  model_bag.atomic_objects = [];
+  model_bag.objects = [];
 };
 
-Viewer.prototype.set_atomic_objects = function set_atomic_objects (model_bag/*:ModelBag*/) {
-  model_bag.atomic_objects = [];
+Viewer.prototype.set_model_objects = function set_model_objects (model_bag/*:ModelBag*/) {
+  model_bag.objects = [];
   var ball_size = 0.4;
   switch (model_bag.conf.render_style) {
     case 'lines':
@@ -7105,7 +7108,7 @@ Viewer.prototype.set_atomic_objects = function set_atomic_objects (model_bag/*:M
         var colors = color_by('element', ligand_atoms,
                                 model_bag.conf.colors, model_bag.hue_shift);
         var obj = makeBalls(ligand_atoms, colors, ball_size);
-        model_bag.atomic_objects.push(obj);
+        model_bag.objects.push(obj);
       }
       break;
     case 'ball&stick':
@@ -7120,7 +7123,7 @@ Viewer.prototype.set_atomic_objects = function set_atomic_objects (model_bag/*:M
       model_bag.add_bonds(true);
       break;
   }
-  for (var i = 0, list = model_bag.atomic_objects; i < list.length; i += 1) {
+  for (var i = 0, list = model_bag.objects; i < list.length; i += 1) {
     var o = list[i];
 
       this.scene.add(o);
@@ -7190,9 +7193,9 @@ Viewer.prototype.toggle_model_visibility = function toggle_model_visibility (mod
 };
 
 Viewer.prototype.redraw_model = function redraw_model (model_bag/*:ModelBag*/) {
-  this.clear_atomic_objects(model_bag);
+  this.clear_model_objects(model_bag);
   if (model_bag.visible) {
-    this.set_atomic_objects(model_bag);
+    this.set_model_objects(model_bag);
   }
 };
 
@@ -7795,7 +7798,7 @@ Viewer.prototype.add_model = function add_model (model/*:Model*/, options) {
   var model_bag = new ModelBag(model, this.config, this.window_size);
   model_bag.hue_shift = options.hue_shift || 0.06 * this.model_bags.length;
   this.model_bags.push(model_bag);
-  this.set_atomic_objects(model_bag);
+  this.set_model_objects(model_bag);
   this.request_render();
 };
 
@@ -8066,7 +8069,7 @@ var SPOT_SHAPES = ['wheel', 'square'];
 // rs_mapper outputs map in ccp4 format, but we need to rescale it,
 // shift it so the box is centered at 0,0,0,
 // and the translational symmetry doesn't apply.
-var ReciprocalSpaceMap = (function (ElMap$$1) {
+var ReciprocalSpaceMap = /*@__PURE__*/(function (ElMap$$1) {
   function ReciprocalSpaceMap(buf /*:ArrayBuffer*/) {
     ElMap$$1.call(this);
     this.box_size = [1, 1, 1];
@@ -8189,7 +8192,7 @@ var round_point_frag = "\n" + fog_pars_fragment + "\nvarying vec3 vcolor;\nvoid 
 var square_point_frag = "\n" + fog_pars_fragment + "\nvarying vec3 vcolor;\nvoid main() {\n  gl_FragColor = vec4(vcolor, 1.0);\n" + fog_end_fragment + "\n}";
 
 
-var ReciprocalViewer = (function (Viewer$$1) {
+var ReciprocalViewer = /*@__PURE__*/(function (Viewer$$1) {
   function ReciprocalViewer(options/*:{[key:string]: any}*/) {
     Viewer$$1.call(this, options);
     this.default_camera_pos = [100, 0, 0];
@@ -8560,6 +8563,7 @@ exports.makeLineMaterial = makeLineMaterial;
 exports.makeLine = makeLine;
 exports.makeLineSegments = makeLineSegments;
 exports.makeWheels = makeWheels;
+exports.makeSticks = makeSticks;
 exports.makeBalls = makeBalls;
 exports.makeLabel = makeLabel;
 exports.addXyzCross = addXyzCross;

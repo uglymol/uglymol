@@ -161,34 +161,6 @@ function double_color(color_arr /*:Color[]*/) {
   return color;
 }
 
-// input arrays must be of the same length
-function wide_line_geometry(vertex_arr, color_arr) {
-  const len = vertex_arr.length;
-  const pos = double_pos(vertex_arr);
-  const position = new Float32Array(pos);
-  // could we use three overlapping views of the same buffer?
-  let previous = new Float32Array(6*len);
-  let i;
-  for (i = 0; i < 6; i++) previous[i] = pos[i];
-  for (; i < 6 * len; i++) previous[i] = pos[i-6];
-  let next = new Float32Array(6*len);
-  for (i = 0; i < 6 * (len-1); i++) next[i] = pos[i+6];
-  for (; i < 6 * len; i++) next[i] = pos[i];
-  let side = new Float32Array(2*len);
-  for (i = 0; i < len; i++) {
-    side[2*i] = 1;
-    side[2*i+1] = -1;
-  }
-  const color = double_color(color_arr);
-  let geometry = new BufferGeometry();
-  geometry.addAttribute('position', new BufferAttribute(position, 3));
-  geometry.addAttribute('previous', new BufferAttribute(previous, 3));
-  geometry.addAttribute('next', new BufferAttribute(next, 3));
-  geometry.addAttribute('side', new BufferAttribute(side, 1));
-  geometry.addAttribute('color', new BufferAttribute(color, 3));
-  return geometry;
-}
-
 // draw quads as 2 triangles: 4 attributes / quad, 6 indices / quad
 function make_quad_index_buffer(len) {
   let index = (4*len < 65536 ? new Uint16Array(6*len)
@@ -200,36 +172,6 @@ function make_quad_index_buffer(len) {
     }
   }
   return new BufferAttribute(index, 1);
-}
-
-// input arrays must be of the same length
-function wide_segments_geometry(vertex_arr /*:Num3[]*/, color_arr) {
-  // n input vertices => 2n output vertices, n triangles, 3n indexes
-  const len = vertex_arr.length;
-  let i;
-  const pos = double_pos(vertex_arr);
-  const position = new Float32Array(pos);
-  let other_vert = new Float32Array(6*len);
-  for (i = 0; i < 6 * len; i += 12) {
-    let j;
-    for (j = 0; j < 6; j++) other_vert[i+j] = pos[i+j+6];
-    for (; j < 12; j++) other_vert[i+j] = pos[i+j-6];
-  }
-  let side = new Float32Array(2*len);
-  for (i = 0; i < len; i++) {
-    side[2*i] = -1;
-    side[2*i+1] = 1;
-  }
-  let geometry = new BufferGeometry();
-  geometry.addAttribute('position', new BufferAttribute(position, 3));
-  geometry.addAttribute('other', new BufferAttribute(other_vert, 3));
-  geometry.addAttribute('side', new BufferAttribute(side, 1));
-  if (color_arr != null) {
-    const color = double_color(color_arr);
-    geometry.addAttribute('color', new BufferAttribute(color, 3));
-  }
-  geometry.setIndex(make_quad_index_buffer(len/2));
-  return geometry;
 }
 
 
@@ -482,19 +424,71 @@ export function makeLineMaterial(options /*:{[key: string]: mixed}*/) {
   });
 }
 
+// vertex_arr and color_arr must be of the same length
 export function makeLine(material /*:ShaderMaterial*/,
-                         vertices /*:Num3[]*/,
-                         colors /*:Color[]*/) {
-  let mesh = new Mesh(wide_line_geometry(vertices, colors), material);
+                         vertex_arr /*:Num3[]*/,
+                         color_arr /*:Color[]*/) {
+  const len = vertex_arr.length;
+  const pos = double_pos(vertex_arr);
+  const position = new Float32Array(pos);
+  // could we use three overlapping views of the same buffer?
+  let previous = new Float32Array(6*len);
+  let i;
+  for (i = 0; i < 6; i++) previous[i] = pos[i];
+  for (; i < 6 * len; i++) previous[i] = pos[i-6];
+  let next = new Float32Array(6*len);
+  for (i = 0; i < 6 * (len-1); i++) next[i] = pos[i+6];
+  for (; i < 6 * len; i++) next[i] = pos[i];
+  let side = new Float32Array(2*len);
+  for (i = 0; i < len; i++) {
+    side[2*i] = 1;
+    side[2*i+1] = -1;
+  }
+  const color = double_color(color_arr);
+  let geometry = new BufferGeometry();
+  geometry.addAttribute('position', new BufferAttribute(position, 3));
+  geometry.addAttribute('previous', new BufferAttribute(previous, 3));
+  geometry.addAttribute('next', new BufferAttribute(next, 3));
+  geometry.addAttribute('side', new BufferAttribute(side, 1));
+  geometry.addAttribute('color', new BufferAttribute(color, 3));
+
+  let mesh = new Mesh(geometry, material);
   mesh.drawMode = TriangleStripDrawMode;
   mesh.raycast = line_raycast;
   return mesh;
 }
 
+// vertex_arr and color_arr must be of the same length
 export function makeLineSegments(material /*:ShaderMaterial*/,
-                                 vertices /*:Num3[]*/,
-                                 colors /*:?Color[]*/) {
-  let mesh = new Mesh(wide_segments_geometry(vertices, colors), material);
+                                 vertex_arr /*:Num3[]*/,
+                                 color_arr /*:?Color[]*/) {
+  // n input vertices => 2n output vertices, n triangles, 3n indexes
+  const len = vertex_arr.length;
+  let i;
+  const pos = double_pos(vertex_arr);
+  const position = new Float32Array(pos);
+  let other_vert = new Float32Array(6*len);
+  for (i = 0; i < 6 * len; i += 12) {
+    let j;
+    for (j = 0; j < 6; j++) other_vert[i+j] = pos[i+j+6];
+    for (; j < 12; j++) other_vert[i+j] = pos[i+j-6];
+  }
+  let side = new Float32Array(2*len);
+  for (i = 0; i < len; i++) {
+    side[2*i] = -1;
+    side[2*i+1] = 1;
+  }
+  let geometry = new BufferGeometry();
+  geometry.addAttribute('position', new BufferAttribute(position, 3));
+  geometry.addAttribute('other', new BufferAttribute(other_vert, 3));
+  geometry.addAttribute('side', new BufferAttribute(side, 1));
+  if (color_arr != null) {
+    const color = double_color(color_arr);
+    geometry.addAttribute('color', new BufferAttribute(color, 3));
+  }
+  geometry.setIndex(make_quad_index_buffer(len/2));
+
+  let mesh = new Mesh(geometry, material);
   mesh.raycast = line_raycast;
   return mesh;
 }
@@ -586,6 +580,18 @@ void main() {
   ${fog_end_fragment}
 }
 `;
+
+export function makeSticks(vertex_arr /*:Num3[]*/,
+                           color_arr /*:Color[]*/,
+                           radius /*:number*/) {
+  // TODO: real sticks
+  const material = makeLineMaterial({
+    linewidth: radius / 3,
+    win_size: [20, 20],
+    segments: true,
+  });
+  return makeLineSegments(material, vertex_arr, color_arr);
+}
 
 export function makeBalls(atom_arr /*:AtomT[]*/,
                           color_arr /*:Color[]*/,
