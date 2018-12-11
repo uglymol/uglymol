@@ -130,6 +130,7 @@ function parse_json(text) {
 }
 
 const point_vert = `
+attribute vec3 color;
 attribute float group;
 uniform float show_only;
 uniform float r2_max;

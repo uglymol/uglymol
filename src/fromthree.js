@@ -2018,20 +2018,13 @@ function WebGLProgram( renderer, code, material, parameters ) {
 
     '#define SHADER_NAME ' + material.__webglShader.name,
 
-    parameters.vertexColors ? '#define USE_COLOR' : '',
-
     'uniform mat4 modelMatrix;',
     'uniform mat4 modelViewMatrix;',
     'uniform mat4 projectionMatrix;',
     'uniform mat4 viewMatrix;',
-    'uniform vec3 cameraPosition;',
 
     'attribute vec3 position;',
     'attribute vec3 normal;',
-
-    '#ifdef USE_COLOR',
-    ' attribute vec3 color;',
-    '#endif',
     '',
   ].join( '\n' );
 
@@ -2046,10 +2039,7 @@ function WebGLProgram( renderer, code, material, parameters ) {
 
     ( parameters.useFog && parameters.fog ) ? '#define USE_FOG' : '',
 
-    parameters.vertexColors ? '#define USE_COLOR' : '',
-
     'uniform mat4 viewMatrix;',
-    'uniform vec3 cameraPosition;',
     '',
   ].join( '\n' );
 
@@ -3612,15 +3602,6 @@ function WebGLRenderer( parameters ) {
 
       // load material specific uniforms
       // (shader material also gets them for the sake of genericity)
-
-      if ( material.isShaderMaterial ) {
-        let uCamPos = p_uniforms.map.cameraPosition;
-
-        if ( uCamPos !== undefined ) {
-          uCamPos.setValue( _gl,
-                            _vector3.setFromMatrixPosition( camera.matrixWorld ) );
-        }
-      }
 
       if ( material.isShaderMaterial ) {
         p_uniforms.setValue( _gl, 'viewMatrix', camera.matrixWorldInverse );

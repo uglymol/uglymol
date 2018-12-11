@@ -262,7 +262,7 @@ class ModelBag {
     if (vertex_arr.length === 0) return;
     const linewidth = scale_by_height(this.conf.bond_line, this.win_size);
     if (ball_size != null) {
-      this.objects.push(makeSticks(vertex_arr, color_arr, ball_size));
+      this.objects.push(makeSticks(vertex_arr, color_arr, ball_size / 2));
       this.objects.push(makeBalls(visible_atoms, colors, ball_size));
     } else {
       const material = makeLineMaterial({
@@ -679,7 +679,8 @@ export class Viewer {
     switch (model_bag.conf.render_style) {
       case 'lines':
         model_bag.add_bonds();
-        if (model_bag.conf.ligand_style === 'ball&stick') {
+        if (model_bag.conf.ligand_style === 'ball&stick' &&
+            this.renderer.extensions.get('EXT_frag_depth')) {
           // TODO move it to ModelBag
           const ligand_atoms = model_bag.model.atoms.filter(function (a) {
             return a.is_ligand && a.element !== 'H';
@@ -691,7 +692,12 @@ export class Viewer {
         }
         break;
       case 'ball&stick':
-        model_bag.add_bonds(false, ball_size);
+        if (this.renderer.extensions.get('EXT_frag_depth')) {
+          model_bag.add_bonds(false, ball_size);
+        } else {
+          this.hud('Ball-and-stick rendering is not working in this browser' +
+                   '\ndue to lack of suppport for EXT_frag_depth', 'ERR');
+        }
         break;
       case 'trace':  // + lines for ligands
         model_bag.add_trace();
