@@ -545,14 +545,12 @@ attribute vec3 color;
 attribute vec2 corner;
 uniform float radius;
 varying vec3 vcolor;
-varying vec2 vcoor;
+varying vec2 vcorner;
 varying vec3 vpos;
-varying float vradius;
 
 void main() {
   vcolor = color;
-  vcoor = corner;
-  vradius = radius;
+  vcorner = corner;
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
   vpos = mvPosition.xyz;
   mvPosition.xy += corner * radius;
@@ -565,17 +563,17 @@ const sphere_frag = `
 ${fog_pars_fragment}
 uniform mat4 projectionMatrix;
 uniform vec3 lightDir;
+uniform float radius;
 varying vec3 vcolor;
-varying vec2 vcoor;
+varying vec2 vcorner;
 varying vec3 vpos;
-varying float vradius;
 
 void main() {
-  float sq = dot(vcoor, vcoor);
+  float sq = dot(vcorner, vcorner);
   if (sq > 1.0) discard;
   float z = sqrt(1.0-sq);
-  vec3 xyz = vec3(vcoor.x, vcoor.y, z);
-  vec4 projPos = projectionMatrix * vec4(vpos + vradius * xyz, 1.0);
+  vec3 xyz = vec3(vcorner.x, vcorner.y, z);
+  vec4 projPos = projectionMatrix * vec4(vpos + radius * xyz, 1.0);
   gl_FragDepthEXT = 0.5 * ((gl_DepthRange.diff * (projPos.z / projPos.w)) +
                            gl_DepthRange.near + gl_DepthRange.far);
   float weight = clamp(dot(xyz, lightDir), 0.0, 1.0);
@@ -586,24 +584,21 @@ void main() {
 
 const stick_vert = `
 attribute vec3 color;
-attribute vec3 other;
+attribute vec3 axis;
 attribute vec2 corner;
 uniform float radius;
 varying vec3 vcolor;
 varying vec2 vcorner;
 varying vec3 vpos;
-varying float vradius;
 
 void main() {
   vcolor = color;
   vcorner = corner;
-  vradius = radius;
-  float side = corner[0] * corner[1];
-  vec2 dir = normalize((modelViewMatrix * vec4(position - other, 0.0)).xy);
+  vec2 dir = normalize((modelViewMatrix * vec4(axis, 0.0)).xy);
   vec2 normal = vec2(-dir.y, dir.x);
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
   vpos = mvPosition.xyz;
-  mvPosition.xy += side * radius * normal;
+  mvPosition.xy += corner[1] * radius * normal;
   gl_Position = projectionMatrix * mvPosition;
 }`;
 
@@ -611,14 +606,14 @@ const stick_frag = `
 ${fog_pars_fragment}
 uniform mat4 projectionMatrix;
 uniform vec3 lightDir;
+uniform float radius;
 varying vec3 vcolor;
 varying vec2 vcorner;
 varying vec3 vpos;
-varying float vradius;
 void main() {
   float s2 = vcorner[1] * vcorner[1];
   vec3 xyz = vec3(0.0, 0.0, 1.0 - s2);
-  vec4 projPos = projectionMatrix * vec4(vpos + vradius * xyz, 1.0);
+  vec4 projPos = projectionMatrix * vec4(vpos + radius * xyz, 1.0);
   gl_FragDepthEXT = 0.5 * ((gl_DepthRange.diff * (projPos.z / projPos.w)) +
                            gl_DepthRange.near + gl_DepthRange.far);
   float weight = clamp(dot(xyz, lightDir), 0.0, 1.0);
@@ -646,11 +641,10 @@ export function makeSticks(vertex_arr /*:Num3[]*/,
   const len = vertex_arr.length;
   const pos = double_pos(vertex_arr);
   const position = new Float32Array(pos);
-  let other_vert = new Float32Array(6*len);
+  let axis = new Float32Array(6*len);
   for (let i = 0; i < 6 * len; i += 12) {
-    let j = 0;
-    for (; j < 6; j++) other_vert[i+j] = pos[i+j+6];
-    for (; j < 12; j++) other_vert[i+j] = pos[i+j-6];
+    for (let j = 0; j < 6; j++) axis[i+j] = pos[i+j+6] - pos[i+j];
+    for (let j = 0; j < 6; j++) axis[i+j+6] = axis[i+j];
   }
   let geometry = new BufferGeometry();
   geometry.addAttribute('position', new BufferAttribute(position, 3));
@@ -665,7 +659,7 @@ export function makeSticks(vertex_arr /*:Num3[]*/,
     corner[8*i + 6] = +1;  // 3
     corner[8*i + 7] = -1;  // 3
   }
-  geometry.addAttribute('other', new BufferAttribute(other_vert, 3));
+  geometry.addAttribute('axis', new BufferAttribute(axis, 3));
   geometry.addAttribute('corner', new BufferAttribute(corner, 2));
   const color = double_color(color_arr);
   geometry.addAttribute('color', new BufferAttribute(color, 3));

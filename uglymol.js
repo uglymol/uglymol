@@ -1560,11 +1560,8 @@ if ( Object.assign === undefined ) {
   } )();
 }
 
-var NoColors = 0;
-var VertexColors = 2;
 var NoBlending = 0;
 var NormalBlending = 1;
-var LessEqualDepth = 3;
 var TrianglesDrawMode = 0;
 var TriangleStripDrawMode = 1;
 var TriangleFanDrawMode = 2;
@@ -2596,13 +2593,11 @@ function WebGLUniforms( gl, program, renderer ) {
 
 WebGLUniforms.prototype.setValue = function ( gl, name, value ) {
   var u = this.map[name];
-
   if ( u !== undefined ) { u.setValue( gl, value, this.renderer ); }
 };
 
 WebGLUniforms.prototype.set = function ( gl, object, name ) {
   var u = this.map[name];
-
   if ( u !== undefined ) { u.setValue( gl, object[name], this.renderer ); }
 };
 
@@ -2837,20 +2832,15 @@ function Material() {
 
   this.fog = true;
 
-  this.vertexColors = NoColors; // NoColors, VertexColors, FaceColors
-
   this.opacity = 1;
   this.transparent = false;
 
-  this.depthFunc = LessEqualDepth;
   this.depthTest = true;
   this.depthWrite = true;
 
   this.precision = null; // override the renderer's default precision for this material
 
   this.premultipliedAlpha = false;
-
-  this.overdraw = 0; // Overdrawn pixels (typically between 0 and 1) for fixing antialiasing gaps in CanvasRenderer
 
   this.visible = true;
 
@@ -3531,30 +3521,20 @@ function WebGLProgram( renderer, code, material, parameters ) {
   prefixVertex = [
     'precision ' + parameters.precision + ' float;',
     'precision ' + parameters.precision + ' int;',
-
     '#define SHADER_NAME ' + material.__webglShader.name,
-
     'uniform mat4 modelMatrix;',
     'uniform mat4 modelViewMatrix;',
     'uniform mat4 projectionMatrix;',
     'uniform mat4 viewMatrix;',
-
     'attribute vec3 position;',
-    'attribute vec3 normal;',
     '' ].join( '\n' );
 
   prefixFragment = [
-
     customExtensions,
-
     'precision ' + parameters.precision + ' float;',
     'precision ' + parameters.precision + ' int;',
-
     '#define SHADER_NAME ' + material.__webglShader.name,
-
     ( parameters.useFog && parameters.fog ) ? '#define USE_FOG' : '',
-
-    'uniform mat4 viewMatrix;',
     '' ].join( '\n' );
 
   var vertexGlsl = prefixVertex + vertexShader;
@@ -3642,7 +3622,7 @@ function WebGLPrograms( renderer, capabilities ) {
 
   var parameterNames = [
     'precision',
-    'vertexColors', 'fog', 'useFog',
+    'fog', 'useFog',
     'premultipliedAlpha' ];
 
   this.getParameters = function ( material, fog, object ) {
@@ -3658,7 +3638,6 @@ function WebGLPrograms( renderer, capabilities ) {
 
     var parameters = {
       precision: precision,
-      vertexColors: material.vertexColors,
       fog: !! fog,
       useFog: material.fog,
       premultipliedAlpha: material.premultipliedAlpha,
@@ -4053,7 +4032,6 @@ function WebGLState( gl, extensions ) {
 
   function DepthBuffer() {
     var currentDepthMask = null;
-    var currentDepthFunc = null;
     var currentDepthClear = null;
 
     return {
@@ -4073,13 +4051,6 @@ function WebGLState( gl, extensions ) {
         }
       },
 
-      setFunc: function ( depthFunc ) {
-        if ( currentDepthFunc !== depthFunc ) {
-          gl.depthFunc( gl.LEQUAL );
-          currentDepthFunc = depthFunc;
-        }
-      },
-
       setClear: function ( depth ) {
         if ( currentDepthClear !== depth ) {
           gl.clearDepth( depth );
@@ -4089,7 +4060,6 @@ function WebGLState( gl, extensions ) {
 
       reset: function () {
         currentDepthMask = null;
-        currentDepthFunc = null;
         currentDepthClear = null;
       },
 
@@ -4146,7 +4116,7 @@ function WebGLState( gl, extensions ) {
     depthBuffer.setClear( 1 );
 
     enable( gl.DEPTH_TEST );
-    setDepthFunc( LessEqualDepth );
+    gl.depthFunc( gl.LEQUAL );
 
     enable( gl.BLEND );
     setBlending( NormalBlending );
@@ -4219,10 +4189,6 @@ function WebGLState( gl, extensions ) {
     depthBuffer.setMask( depthWrite );
   }
 
-  function setDepthFunc( depthFunc ) {
-    depthBuffer.setFunc( depthFunc );
-  }
-
   //
 
   function setLineWidth( width ) {
@@ -4293,7 +4259,6 @@ function WebGLState( gl, extensions ) {
 
     setDepthTest: setDepthTest,
     setDepthWrite: setDepthWrite,
-    setDepthFunc: setDepthFunc,
 
     setLineWidth: setLineWidth,
 
@@ -5056,7 +5021,6 @@ function WebGLRenderer( parameters ) {
       state.setBlending( NormalBlending, material.premultipliedAlpha )
       : state.setBlending( NoBlending );
 
-    state.setDepthFunc( material.depthFunc );
     state.setDepthTest( material.depthTest );
     state.setDepthWrite( material.depthWrite );
   }
@@ -5996,14 +5960,14 @@ function makeWheels(atom_arr /*:AtomT[]*/,
 // and was nicely summarized in:
 // http://www.sunsetlakesoftware.com/2011/05/08/enhancing-molecules-using-opengl-es-20
 
-var sphere_vert = "\nattribute vec3 color;\nattribute vec2 corner;\nuniform float radius;\nvarying vec3 vcolor;\nvarying vec2 vcoor;\nvarying vec3 vpos;\nvarying float vradius;\n\nvoid main() {\n  vcolor = color;\n  vcoor = corner;\n  vradius = radius;\n  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);\n  vpos = mvPosition.xyz;\n  mvPosition.xy += corner * radius;\n  gl_Position = projectionMatrix * mvPosition;\n}\n";
+var sphere_vert = "\nattribute vec3 color;\nattribute vec2 corner;\nuniform float radius;\nvarying vec3 vcolor;\nvarying vec2 vcorner;\nvarying vec3 vpos;\n\nvoid main() {\n  vcolor = color;\n  vcorner = corner;\n  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);\n  vpos = mvPosition.xyz;\n  mvPosition.xy += corner * radius;\n  gl_Position = projectionMatrix * mvPosition;\n}\n";
 
 // based on 3Dmol imposter shaders
-var sphere_frag = "\n" + fog_pars_fragment + "\nuniform mat4 projectionMatrix;\nuniform vec3 lightDir;\nvarying vec3 vcolor;\nvarying vec2 vcoor;\nvarying vec3 vpos;\nvarying float vradius;\n\nvoid main() {\n  float sq = dot(vcoor, vcoor);\n  if (sq > 1.0) discard;\n  float z = sqrt(1.0-sq);\n  vec3 xyz = vec3(vcoor.x, vcoor.y, z);\n  vec4 projPos = projectionMatrix * vec4(vpos + vradius * xyz, 1.0);\n  gl_FragDepthEXT = 0.5 * ((gl_DepthRange.diff * (projPos.z / projPos.w)) +\n                           gl_DepthRange.near + gl_DepthRange.far);\n  float weight = clamp(dot(xyz, lightDir), 0.0, 1.0);\n  gl_FragColor = vec4(weight * vcolor, 1.0);\n  " + fog_end_fragment + "\n}\n";
+var sphere_frag = "\n" + fog_pars_fragment + "\nuniform mat4 projectionMatrix;\nuniform vec3 lightDir;\nuniform float radius;\nvarying vec3 vcolor;\nvarying vec2 vcorner;\nvarying vec3 vpos;\n\nvoid main() {\n  float sq = dot(vcorner, vcorner);\n  if (sq > 1.0) discard;\n  float z = sqrt(1.0-sq);\n  vec3 xyz = vec3(vcorner.x, vcorner.y, z);\n  vec4 projPos = projectionMatrix * vec4(vpos + radius * xyz, 1.0);\n  gl_FragDepthEXT = 0.5 * ((gl_DepthRange.diff * (projPos.z / projPos.w)) +\n                           gl_DepthRange.near + gl_DepthRange.far);\n  float weight = clamp(dot(xyz, lightDir), 0.0, 1.0);\n  gl_FragColor = vec4(weight * vcolor, 1.0);\n  " + fog_end_fragment + "\n}\n";
 
-var stick_vert = "\nattribute vec3 color;\nattribute vec3 other;\nattribute vec2 corner;\nuniform float radius;\nvarying vec3 vcolor;\nvarying vec2 vcorner;\nvarying vec3 vpos;\nvarying float vradius;\n\nvoid main() {\n  vcolor = color;\n  vcorner = corner;\n  vradius = radius;\n  float side = corner[0] * corner[1];\n  vec2 dir = normalize((modelViewMatrix * vec4(position - other, 0.0)).xy);\n  vec2 normal = vec2(-dir.y, dir.x);\n  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);\n  vpos = mvPosition.xyz;\n  mvPosition.xy += side * radius * normal;\n  gl_Position = projectionMatrix * mvPosition;\n}";
+var stick_vert = "\nattribute vec3 color;\nattribute vec3 axis;\nattribute vec2 corner;\nuniform float radius;\nvarying vec3 vcolor;\nvarying vec2 vcorner;\nvarying vec3 vpos;\n\nvoid main() {\n  vcolor = color;\n  vcorner = corner;\n  vec2 dir = normalize((modelViewMatrix * vec4(axis, 0.0)).xy);\n  vec2 normal = vec2(-dir.y, dir.x);\n  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);\n  vpos = mvPosition.xyz;\n  mvPosition.xy += corner[1] * radius * normal;\n  gl_Position = projectionMatrix * mvPosition;\n}";
 
-var stick_frag = "\n" + fog_pars_fragment + "\nuniform mat4 projectionMatrix;\nuniform vec3 lightDir;\nvarying vec3 vcolor;\nvarying vec2 vcorner;\nvarying vec3 vpos;\nvarying float vradius;\nvoid main() {\n  float s2 = vcorner[1] * vcorner[1];\n  vec3 xyz = vec3(0.0, 0.0, 1.0 - s2);\n  vec4 projPos = projectionMatrix * vec4(vpos + vradius * xyz, 1.0);\n  gl_FragDepthEXT = 0.5 * ((gl_DepthRange.diff * (projPos.z / projPos.w)) +\n                           gl_DepthRange.near + gl_DepthRange.far);\n  float weight = clamp(dot(xyz, lightDir), 0.0, 1.0);\n  gl_FragColor = vec4(weight * vcolor, 1.0);\n" + fog_end_fragment + "\n}";
+var stick_frag = "\n" + fog_pars_fragment + "\nuniform mat4 projectionMatrix;\nuniform vec3 lightDir;\nuniform float radius;\nvarying vec3 vcolor;\nvarying vec2 vcorner;\nvarying vec3 vpos;\nvoid main() {\n  float s2 = vcorner[1] * vcorner[1];\n  vec3 xyz = vec3(0.0, 0.0, 1.0 - s2);\n  vec4 projPos = projectionMatrix * vec4(vpos + radius * xyz, 1.0);\n  gl_FragDepthEXT = 0.5 * ((gl_DepthRange.diff * (projPos.z / projPos.w)) +\n                           gl_DepthRange.near + gl_DepthRange.far);\n  float weight = clamp(dot(xyz, lightDir), 0.0, 1.0);\n  gl_FragColor = vec4(weight * vcolor, 1.0);\n" + fog_end_fragment + "\n}";
 
 // TODO: finish stick imposters
 function makeSticks(vertex_arr /*:Num3[]*/,
@@ -6025,11 +5989,10 @@ function makeSticks(vertex_arr /*:Num3[]*/,
   var len = vertex_arr.length;
   var pos = double_pos(vertex_arr);
   var position = new Float32Array(pos);
-  var other_vert = new Float32Array(6*len);
+  var axis = new Float32Array(6*len);
   for (var i = 0; i < 6 * len; i += 12) {
-    var j = 0;
-    for (; j < 6; j++) { other_vert[i+j] = pos[i+j+6]; }
-    for (; j < 12; j++) { other_vert[i+j] = pos[i+j-6]; }
+    for (var j = 0; j < 6; j++) { axis[i+j] = pos[i+j+6] - pos[i+j]; }
+    for (var j$1 = 0; j$1 < 6; j$1++) { axis[i+j$1+6] = axis[i+j$1]; }
   }
   var geometry = new BufferGeometry();
   geometry.addAttribute('position', new BufferAttribute(position, 3));
@@ -6044,7 +6007,7 @@ function makeSticks(vertex_arr /*:Num3[]*/,
     corner[8*i$1 + 6] = +1;  // 3
     corner[8*i$1 + 7] = -1;  // 3
   }
-  geometry.addAttribute('other', new BufferAttribute(other_vert, 3));
+  geometry.addAttribute('axis', new BufferAttribute(axis, 3));
   geometry.addAttribute('corner', new BufferAttribute(corner, 2));
   var color = double_color(color_arr);
   geometry.addAttribute('color', new BufferAttribute(color, 3));
@@ -8232,7 +8195,6 @@ var ReciprocalViewer = /*@__PURE__*/(function (Viewer$$1) {
       }),
       vertexShader: point_vert,
       fragmentShader: round_point_frag,
-      vertexColors: VertexColors,
       fog: true,
       transparent: true,
       type: 'um_point',
@@ -8542,7 +8504,6 @@ exports.ShaderMaterial = ShaderMaterial;
 exports.Matrix4 = Matrix4;
 exports.CatmullRomCurve3 = CatmullRomCurve3;
 exports.Texture = Texture;
-exports.VertexColors = VertexColors;
 exports.BufferGeometry = BufferGeometry;
 exports.Raycaster = Raycaster;
 exports.Quaternion = Quaternion;

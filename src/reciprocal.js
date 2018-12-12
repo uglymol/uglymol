@@ -3,8 +3,8 @@ import { ElMap } from './elmap.js';
 import { Viewer } from './viewer.js';
 import { addXyzCross, makeLineMaterial, makeLineSegments,
          makeUniforms, fog_pars_fragment, fog_end_fragment } from './draw.js';
-import { Points, BufferAttribute, BufferGeometry, ShaderMaterial,
-         VertexColors } from './fromthree.js';
+import { Points, BufferAttribute, BufferGeometry,
+         ShaderMaterial } from './fromthree.js';
 
 
 // options handled by Viewer#select_next()
@@ -205,7 +205,6 @@ export class ReciprocalViewer extends Viewer {
       }),
       vertexShader: point_vert,
       fragmentShader: round_point_frag,
-      vertexColors: VertexColors,
       fog: true,
       transparent: true,
       type: 'um_point',
