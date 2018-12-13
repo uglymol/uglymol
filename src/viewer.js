@@ -426,6 +426,7 @@ export class Viewer {
       label_font: LABEL_FONTS[0],
       colors: this.ColorSchemes[0],
       hydrogens: false,
+      ball_size: 0.4,
     };
 
     // options of the constructor overwrite default values of the config
@@ -675,7 +676,6 @@ export class Viewer {
 
   set_model_objects(model_bag/*:ModelBag*/) {
     model_bag.objects = [];
-    const ball_size = 0.4;
     switch (model_bag.conf.render_style) {
       case 'lines':
         model_bag.add_bonds();
@@ -687,13 +687,13 @@ export class Viewer {
           });
           const colors = color_by('element', ligand_atoms,
                                   model_bag.conf.colors, model_bag.hue_shift);
-          const obj = makeBalls(ligand_atoms, colors, ball_size);
+          const obj = makeBalls(ligand_atoms, colors, this.config.ball_size);
           model_bag.objects.push(obj);
         }
         break;
       case 'ball&stick':
         if (this.renderer.extensions.get('EXT_frag_depth')) {
-          model_bag.add_bonds(false, ball_size);
+          model_bag.add_bonds(false, this.config.ball_size);
         } else {
           this.hud('Ball-and-stick rendering is not working in this browser' +
                    '\ndue to lack of suppport for EXT_frag_depth', 'ERR');
@@ -723,11 +723,13 @@ export class Viewer {
     if (show) {
       if (is_shown) return;
       if (pick.atom == null) return; // silly flow
+      let balls = pick.bag && pick.bag.conf.render_style === 'ball&stick';
       const label = makeLabel(text, {
         pos: pick.atom.xyz,
         font: this.config.label_font,
         color: '#' + this.config.colors.fg.getHexString(),
         win_size: this.window_size,
+        z_shift: balls ? this.config.ball_size + 0.1 : 0.2,
       });
       if (!label) return;
       if (pick.bag == null) return;

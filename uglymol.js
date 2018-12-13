@@ -1,5 +1,5 @@
 /*!
- * UglyMol v0.6.2. Macromolecular Viewer for Crystallographers.
+ * UglyMol v0.6.3. Macromolecular Viewer for Crystallographers.
  * Copyright 2014 Nat Echols
  * Copyright 2016 Diamond Light Source Ltd
  * Copyright 2016 Marcin Wojdyr
@@ -11,7 +11,7 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 (factory((global.UM = {})));
 }(this, (function (exports) { 'use strict';
 
-var VERSION = exports.VERSION = '0.6.2';
+var VERSION = exports.VERSION = '0.6.3';
 
 
 // @flow
@@ -5963,13 +5963,12 @@ function makeWheels(atom_arr /*:AtomT[]*/,
 var sphere_vert = "\nattribute vec3 color;\nattribute vec2 corner;\nuniform float radius;\nvarying vec3 vcolor;\nvarying vec2 vcorner;\nvarying vec3 vpos;\n\nvoid main() {\n  vcolor = color;\n  vcorner = corner;\n  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);\n  vpos = mvPosition.xyz;\n  mvPosition.xy += corner * radius;\n  gl_Position = projectionMatrix * mvPosition;\n}\n";
 
 // based on 3Dmol imposter shaders
-var sphere_frag = "\n" + fog_pars_fragment + "\nuniform mat4 projectionMatrix;\nuniform vec3 lightDir;\nuniform float radius;\nvarying vec3 vcolor;\nvarying vec2 vcorner;\nvarying vec3 vpos;\n\nvoid main() {\n  float sq = dot(vcorner, vcorner);\n  if (sq > 1.0) discard;\n  float z = sqrt(1.0-sq);\n  vec3 xyz = vec3(vcorner.x, vcorner.y, z);\n  vec4 projPos = projectionMatrix * vec4(vpos + radius * xyz, 1.0);\n  gl_FragDepthEXT = 0.5 * ((gl_DepthRange.diff * (projPos.z / projPos.w)) +\n                           gl_DepthRange.near + gl_DepthRange.far);\n  float weight = clamp(dot(xyz, lightDir), 0.0, 1.0);\n  gl_FragColor = vec4(weight * vcolor, 1.0);\n  " + fog_end_fragment + "\n}\n";
+var sphere_frag = "\n" + fog_pars_fragment + "\nuniform mat4 projectionMatrix;\nuniform vec3 lightDir;\nuniform float radius;\nvarying vec3 vcolor;\nvarying vec2 vcorner;\nvarying vec3 vpos;\n\nvoid main() {\n  float sq = dot(vcorner, vcorner);\n  if (sq > 1.0) discard;\n  float z = sqrt(1.0-sq);\n  vec3 xyz = vec3(vcorner.x, vcorner.y, z);\n  vec4 projPos = projectionMatrix * vec4(vpos + radius * xyz, 1.0);\n  gl_FragDepthEXT = 0.5 * ((gl_DepthRange.diff * (projPos.z / projPos.w)) +\n                           gl_DepthRange.near + gl_DepthRange.far);\n  float weight = clamp(dot(xyz, lightDir), 0.0, 1.0) * 0.8 + 0.2;\n  gl_FragColor = vec4(weight * vcolor, 1.0);\n  " + fog_end_fragment + "\n}\n";
 
-var stick_vert = "\nattribute vec3 color;\nattribute vec3 axis;\nattribute vec2 corner;\nuniform float radius;\nvarying vec3 vcolor;\nvarying vec2 vcorner;\nvarying vec3 vpos;\n\nvoid main() {\n  vcolor = color;\n  vcorner = corner;\n  vec2 dir = normalize((modelViewMatrix * vec4(axis, 0.0)).xy);\n  vec2 normal = vec2(-dir.y, dir.x);\n  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);\n  vpos = mvPosition.xyz;\n  mvPosition.xy += corner[1] * radius * normal;\n  gl_Position = projectionMatrix * mvPosition;\n}";
+var stick_vert = "\nattribute vec3 color;\nattribute vec3 axis;\nattribute vec2 corner;\nuniform float radius;\nvarying vec3 vcolor;\nvarying vec2 vcorner;\nvarying vec3 vpos;\nvarying vec3 vaxis;\n\nvoid main() {\n  vcolor = color;\n  vcorner = corner;\n  vaxis = normalize((modelViewMatrix * vec4(axis, 0.0)).xyz);\n  vec2 normal = normalize(vec2(-vaxis.y, vaxis.x));\n  vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);\n  vpos = mvPosition.xyz;\n  mvPosition.xy += corner[1] * radius * normal;\n  gl_Position = projectionMatrix * mvPosition;\n}";
 
-var stick_frag = "\n" + fog_pars_fragment + "\nuniform mat4 projectionMatrix;\nuniform vec3 lightDir;\nuniform float radius;\nvarying vec3 vcolor;\nvarying vec2 vcorner;\nvarying vec3 vpos;\nvoid main() {\n  float s2 = vcorner[1] * vcorner[1];\n  vec3 xyz = vec3(0.0, 0.0, 1.0 - s2);\n  vec4 projPos = projectionMatrix * vec4(vpos + radius * xyz, 1.0);\n  gl_FragDepthEXT = 0.5 * ((gl_DepthRange.diff * (projPos.z / projPos.w)) +\n                           gl_DepthRange.near + gl_DepthRange.far);\n  float weight = clamp(dot(xyz, lightDir), 0.0, 1.0);\n  gl_FragColor = vec4(weight * vcolor, 1.0);\n" + fog_end_fragment + "\n}";
+var stick_frag = "\n" + fog_pars_fragment + "\nuniform mat4 projectionMatrix;\nuniform vec3 lightDir;\nuniform float radius;\nvarying vec3 vcolor;\nvarying vec2 vcorner;\nvarying vec3 vpos;\nvarying vec3 vaxis;\nvoid main() {\n  float central = 1.0 - vcorner[1] * vcorner[1];\n  vec4 pos = vec4(vpos, 1.0);\n  pos.z += radius * vaxis.z * central;\n  vec4 projPos = projectionMatrix * pos;\n  gl_FragDepthEXT = 0.5 * ((gl_DepthRange.diff * (projPos.z / projPos.w)) +\n                           gl_DepthRange.near + gl_DepthRange.far);\n  float weight = length(cross(vaxis, lightDir)) * central * 0.8 + 0.2;\n  gl_FragColor = vec4(min(weight, 1.0) * vcolor, 1.0);\n" + fog_end_fragment + "\n}";
 
-// TODO: finish stick imposters
 function makeSticks(vertex_arr /*:Num3[]*/,
                            color_arr /*:Color[]*/,
                            radius /*:number*/) {
@@ -6128,7 +6127,7 @@ function makeCanvasWithText(text, options) {
   return canvas;
 }
 
-var label_vert = "\nattribute vec2 uvs;\nuniform vec2 canvas_size;\nuniform vec2 win_size;\nvarying vec2 vUv;\nvoid main() {\n  vUv = uvs;\n  vec2 rel_offset = vec2(0.02, -0.3);\n  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n  gl_Position.xy += (uvs + rel_offset) * 2.0 * canvas_size / win_size;\n  gl_Position.z += 0.2 * projectionMatrix[2][2];\n}";
+var label_vert = "\nattribute vec2 uvs;\nuniform vec2 canvas_size;\nuniform vec2 win_size;\nuniform float z_shift;\nvarying vec2 vUv;\nvoid main() {\n  vUv = uvs;\n  vec2 rel_offset = vec2(0.02, -0.3);\n  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n  gl_Position.xy += (uvs + rel_offset) * 2.0 * canvas_size / win_size;\n  gl_Position.z += z_shift * projectionMatrix[2][2];\n}";
 
 var label_frag = "\n" + fog_pars_fragment + "\nvarying vec2 vUv;\nuniform sampler2D map;\nvoid main() {\n  gl_FragColor = texture2D(map, vUv);\n" + fog_end_fragment + "\n}";
 
@@ -6152,7 +6151,8 @@ function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
   var material = new ShaderMaterial({
     uniforms: makeUniforms({map: texture,
                             canvas_size: [canvas.width, canvas.height],
-                            win_size: options.win_size}),
+                            win_size: options.win_size,
+                            z_shift: options.z_shift}),
     vertexShader: label_vert,
     fragmentShader: label_frag,
     fog: true,
@@ -6802,6 +6802,7 @@ var Viewer = function Viewer(options /*: {[key: string]: any}*/) {
     label_font: LABEL_FONTS[0],
     colors: this.ColorSchemes[0],
     hydrogens: false,
+    ball_size: 0.4,
   };
 
   // options of the constructor overwrite default values of the config
@@ -7065,7 +7066,6 @@ Viewer.prototype.clear_model_objects = function clear_model_objects (model_bag/*
 
 Viewer.prototype.set_model_objects = function set_model_objects (model_bag/*:ModelBag*/) {
   model_bag.objects = [];
-  var ball_size = 0.4;
   switch (model_bag.conf.render_style) {
     case 'lines':
       model_bag.add_bonds();
@@ -7077,13 +7077,13 @@ Viewer.prototype.set_model_objects = function set_model_objects (model_bag/*:Mod
         });
         var colors = color_by('element', ligand_atoms,
                                 model_bag.conf.colors, model_bag.hue_shift);
-        var obj = makeBalls(ligand_atoms, colors, ball_size);
+        var obj = makeBalls(ligand_atoms, colors, this.config.ball_size);
         model_bag.objects.push(obj);
       }
       break;
     case 'ball&stick':
       if (this.renderer.extensions.get('EXT_frag_depth')) {
-        model_bag.add_bonds(false, ball_size);
+        model_bag.add_bonds(false, this.config.ball_size);
       } else {
         this.hud('Ball-and-stick rendering is not working in this browser' +
                  '\ndue to lack of suppport for EXT_frag_depth', 'ERR');
@@ -7115,11 +7115,13 @@ Viewer.prototype.toggle_label = function toggle_label (pick/*:{bag:?ModelBag, at
   if (show) {
     if (is_shown) { return; }
     if (pick.atom == null) { return; } // silly flow
+    var balls = pick.bag && pick.bag.conf.render_style === 'ball&stick';
     var label = makeLabel(text, {
       pos: pick.atom.xyz,
       font: this.config.label_font,
       color: '#' + this.config.colors.fg.getHexString(),
       win_size: this.window_size,
+      z_shift: balls ? this.config.ball_size + 0.1 : 0.2,
     });
     if (!label) { return; }
     if (pick.bag == null) { return; }

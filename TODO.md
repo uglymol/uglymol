@@ -1,6 +1,4 @@
 
-- impostor-based sticks
-
 - test/fix webgl context loss
 
 - show symmetry copies of the molecule

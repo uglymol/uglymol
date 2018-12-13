@@ -1,6 +1,6 @@
 {
   "name": "uglymol",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "Macromolecular Viewer for Crystallographers",
   "homepage": "https://uglymol.github.io",
   "main": "uglymol.js",
@@ -18,7 +18,7 @@
     "chai": "^4.0.0",
     "eslint": "^4.0.0",
     "eslint-config-google": "^0.9.0",
-    "flow-bin": "^0.88.0",
+    "flow-bin": "^0.89.0",
     "http-server": "^0.11.0",
     "istanbul": "^0.4.5",
     "mocha": "^5.2.0",

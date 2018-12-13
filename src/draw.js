@@ -576,7 +576,7 @@ void main() {
   vec4 projPos = projectionMatrix * vec4(vpos + radius * xyz, 1.0);
   gl_FragDepthEXT = 0.5 * ((gl_DepthRange.diff * (projPos.z / projPos.w)) +
                            gl_DepthRange.near + gl_DepthRange.far);
-  float weight = clamp(dot(xyz, lightDir), 0.0, 1.0);
+  float weight = clamp(dot(xyz, lightDir), 0.0, 1.0) * 0.8 + 0.2;
   gl_FragColor = vec4(weight * vcolor, 1.0);
   ${fog_end_fragment}
 }
@@ -590,12 +590,13 @@ uniform float radius;
 varying vec3 vcolor;
 varying vec2 vcorner;
 varying vec3 vpos;
+varying vec3 vaxis;
 
 void main() {
   vcolor = color;
   vcorner = corner;
-  vec2 dir = normalize((modelViewMatrix * vec4(axis, 0.0)).xy);
-  vec2 normal = vec2(-dir.y, dir.x);
+  vaxis = normalize((modelViewMatrix * vec4(axis, 0.0)).xyz);
+  vec2 normal = normalize(vec2(-vaxis.y, vaxis.x));
   vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
   vpos = mvPosition.xyz;
   mvPosition.xy += corner[1] * radius * normal;
@@ -610,18 +611,19 @@ uniform float radius;
 varying vec3 vcolor;
 varying vec2 vcorner;
 varying vec3 vpos;
+varying vec3 vaxis;
 void main() {
-  float s2 = vcorner[1] * vcorner[1];
-  vec3 xyz = vec3(0.0, 0.0, 1.0 - s2);
-  vec4 projPos = projectionMatrix * vec4(vpos + radius * xyz, 1.0);
+  float central = 1.0 - vcorner[1] * vcorner[1];
+  vec4 pos = vec4(vpos, 1.0);
+  pos.z += radius * vaxis.z * central;
+  vec4 projPos = projectionMatrix * pos;
   gl_FragDepthEXT = 0.5 * ((gl_DepthRange.diff * (projPos.z / projPos.w)) +
                            gl_DepthRange.near + gl_DepthRange.far);
-  float weight = clamp(dot(xyz, lightDir), 0.0, 1.0);
-  gl_FragColor = vec4(weight * vcolor, 1.0);
+  float weight = length(cross(vaxis, lightDir)) * central * 0.8 + 0.2;
+  gl_FragColor = vec4(min(weight, 1.0) * vcolor, 1.0);
 ${fog_end_fragment}
 }`;
 
-// TODO: finish stick imposters
 export function makeSticks(vertex_arr /*:Num3[]*/,
                            color_arr /*:Color[]*/,
                            radius /*:number*/) {
@@ -784,13 +786,14 @@ const label_vert = `
 attribute vec2 uvs;
 uniform vec2 canvas_size;
 uniform vec2 win_size;
+uniform float z_shift;
 varying vec2 vUv;
 void main() {
   vUv = uvs;
   vec2 rel_offset = vec2(0.02, -0.3);
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   gl_Position.xy += (uvs + rel_offset) * 2.0 * canvas_size / win_size;
-  gl_Position.z += 0.2 * projectionMatrix[2][2];
+  gl_Position.z += z_shift * projectionMatrix[2][2];
 }`;
 
 const label_frag = `
@@ -822,7 +825,8 @@ export function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
   let material = new ShaderMaterial({
     uniforms: makeUniforms({map: texture,
                             canvas_size: [canvas.width, canvas.height],
-                            win_size: options.win_size}),
+                            win_size: options.win_size,
+                            z_shift: options.z_shift}),
     vertexShader: label_vert,
     fragmentShader: label_frag,
     fog: true,
