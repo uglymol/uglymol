@@ -1019,6 +1019,7 @@ export class Viewer {
   }
 
   keydown(evt/*:KeyboardEvent*/) {
+    if (evt.ctrlKey) return;
     const action = this.key_bindings[evt.keyCode];
     if (action) {
       (action.bind(this))(evt);
@@ -1119,11 +1120,11 @@ export class Viewer {
     let kb = this.key_bindings;
     // Home
     kb[36] = function (evt) {
-      evt.ctrlKey ? this.change_map_line(0.1) : this.change_bond_line(0.2);
+      evt.shiftKey ? this.change_map_line(0.1) : this.change_bond_line(0.2);
     };
     // End
     kb[35] = function (evt) {
-      evt.ctrlKey ? this.change_map_line(-0.1) : this.change_bond_line(-0.2);
+      evt.shiftKey ? this.change_map_line(-0.1) : this.change_bond_line(-0.2);
     };
     // Space
     kb[32] = function (evt) { this.center_next_residue(evt.shiftKey); };

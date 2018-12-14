@@ -254,11 +254,11 @@ export class ReciprocalViewer extends Viewer {
     };
     // x
     kb[88] = function (evt) {
-      evt.ctrlKey ? this.change_map_line(0.1) : this.change_point_size(0.5);
+      evt.shiftKey ? this.change_map_line(0.1) : this.change_point_size(0.5);
     };
     // z
     kb[90] = function (evt) {
-      evt.ctrlKey ? this.change_map_line(-0.1) : this.change_point_size(-0.5);
+      evt.shiftKey ? this.change_map_line(-0.1) : this.change_point_size(-0.5);
     };
     // comma
     kb[188] = function (evt) { if (evt.shiftKey) this.shift_clip(0.1); };

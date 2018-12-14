@@ -7419,6 +7419,7 @@ Viewer.prototype.select_next = function select_next (info/*:string*/, key/*:stri
 };
 
 Viewer.prototype.keydown = function keydown (evt/*:KeyboardEvent*/) {
+  if (evt.ctrlKey) { return; }
   var action = this.key_bindings[evt.keyCode];
   if (action) {
     (action.bind(this))(evt);
@@ -7519,11 +7520,11 @@ Viewer.prototype.set_real_space_key_bindings = function set_real_space_key_bindi
   var kb = this.key_bindings;
   // Home
   kb[36] = function (evt) {
-    evt.ctrlKey ? this.change_map_line(0.1) : this.change_bond_line(0.2);
+    evt.shiftKey ? this.change_map_line(0.1) : this.change_bond_line(0.2);
   };
   // End
   kb[35] = function (evt) {
-    evt.ctrlKey ? this.change_map_line(-0.1) : this.change_bond_line(-0.2);
+    evt.shiftKey ? this.change_map_line(-0.1) : this.change_bond_line(-0.2);
   };
   // Space
   kb[32] = function (evt) { this.center_next_residue(evt.shiftKey); };
@@ -8268,11 +8269,11 @@ var ReciprocalViewer = /*@__PURE__*/(function (Viewer$$1) {
     };
     // x
     kb[88] = function (evt) {
-      evt.ctrlKey ? this.change_map_line(0.1) : this.change_point_size(0.5);
+      evt.shiftKey ? this.change_map_line(0.1) : this.change_point_size(0.5);
     };
     // z
     kb[90] = function (evt) {
-      evt.ctrlKey ? this.change_map_line(-0.1) : this.change_point_size(-0.5);
+      evt.shiftKey ? this.change_map_line(-0.1) : this.change_point_size(-0.5);
     };
     // comma
     kb[188] = function (evt) { if (evt.shiftKey) { this.shift_clip(0.1); } };

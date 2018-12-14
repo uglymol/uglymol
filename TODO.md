@@ -1,8 +1,6 @@
 
 - test/fix webgl context loss
 
-- avoid handling of Ctrl-I, Ctrl-K, ...
-
 - draw line caps in the same shader as lines
 
 - show symmetry copies of the molecule
