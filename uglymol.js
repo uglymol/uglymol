@@ -6533,7 +6533,7 @@ var INIT_HUD_TEXT = 'This is UglyMol not Coot. ' +
 
 var COLOR_PROPS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
 var RENDER_STYLES = ['lines', 'trace', 'ribbon', 'ball&stick'];
-var LIGAND_STYLES = ['normal', 'ball&stick'];
+var LIGAND_STYLES = ['ball&stick', 'lines'];
 var MAP_STYLES = ['marching cubes', 'squarish' ];
 var LINE_STYLES = ['normal', 'simplistic'];
 var LABEL_FONTS = ['bold 14px', '14px', '16px', 'bold 16px'];
@@ -6634,10 +6634,9 @@ ModelBag.prototype.get_visible_atoms = function get_visible_atoms () {
   return non_h;
 };
 
-ModelBag.prototype.add_bonds = function add_bonds (ligands_only, ball_size) {
+ModelBag.prototype.add_bonds = function add_bonds (polymers/*:boolean*/, ligands/*:boolean*/, ball_size/*:?number*/) {
   var visible_atoms = this.get_visible_atoms();
-  var color_prop = ligands_only ? 'element' : this.conf.color_prop;
-  var colors = color_by(color_prop, visible_atoms,
+  var colors = color_by(this.conf.color_prop, visible_atoms,
                           this.conf.colors, this.hue_shift);
   var vertex_arr /*:Vector3[]*/ = [];
   var color_arr = [];
@@ -6645,7 +6644,7 @@ ModelBag.prototype.add_bonds = function add_bonds (ligands_only, ball_size) {
   for (var i = 0; i < visible_atoms.length; i++) {
     var atom = visible_atoms[i];
     var color = colors[i];
-    if (ligands_only && !atom.is_ligand) { continue; }
+    if (!(atom.is_ligand ? ligands : polymers)) { continue; }
     if (atom.bonds.length === 0 && ball_size == null) { // nonbonded - cross
       addXyzCross(vertex_arr, atom.xyz, 0.7);
       for (var n = 0; n < 6; n++) {
@@ -6657,7 +6656,6 @@ ModelBag.prototype.add_bonds = function add_bonds (ligands_only, ball_size) {
         if (!hydrogens && other.element === 'H') { continue; }
         // Coot show X-H bonds as thinner lines in a single color.
         // Here we keep it simple and render such bonds like all others.
-        if (ligands_only && !other.is_ligand) { continue; }
         var mid = atom.midpoint(other);
         vertex_arr.push(atom.xyz, mid);
         color_arr.push(color, color);
@@ -6665,10 +6663,21 @@ ModelBag.prototype.add_bonds = function add_bonds (ligands_only, ball_size) {
     }
   }
   if (vertex_arr.length === 0) { return; }
+  var atom_arr;
+  if (polymers && ligands) {
+    atom_arr = visible_atoms;
+  } else {
+    atom_arr = [];
+    for (var i$1 = 0, list = visible_atoms; i$1 < list.length; i$1 += 1) {
+      var atom$1 = list[i$1];
+
+        if (atom$1.is_ligand ? ligands : polymers) { atom_arr.push(atom$1); }
+    }
+  }
   var linewidth = scale_by_height(this.conf.bond_line, this.win_size);
   if (ball_size != null) {
     this.objects.push(makeSticks(vertex_arr, color_arr, ball_size / 2));
-    this.objects.push(makeBalls(visible_atoms, colors, ball_size));
+    this.objects.push(makeBalls(atom_arr, colors, ball_size));
   } else {
     var material = makeLineMaterial({
       linewidth: linewidth,
@@ -6676,9 +6685,9 @@ ModelBag.prototype.add_bonds = function add_bonds (ligands_only, ball_size) {
       segments: true,
     });
     this.objects.push(makeLineSegments(material, vertex_arr, color_arr));
-    if (this.conf.line_style !== 'simplistic' && !ligands_only) {
+    if (this.conf.line_style !== 'simplistic') {
       // wheels (discs) as round caps
-      this.objects.push(makeWheels(visible_atoms, colors, linewidth));
+      this.objects.push(makeWheels(atom_arr, colors, linewidth));
     }
   }
 };
@@ -7064,38 +7073,45 @@ Viewer.prototype.clear_model_objects = function clear_model_objects (model_bag/*
   model_bag.objects = [];
 };
 
+Viewer.prototype.has_frag_depth = function has_frag_depth () {
+  return this.renderer && this.renderer.extensions.get('EXT_frag_depth');
+};
+
 Viewer.prototype.set_model_objects = function set_model_objects (model_bag/*:ModelBag*/) {
   model_bag.objects = [];
+  var ligand_balls = null;
+  if (model_bag.conf.ligand_style === 'ball&stick' && this.has_frag_depth()) {
+    ligand_balls = this.config.ball_size;
+  }
   switch (model_bag.conf.render_style) {
     case 'lines':
-      model_bag.add_bonds();
-      if (model_bag.conf.ligand_style === 'ball&stick' &&
-          this.renderer.extensions.get('EXT_frag_depth')) {
-        // TODO move it to ModelBag
-        var ligand_atoms = model_bag.model.atoms.filter(function (a) {
-          return a.is_ligand && a.element !== 'H';
-        });
-        var colors = color_by('element', ligand_atoms,
-                                model_bag.conf.colors, model_bag.hue_shift);
-        var obj = makeBalls(ligand_atoms, colors, this.config.ball_size);
-        model_bag.objects.push(obj);
+      if (ligand_balls === null) {
+        model_bag.add_bonds(true, true);
+      } else {
+        model_bag.add_bonds(true, false);
+        model_bag.add_bonds(false, true, ligand_balls);
       }
       break;
     case 'ball&stick':
-      if (this.renderer.extensions.get('EXT_frag_depth')) {
-        model_bag.add_bonds(false, this.config.ball_size);
-      } else {
+      if (!this.has_frag_depth()) {
         this.hud('Ball-and-stick rendering is not working in this browser' +
                  '\ndue to lack of suppport for EXT_frag_depth', 'ERR');
+        return;
+      }
+      if (ligand_balls === null) {
+        model_bag.add_bonds(true, false, this.config.ball_size);
+        model_bag.add_bonds(false, true);
+      } else {
+        model_bag.add_bonds(true, true, this.config.ball_size);
       }
       break;
-    case 'trace':// + lines for ligands
+    case 'trace':
       model_bag.add_trace();
-      model_bag.add_bonds(true);
+      model_bag.add_bonds(false, true, ligand_balls);
       break;
     case 'ribbon':
       model_bag.add_ribbon(8);
-      model_bag.add_bonds(true);
+      model_bag.add_bonds(false, true, ligand_balls);
       break;
   }
   for (var i = 0, list = model_bag.objects; i < list.length; i += 1) {
@@ -7115,7 +7131,8 @@ Viewer.prototype.toggle_label = function toggle_label (pick/*:{bag:?ModelBag, at
   if (show) {
     if (is_shown) { return; }
     if (pick.atom == null) { return; } // silly flow
-    var balls = pick.bag && pick.bag.conf.render_style === 'ball&stick';
+    var atom_style = pick.atom.is_ligand ? 'ligand_style' : 'render_style';
+    var balls = pick.bag && pick.bag.conf[atom_style] === 'ball&stick';
     var label = makeLabel(text, {
       pos: pick.atom.xyz,
       font: this.config.label_font,
@@ -8003,7 +8020,8 @@ Viewer.prototype.MOUSE_HELP = [
 Viewer.prototype.KEYBOARD_HELP = [
   '<b>keyboard:</b>',
   'H = toggle help',
-  'T = representation',
+  'T = general style',
+  'L = ligand style',
   'C = coloring',
   'B = bg color',
   'E = toggle fog',
