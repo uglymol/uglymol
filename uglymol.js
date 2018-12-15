@@ -6663,21 +6663,24 @@ ModelBag.prototype.add_bonds = function add_bonds (polymers/*:boolean*/, ligands
     }
   }
   if (vertex_arr.length === 0) { return; }
-  var atom_arr;
-  if (polymers && ligands) {
-    atom_arr = visible_atoms;
-  } else {
-    atom_arr = [];
-    for (var i$1 = 0, list = visible_atoms; i$1 < list.length; i$1 += 1) {
-      var atom$1 = list[i$1];
 
-        if (atom$1.is_ligand ? ligands : polymers) { atom_arr.push(atom$1); }
+  var sphere_arr = visible_atoms;
+  var sphere_color_arr = colors;
+  if (!polymers || !ligands) {
+    sphere_arr = [];
+    sphere_color_arr = [];
+    for (var i$1 = 0; i$1 < visible_atoms.length; i$1++) {
+      if (visible_atoms[i$1].is_ligand ? ligands : polymers) {
+        sphere_arr.push(visible_atoms[i$1]);
+        sphere_color_arr.push(colors[i$1]);
+      }
     }
   }
+
   var linewidth = scale_by_height(this.conf.bond_line, this.win_size);
   if (ball_size != null) {
     this.objects.push(makeSticks(vertex_arr, color_arr, ball_size / 2));
-    this.objects.push(makeBalls(atom_arr, colors, ball_size));
+    this.objects.push(makeBalls(sphere_arr, sphere_color_arr, ball_size));
   } else {
     var material = makeLineMaterial({
       linewidth: linewidth,
@@ -6687,7 +6690,7 @@ ModelBag.prototype.add_bonds = function add_bonds (polymers/*:boolean*/, ligands
     this.objects.push(makeLineSegments(material, vertex_arr, color_arr));
     if (this.conf.line_style !== 'simplistic') {
       // wheels (discs) as round caps
-      this.objects.push(makeWheels(atom_arr, colors, linewidth));
+      this.objects.push(makeWheels(sphere_arr, sphere_color_arr, linewidth));
     }
   }
 };

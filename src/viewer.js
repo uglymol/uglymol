@@ -258,19 +258,24 @@ class ModelBag {
       }
     }
     if (vertex_arr.length === 0) return;
-    let atom_arr;
-    if (polymers && ligands) {
-      atom_arr = visible_atoms;
-    } else {
-      atom_arr = [];
-      for (const atom of visible_atoms) {
-        if (atom.is_ligand ? ligands : polymers) atom_arr.push(atom);
+
+    let sphere_arr = visible_atoms;
+    let sphere_color_arr = colors;
+    if (!polymers || !ligands) {
+      sphere_arr = [];
+      sphere_color_arr = [];
+      for (let i = 0; i < visible_atoms.length; i++) {
+        if (visible_atoms[i].is_ligand ? ligands : polymers) {
+          sphere_arr.push(visible_atoms[i]);
+          sphere_color_arr.push(colors[i]);
+        }
       }
     }
+
     const linewidth = scale_by_height(this.conf.bond_line, this.win_size);
     if (ball_size != null) {
       this.objects.push(makeSticks(vertex_arr, color_arr, ball_size / 2));
-      this.objects.push(makeBalls(atom_arr, colors, ball_size));
+      this.objects.push(makeBalls(sphere_arr, sphere_color_arr, ball_size));
     } else {
       const material = makeLineMaterial({
         linewidth: linewidth,
@@ -280,7 +285,7 @@ class ModelBag {
       this.objects.push(makeLineSegments(material, vertex_arr, color_arr));
       if (this.conf.line_style !== 'simplistic') {
         // wheels (discs) as round caps
-        this.objects.push(makeWheels(atom_arr, colors, linewidth));
+        this.objects.push(makeWheels(sphere_arr, sphere_color_arr, linewidth));
       }
     }
   }
