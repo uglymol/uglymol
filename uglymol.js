@@ -8,8 +8,8 @@
 (function (global, factory) {
 typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
 typeof define === 'function' && define.amd ? define(['exports'], factory) :
-(factory((global.UM = {})));
-}(this, (function (exports) { 'use strict';
+(global = global || self, factory(global.UM = {}));
+}(this, function (exports) { 'use strict';
 
 var VERSION = exports.VERSION = '0.6.3';
 
@@ -5390,7 +5390,7 @@ var
   py = new CubicPoly(),
   pz = new CubicPoly();
 
-  /*
+/*
 Based on an optimized c++ solution in
  - http://stackoverflow.com/questions/9489736/catmull-rom-curve-with-no-cusps-and-no-self-intersections/
  - http://ideone.com/NoEbVM
@@ -8524,28 +8524,28 @@ exports.modelsFromPDB = modelsFromPDB;
 exports.Model = Model;
 exports.Block = Block;
 exports.ElMap = ElMap;
-exports.ShaderMaterial = ShaderMaterial;
-exports.Matrix4 = Matrix4;
-exports.CatmullRomCurve3 = CatmullRomCurve3;
-exports.Texture = Texture;
-exports.BufferGeometry = BufferGeometry;
-exports.Raycaster = Raycaster;
-exports.Quaternion = Quaternion;
-exports.BufferAttribute = BufferAttribute;
-exports.Vector3 = Vector3;
-exports.OrthographicCamera = OrthographicCamera;
-exports.Fog = Fog;
-exports.Object3D = Object3D;
-exports.Ray = Ray;
-exports.Points = Points;
 exports.WebGLRenderer = WebGLRenderer;
-exports.Mesh = Mesh;
-exports.Color = Color;
-exports.AmbientLight = AmbientLight;
-exports.LineSegments = LineSegments;
+exports.Fog = Fog;
 exports.Scene = Scene;
-exports.TriangleStripDrawMode = TriangleStripDrawMode;
+exports.Mesh = Mesh;
+exports.LineSegments = LineSegments;
 exports.Line = Line;
+exports.Points = Points;
+exports.ShaderMaterial = ShaderMaterial;
+exports.AmbientLight = AmbientLight;
+exports.OrthographicCamera = OrthographicCamera;
+exports.BufferGeometry = BufferGeometry;
+exports.BufferAttribute = BufferAttribute;
+exports.Object3D = Object3D;
+exports.Raycaster = Raycaster;
+exports.Ray = Ray;
+exports.Matrix4 = Matrix4;
+exports.Vector3 = Vector3;
+exports.Quaternion = Quaternion;
+exports.Color = Color;
+exports.CatmullRomCurve3 = CatmullRomCurve3;
+exports.TriangleStripDrawMode = TriangleStripDrawMode;
+exports.Texture = Texture;
 exports.fog_pars_fragment = fog_pars_fragment;
 exports.fog_end_fragment = fog_end_fragment;
 exports.makeLines = makeLines;
@@ -8572,5 +8572,5 @@ exports.ReciprocalViewer = ReciprocalViewer;
 
 Object.defineProperty(exports, '__esModule', { value: true });
 
-})));
+}));
 //# sourceMappingURL=uglymol.js.map

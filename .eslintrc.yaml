@@ -28,6 +28,6 @@ rules:
   linebreak-style: 0  # \r\n is ok in a working copy, but not in the repo
   require-jsdoc: 0
   no-console: 0
-  #prefer-const: 1
+  prefer-const: 0
   prefer-spread: 0
   no-multi-spaces: [2, {ignoreEOLComments: true }]

@@ -3877,7 +3877,7 @@ let
   py = new CubicPoly(),
   pz = new CubicPoly();
 
-  /*
+/*
 Based on an optimized c++ solution in
  - http://stackoverflow.com/questions/9489736/catmull-rom-curve-with-no-cusps-and-no-self-intersections/
  - http://ideone.com/NoEbVM
