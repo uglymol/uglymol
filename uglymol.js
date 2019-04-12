@@ -8068,9 +8068,9 @@ var SPOT_SHAPES = ['wheel', 'square'];
 // rs_mapper outputs map in ccp4 format, but we need to rescale it,
 // shift it so the box is centered at 0,0,0,
 // and the translational symmetry doesn't apply.
-var ReciprocalSpaceMap = /*@__PURE__*/(function (ElMap$$1) {
+var ReciprocalSpaceMap = /*@__PURE__*/(function (ElMap) {
   function ReciprocalSpaceMap(buf /*:ArrayBuffer*/) {
-    ElMap$$1.call(this);
+    ElMap.call(this);
     this.box_size = [1, 1, 1];
     this.from_ccp4(buf, false);
     if (this.unit_cell == null) { return; }
@@ -8081,8 +8081,8 @@ var ReciprocalSpaceMap = /*@__PURE__*/(function (ElMap$$1) {
     this.unit_cell = null;
   }
 
-  if ( ElMap$$1 ) ReciprocalSpaceMap.__proto__ = ElMap$$1;
-  ReciprocalSpaceMap.prototype = Object.create( ElMap$$1 && ElMap$$1.prototype );
+  if ( ElMap ) ReciprocalSpaceMap.__proto__ = ElMap;
+  ReciprocalSpaceMap.prototype = Object.create( ElMap && ElMap.prototype );
   ReciprocalSpaceMap.prototype.constructor = ReciprocalSpaceMap;
 
   ReciprocalSpaceMap.prototype.extract_block = function extract_block (radius/*:number*/, center/*:[number,number,number]*/) {
@@ -8191,9 +8191,9 @@ var round_point_frag = "\n" + fog_pars_fragment + "\nvarying vec3 vcolor;\nvoid 
 var square_point_frag = "\n" + fog_pars_fragment + "\nvarying vec3 vcolor;\nvoid main() {\n  gl_FragColor = vec4(vcolor, 1.0);\n" + fog_end_fragment + "\n}";
 
 
-var ReciprocalViewer = /*@__PURE__*/(function (Viewer$$1) {
+var ReciprocalViewer = /*@__PURE__*/(function (Viewer) {
   function ReciprocalViewer(options/*:{[key:string]: any}*/) {
-    Viewer$$1.call(this, options);
+    Viewer.call(this, options);
     this.default_camera_pos = [100, 0, 0];
     this.axes = null;
     this.points = null;
@@ -8225,8 +8225,8 @@ var ReciprocalViewer = /*@__PURE__*/(function (Viewer$$1) {
     });
   }
 
-  if ( Viewer$$1 ) ReciprocalViewer.__proto__ = Viewer$$1;
-  ReciprocalViewer.prototype = Object.create( Viewer$$1 && Viewer$$1.prototype );
+  if ( Viewer ) ReciprocalViewer.__proto__ = Viewer;
+  ReciprocalViewer.prototype = Object.create( Viewer && Viewer.prototype );
   ReciprocalViewer.prototype.constructor = ReciprocalViewer;
 
   ReciprocalViewer.prototype.set_reciprocal_key_bindings = function set_reciprocal_key_bindings () {
@@ -8519,56 +8519,56 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
 ReciprocalViewer.prototype.MOUSE_HELP =
     Viewer.prototype.MOUSE_HELP.split('\n').slice(0, -2).join('\n');
 
-exports.UnitCell = UnitCell;
-exports.modelsFromPDB = modelsFromPDB;
-exports.Model = Model;
-exports.Block = Block;
-exports.ElMap = ElMap;
-exports.WebGLRenderer = WebGLRenderer;
-exports.Fog = Fog;
-exports.Scene = Scene;
-exports.Mesh = Mesh;
-exports.LineSegments = LineSegments;
-exports.Line = Line;
-exports.Points = Points;
-exports.ShaderMaterial = ShaderMaterial;
 exports.AmbientLight = AmbientLight;
-exports.OrthographicCamera = OrthographicCamera;
-exports.BufferGeometry = BufferGeometry;
+exports.Block = Block;
 exports.BufferAttribute = BufferAttribute;
-exports.Object3D = Object3D;
-exports.Raycaster = Raycaster;
-exports.Ray = Ray;
-exports.Matrix4 = Matrix4;
-exports.Vector3 = Vector3;
-exports.Quaternion = Quaternion;
-exports.Color = Color;
+exports.BufferGeometry = BufferGeometry;
 exports.CatmullRomCurve3 = CatmullRomCurve3;
-exports.TriangleStripDrawMode = TriangleStripDrawMode;
-exports.Texture = Texture;
-exports.fog_pars_fragment = fog_pars_fragment;
-exports.fog_end_fragment = fog_end_fragment;
-exports.makeLines = makeLines;
-exports.makeCube = makeCube;
-exports.makeMultiColorLines = makeMultiColorLines;
-exports.makeRgbBox = makeRgbBox;
-exports.makeUniforms = makeUniforms;
-exports.makeRibbon = makeRibbon;
-exports.makeChickenWire = makeChickenWire;
-exports.makeGrid = makeGrid;
-exports.makeLineMaterial = makeLineMaterial;
-exports.makeLine = makeLine;
-exports.makeLineSegments = makeLineSegments;
-exports.makeWheels = makeWheels;
-exports.makeSticks = makeSticks;
-exports.makeBalls = makeBalls;
-exports.makeLabel = makeLabel;
-exports.addXyzCross = addXyzCross;
-exports.STATE = STATE;
+exports.Color = Color;
 exports.Controls = Controls;
-exports.Viewer = Viewer;
+exports.ElMap = ElMap;
+exports.Fog = Fog;
+exports.Line = Line;
+exports.LineSegments = LineSegments;
+exports.Matrix4 = Matrix4;
+exports.Mesh = Mesh;
+exports.Model = Model;
+exports.Object3D = Object3D;
+exports.OrthographicCamera = OrthographicCamera;
+exports.Points = Points;
+exports.Quaternion = Quaternion;
+exports.Ray = Ray;
+exports.Raycaster = Raycaster;
 exports.ReciprocalSpaceMap = ReciprocalSpaceMap;
 exports.ReciprocalViewer = ReciprocalViewer;
+exports.STATE = STATE;
+exports.Scene = Scene;
+exports.ShaderMaterial = ShaderMaterial;
+exports.Texture = Texture;
+exports.TriangleStripDrawMode = TriangleStripDrawMode;
+exports.UnitCell = UnitCell;
+exports.Vector3 = Vector3;
+exports.Viewer = Viewer;
+exports.WebGLRenderer = WebGLRenderer;
+exports.addXyzCross = addXyzCross;
+exports.fog_end_fragment = fog_end_fragment;
+exports.fog_pars_fragment = fog_pars_fragment;
+exports.makeBalls = makeBalls;
+exports.makeChickenWire = makeChickenWire;
+exports.makeCube = makeCube;
+exports.makeGrid = makeGrid;
+exports.makeLabel = makeLabel;
+exports.makeLine = makeLine;
+exports.makeLineMaterial = makeLineMaterial;
+exports.makeLineSegments = makeLineSegments;
+exports.makeLines = makeLines;
+exports.makeMultiColorLines = makeMultiColorLines;
+exports.makeRgbBox = makeRgbBox;
+exports.makeRibbon = makeRibbon;
+exports.makeSticks = makeSticks;
+exports.makeUniforms = makeUniforms;
+exports.makeWheels = makeWheels;
+exports.modelsFromPDB = modelsFromPDB;
 
 Object.defineProperty(exports, '__esModule', { value: true });
 
