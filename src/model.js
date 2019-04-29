@@ -2,6 +2,10 @@
 
 import { UnitCell } from './unitcell.js';
 
+/*::
+ type Num3 = [number, number, number];
+ */
+
 const AMINO_ACIDS = [
   'ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HIS', 'ILE', 'LEU',
   'LYS', 'MET', 'MSE', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL', 'UNK',
@@ -418,13 +422,14 @@ class Cubicles {
   /*::
   boxes: number[][]
   box_length: number
-  lower_bound: [number, number, number]
-  upper_bound: [number, number, number]
+  lower_bound: Num3
+  upper_bound: Num3
   xdim: number
   ydim: number
   zdim: number
   */
-  constructor(atoms, box_length, lower_bound, upper_bound) {
+  constructor(atoms/*:Atom[]*/, box_length/*:number*/,
+              lower_bound/*:Num3*/, upper_bound/*:Num3*/) {
     this.boxes = [];
     this.box_length = box_length;
     this.lower_bound = lower_bound;
@@ -447,7 +452,7 @@ class Cubicles {
     }
   }
 
-  find_box_id(x, y, z) {
+  find_box_id(x/*:number*/, y/*:number*/, z/*:number*/) {
     const xstep = Math.floor((x - this.lower_bound[0]) / this.box_length);
     const ystep = Math.floor((y - this.lower_bound[1]) / this.box_length);
     const zstep = Math.floor((z - this.lower_bound[2]) / this.box_length);
@@ -456,7 +461,7 @@ class Cubicles {
     return box_id;
   }
 
-  get_nearby_atoms(box_id) {
+  get_nearby_atoms(box_id/*:number*/) {
     let indices = [];
     const xydim = this.xdim * this.ydim;
     const uv = Math.max(box_id % xydim, 0);

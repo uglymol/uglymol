@@ -82,6 +82,10 @@ function multiply(xyz, mat) {
 
 // @flow
 
+/*::
+ type Num3 = [number, number, number];
+ */
+
 var AMINO_ACIDS = [
   'ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HIS', 'ILE', 'LEU',
   'LYS', 'MET', 'MSE', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL', 'UNK' ];
@@ -459,7 +463,8 @@ Atom.prototype.short_label = function short_label () {
 
 
 // Partition atoms into boxes for quick neighbor searching.
-var Cubicles = function Cubicles(atoms, box_length, lower_bound, upper_bound) {
+var Cubicles = function Cubicles(atoms/*:Atom[]*/, box_length/*:number*/,
+            lower_bound/*:Num3*/, upper_bound/*:Num3*/) {
   this.boxes = [];
   this.box_length = box_length;
   this.lower_bound = lower_bound;
@@ -482,7 +487,7 @@ var Cubicles = function Cubicles(atoms, box_length, lower_bound, upper_bound) {
   }
 };
 
-Cubicles.prototype.find_box_id = function find_box_id (x, y, z) {
+Cubicles.prototype.find_box_id = function find_box_id (x/*:number*/, y/*:number*/, z/*:number*/) {
   var xstep = Math.floor((x - this.lower_bound[0]) / this.box_length);
   var ystep = Math.floor((y - this.lower_bound[1]) / this.box_length);
   var zstep = Math.floor((z - this.lower_bound[2]) / this.box_length);
@@ -491,7 +496,7 @@ Cubicles.prototype.find_box_id = function find_box_id (x, y, z) {
   return box_id;
 };
 
-Cubicles.prototype.get_nearby_atoms = function get_nearby_atoms (box_id) {
+Cubicles.prototype.get_nearby_atoms = function get_nearby_atoms (box_id/*:number*/) {
   var indices = [];
   var xydim = this.xdim * this.ydim;
   var uv = Math.max(box_id % xydim, 0);
@@ -1206,28 +1211,28 @@ function modulo(a, b) {
   return reminder >= 0 ? reminder : reminder + b;
 }
 
-var GridArray = function GridArray(dim) {
+var GridArray = function GridArray(dim /*:number[]*/) {
   this.dim = dim; // dimensions of the grid for the entire unit cell
   this.values = new Float32Array(dim[0] * dim[1] * dim[2]);
 };
 
-GridArray.prototype.grid2index = function grid2index (i, j, k) {
+GridArray.prototype.grid2index = function grid2index (i/*:number*/, j/*:number*/, k/*:number*/) {
   i = modulo(i, this.dim[0]);
   j = modulo(j, this.dim[1]);
   k = modulo(k, this.dim[2]);
   return this.dim[2] * (this.dim[1] * i + j) + k;
 };
 
-GridArray.prototype.grid2index_unchecked = function grid2index_unchecked (i, j, k) {
+GridArray.prototype.grid2index_unchecked = function grid2index_unchecked (i/*:number*/, j/*:number*/, k/*:number*/) {
   return this.dim[2] * (this.dim[1] * i + j) + k;
 };
 
-GridArray.prototype.grid2frac = function grid2frac (i, j, k) {
+GridArray.prototype.grid2frac = function grid2frac (i/*:number*/, j/*:number*/, k/*:number*/) {
   return [i / this.dim[0], j / this.dim[1], k / this.dim[2]];
 };
 
 // return grid coordinates (rounded down) for the given fractional coordinates
-GridArray.prototype.frac2grid = function frac2grid (xyz) {
+GridArray.prototype.frac2grid = function frac2grid (xyz/*:number[]*/) {
   // at one point "| 0" here made extract_block() 40% faster on V8 3.14,
   // but I don't see any effect now
   return [Math.floor(xyz[0] * this.dim[0]) | 0,
@@ -1235,12 +1240,12 @@ GridArray.prototype.frac2grid = function frac2grid (xyz) {
           Math.floor(xyz[2] * this.dim[2]) | 0];
 };
 
-GridArray.prototype.set_grid_value = function set_grid_value (i, j, k, value) {
+GridArray.prototype.set_grid_value = function set_grid_value (i/*:number*/, j/*:number*/, k/*:number*/, value/*:number*/) {
   var idx = this.grid2index(i, j, k);
   this.values[idx] = value;
 };
 
-GridArray.prototype.get_grid_value = function get_grid_value (i, j, k) {
+GridArray.prototype.get_grid_value = function get_grid_value (i/*:number*/, j/*:number*/, k/*:number*/) {
   var idx = this.grid2index(i, j, k);
   return this.values[idx];
 };
@@ -6446,6 +6451,7 @@ Controls.prototype.go_to = function go_to (targ /*:Vector3*/, cam_pos /*:?Vector
    fg: number,
    [name:string]: number | number[],
  };
+ type Num2 = [number, number]
  type Num3 = [number, number, number];
  */
 
@@ -6597,7 +6603,7 @@ function scale_by_height(value, size) { // for scaling bond_line
   return value * size[1] / 700;
 }
 
-var MapBag = function MapBag(map, config, is_diff_map) {
+var MapBag = function MapBag(map/*:ElMap*/, config/*:Object*/, is_diff_map/*:boolean*/) {
   this.map = map;
   this.name = '';
   this.isolevel = is_diff_map ? 3.0 : config.default_isolevel;
@@ -6608,7 +6614,7 @@ var MapBag = function MapBag(map, config, is_diff_map) {
 };
 
 
-var ModelBag = function ModelBag(model, config, win_size) {
+var ModelBag = function ModelBag(model/*:Model*/, config/*:Object*/, win_size/*:Num2*/) {
   this.model = model;
   this.label = '(model #' + ++ModelBag.ctor_counter + ')';
   this.visible = true;
@@ -6721,7 +6727,7 @@ ModelBag.prototype.add_trace = function add_trace () {
   }
 };
 
-ModelBag.prototype.add_ribbon = function add_ribbon (smoothness) {
+ModelBag.prototype.add_ribbon = function add_ribbon (smoothness/*:number*/) {
   var segments = this.model.extract_trace();
   var res_map = this.model.get_residues();
   var visible_atoms = [].concat.apply([], segments);
@@ -6931,7 +6937,7 @@ var Viewer = function Viewer(options /*: {[key: string]: any}*/) {
   this.request_render();
 };
 
-Viewer.prototype.pick_atom = function pick_atom (coords/*:[number,number]*/, camera/*:OrthographicCamera*/) {
+Viewer.prototype.pick_atom = function pick_atom (coords/*:Num2*/, camera/*:OrthographicCamera*/) {
   for (var i = 0, list = this.model_bags; i < list.length; i += 1) {
     var bag = list[i];
 

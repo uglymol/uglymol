@@ -18,7 +18,7 @@
     "chai": "^4.0.0",
     "eslint": "^5.12.0",
     "eslint-config-google": "^0.12.0",
-    "flow-bin": "^0.96.0",
+    "flow-bin": "^0.98.0",
     "http-server": "^0.11.0",
     "istanbul": "^0.4.5",
     "mocha": "^5.2.0",

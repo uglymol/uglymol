@@ -20,6 +20,7 @@ import { modelsFromPDB } from './model.js';
    fg: number,
    [name:string]: number | number[],
  };
+ type Num2 = [number, number]
  type Num3 = [number, number, number];
  */
 
@@ -182,7 +183,7 @@ class MapBag {
   block_ctr: Vector3
   el_objects: Object[]
   */
-  constructor(map, config, is_diff_map) {
+  constructor(map/*:ElMap*/, config/*:Object*/, is_diff_map/*:boolean*/) {
     this.map = map;
     this.name = '';
     this.isolevel = is_diff_map ? 3.0 : config.default_isolevel;
@@ -201,11 +202,11 @@ class ModelBag {
   visible: boolean
   hue_shift: number
   conf: Object
-  win_size: [number, number]
+  win_size: Num2
   objects: Object[]
   static ctor_counter: number
   */
-  constructor(model, config, win_size) {
+  constructor(model/*:Model*/, config/*:Object*/, win_size/*:Num2*/) {
     this.model = model;
     this.label = '(model #' + ++ModelBag.ctor_counter + ')';
     this.visible = true;
@@ -312,7 +313,7 @@ class ModelBag {
     }
   }
 
-  add_ribbon(smoothness) {
+  add_ribbon(smoothness/*:number*/) {
     const segments = this.model.extract_trace();
     const res_map = this.model.get_residues();
     const visible_atoms = [].concat.apply([], segments);
@@ -387,13 +388,13 @@ export class Viewer {
   nav: ?Object
   xhr_headers: {[id:string]: string}
   config: Object
-  window_size: [number, number]
-  window_offset: [number, number]
+  window_size: Num2
+  window_offset: Num2
   last_ctr: Vector3
   selected: {bag: ?ModelBag, atom: ?AtomT}
   scene: Scene
   light: AmbientLight
-  default_camera_pos: [number, number, number]
+  default_camera_pos: Num3
   target: Vector3
   camera: OrthographicCamera
   controls: Controls
@@ -553,7 +554,7 @@ export class Viewer {
     this.request_render();
   }
 
-  pick_atom(coords/*:[number,number]*/, camera/*:OrthographicCamera*/) {
+  pick_atom(coords/*:Num2*/, camera/*:OrthographicCamera*/) {
     for (const bag of this.model_bags) {
       if (!bag.visible) continue;
       this.raycaster.setFromCamera(coords, camera);

@@ -13,28 +13,28 @@ class GridArray {
   dim: number[]
   values: Float32Array
   */
-  constructor(dim) {
+  constructor(dim /*:number[]*/) {
     this.dim = dim; // dimensions of the grid for the entire unit cell
     this.values = new Float32Array(dim[0] * dim[1] * dim[2]);
   }
 
-  grid2index(i, j, k) {
+  grid2index(i/*:number*/, j/*:number*/, k/*:number*/) {
     i = modulo(i, this.dim[0]);
     j = modulo(j, this.dim[1]);
     k = modulo(k, this.dim[2]);
     return this.dim[2] * (this.dim[1] * i + j) + k;
   }
 
-  grid2index_unchecked(i, j, k) {
+  grid2index_unchecked(i/*:number*/, j/*:number*/, k/*:number*/) {
     return this.dim[2] * (this.dim[1] * i + j) + k;
   }
 
-  grid2frac(i, j, k) {
+  grid2frac(i/*:number*/, j/*:number*/, k/*:number*/) {
     return [i / this.dim[0], j / this.dim[1], k / this.dim[2]];
   }
 
   // return grid coordinates (rounded down) for the given fractional coordinates
-  frac2grid(xyz) {
+  frac2grid(xyz/*:number[]*/) {
     // at one point "| 0" here made extract_block() 40% faster on V8 3.14,
     // but I don't see any effect now
     return [Math.floor(xyz[0] * this.dim[0]) | 0,
@@ -42,12 +42,12 @@ class GridArray {
             Math.floor(xyz[2] * this.dim[2]) | 0];
   }
 
-  set_grid_value(i, j, k, value) {
+  set_grid_value(i/*:number*/, j/*:number*/, k/*:number*/, value/*:number*/) {
     const idx = this.grid2index(i, j, k);
     this.values[idx] = value;
   }
 
-  get_grid_value(i, j, k) {
+  get_grid_value(i/*:number*/, j/*:number*/, k/*:number*/) {
     const idx = this.grid2index(i, j, k);
     return this.values[idx];
   }
