@@ -3940,7 +3940,7 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, info )
     state.bindTexture( _gl.TEXTURE_2D, textureProperties.__webglTexture );
   }
 
-  function setTextureParameters( textureType, texture ) {
+  function setTextureParameters( textureType ) {
     _gl.texParameteri( textureType, _gl.TEXTURE_WRAP_S, _gl.CLAMP_TO_EDGE );
     _gl.texParameteri( textureType, _gl.TEXTURE_WRAP_T, _gl.CLAMP_TO_EDGE );
     _gl.texParameteri( textureType, _gl.TEXTURE_MAG_FILTER, _gl.LINEAR );
@@ -3968,7 +3968,7 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities, info )
     var glFormat = _gl.RGBA;
     var glType = _gl.UNSIGNED_BYTE;
 
-    setTextureParameters( _gl.TEXTURE_2D, texture );
+    setTextureParameters( _gl.TEXTURE_2D );
 
     state.texImage2D( _gl.TEXTURE_2D, 0, glFormat, glFormat, glType, image );
 
@@ -4838,7 +4838,7 @@ function WebGLRenderer( parameters ) {
     opaqueObjectsLastIndex = - 1;
     transparentObjectsLastIndex = - 1;
 
-    projectObject( scene, camera );
+    projectObject( scene );
 
     opaqueObjects.length = opaqueObjectsLastIndex + 1;
     transparentObjects.length = transparentObjectsLastIndex + 1;
@@ -4929,7 +4929,7 @@ function WebGLRenderer( parameters ) {
     }
   }
 
-  function projectObject( object, camera ) {
+  function projectObject( object ) {
     if ( object.visible === false ) { return; }
 
     if ( object.isMesh || object.isLine || object.isPoints ) {
@@ -4950,7 +4950,7 @@ function WebGLRenderer( parameters ) {
     var children = object.children;
 
     for ( var i = 0, l = children.length; i < l; i ++ ) {
-      projectObject( children[i], camera );
+      projectObject( children[i] );
     }
   }
 
