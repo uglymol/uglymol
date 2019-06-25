@@ -287,6 +287,7 @@ export class ReciprocalViewer extends Viewer {
   }
 
   file_drop_callback(file/*:File*/) {
+    let self = this;
     const reader = new FileReader();
     if (/\.(map|ccp4)$/.test(file.name)) {
       reader.onloadend = function (evt) {

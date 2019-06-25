@@ -8311,6 +8311,7 @@ var ReciprocalViewer = /*@__PURE__*/(function (Viewer) {
   };
 
   ReciprocalViewer.prototype.file_drop_callback = function file_drop_callback (file/*:File*/) {
+    var self = this;
     var reader = new FileReader();
     if (/\.(map|ccp4)$/.test(file.name)) {
       reader.onloadend = function (evt) {
