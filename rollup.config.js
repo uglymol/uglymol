@@ -26,7 +26,7 @@ let build = {
 };
 
 if (process.env.TARGET !== 'dev') {
-  // disable arrow b/c https://gitlab.com/Rich-Harris/buble/issues/158
+  // disable arrow b/c https://github.com/bublejs/buble/issues/208
   const transforms = { arrow: false, dangerousForOf: true };
   build.plugins.push(buble({transforms}));
 }

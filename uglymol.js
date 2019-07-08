@@ -7825,12 +7825,10 @@ Viewer.prototype.load_file = function load_file (url/*:string*/, options/*:{[id:
     // http://stackoverflow.com/questions/7374911/
     req.overrideMimeType('text/plain');
   }
-  for (var name in this.xhr_headers) {
-    if (this.xhr_headers.hasOwnProperty(name)) {
-      req.setRequestHeader(name, this.xhr_headers[name]);
-    }
-  }
   var self = this;
+  Object.keys(this.xhr_headers).forEach(function (name) {
+    req.setRequestHeader(name, self.xhr_headers[name]);
+  });
   req.onreadystatechange = function () {
     if (req.readyState === 4) {
       // chrome --allow-file-access-from-files gives status 0
