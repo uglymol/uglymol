@@ -3124,9 +3124,6 @@ function Object3D() {
   this.renderOrder = 0;
 
   this.userData = {};
-
-  this.onBeforeRender = function () {};
-  this.onAfterRender = function () {};
 }
 
 Object3D.DefaultUp = new Vector3( 0, 1, 0 );
@@ -4969,18 +4966,13 @@ function WebGLRenderer( parameters ) {
   function renderObjects( renderList, scene, camera, overrideMaterial ) {
     for ( var i = 0, l = renderList.length; i < l; i ++ ) {
       var renderItem = renderList[i];
-
       var object = renderItem.object;
       var geometry = renderItem.geometry;
       var material = overrideMaterial === undefined ? renderItem.material : overrideMaterial;
       var group = renderItem.group;
 
       object.modelViewMatrix.multiplyMatrices( camera.matrixWorldInverse, object.matrixWorld );
-      object.onBeforeRender( _this, scene, camera, geometry, material, group );
-
       _this.renderBufferDirect( camera, scene.fog, geometry, material, object, group );
-
-      object.onAfterRender( _this, scene, camera, geometry, material, group );
     }
   }
 
