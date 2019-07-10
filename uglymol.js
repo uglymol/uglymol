@@ -2944,6 +2944,20 @@ Ray.prototype = {
     return this;
   },
 
+  distanceSqToPoint: function () {
+    var v1 = new Vector3();
+
+    return function distanceSqToPoint( point ) {
+      var directionDistance = v1.subVectors( point, this.origin ).dot( this.direction );
+      // point behind the ray
+      if ( directionDistance < 0 ) {
+        return this.origin.distanceToSquared( point );
+      }
+      v1.copy( this.direction ).multiplyScalar( directionDistance ).add( this.origin );
+      return v1.distanceToSquared( point );
+    };
+  }(),
+
   distanceSqToSegment: function () {
     var segCenter = new Vector3();
     var segDir = new Vector3();
@@ -3359,8 +3373,6 @@ function OrthographicCamera( left, right, top, bottom, near, far ) {
 OrthographicCamera.prototype = Object.assign( Object.create( Camera.prototype ), {
 
   constructor: OrthographicCamera,
-
-  isOrthographicCamera: true,
 
   updateProjectionMatrix: function () {
     var dx = ( this.right - this.left ) / ( 2 * this.zoom );
@@ -5283,55 +5295,6 @@ Points.prototype = Object.assign( Object.create( Object3D.prototype ), {
 // kept for compatibility with THREE
 function AmbientLight( color ) {}
 
-/**
-* @author mrdoob / http://mrdoob.com/
-* @author bhouston / http://clara.io/
-* @author stephomi / http://stephaneginier.com/
-*/
-
-function Raycaster( origin, direction, near, far ) {
-  this.ray = new Ray( origin, direction );
-  // direction is assumed to be normalized (for accurate distance calculations)
-
-  this.near = near || 0;
-  this.far = far || Infinity;
-}
-
-function ascSort( a, b ) {
-  return a.distance - b.distance;
-}
-
-function intersectObject( object, raycaster, intersects ) {
-  if ( object.visible === false ) { return; }
-  object.raycast( raycaster, intersects );
-}
-
-//
-
-Raycaster.prototype = {
-
-  constructor: Raycaster,
-
-  linePrecision: 1,
-
-  setFromCamera: function ( coords/*:[number,number]*/, camera ) {
-    if ( (camera && camera.isOrthographicCamera) ) {
-      this.ray.origin.set( coords[0], coords[1], ( camera.near + camera.far ) / ( camera.near - camera.far ) ).unproject( camera ); // set origin in plane of camera
-      this.ray.direction.set( 0, 0, - 1 ).transformDirection( camera.matrixWorld );
-    } else {
-      console.error( 'Raycaster: Unsupported camera type.' );
-    }
-  },
-
-  intersectObjects: function ( objects ) {
-    var intersects = [];
-    for ( var i = 0, l = objects.length; i < l; i ++ ) {
-      intersectObject( objects[i], this, intersects );
-    }
-    intersects.sort( ascSort );
-    return intersects;
-  },
-};
 
 /**
 * @author zz85 / http://www.lab4games.net/zz85/blog
@@ -5897,19 +5860,18 @@ function makeLineSegments(material /*:ShaderMaterial*/,
                                  color_arr /*:?Color[]*/) {
   // n input vertices => 2n output vertices, n triangles, 3n indexes
   var len = vertex_arr.length;
-  var i;
   var pos = double_pos(vertex_arr);
   var position = new Float32Array(pos);
   var other_vert = new Float32Array(6*len);
-  for (i = 0; i < 6 * len; i += 12) {
+  for (var i = 0; i < 6 * len; i += 12) {
     var j = 0;
     for (; j < 6; j++) { other_vert[i+j] = pos[i+j+6]; }
     for (; j < 12; j++) { other_vert[i+j] = pos[i+j-6]; }
   }
   var side = new Float32Array(2*len);
-  for (i = 0; i < len; i++) {
-    side[2*i] = -1;
-    side[2*i+1] = 1;
+  for (var k = 0; k < len; k++) {
+    side[2*k] = -1;
+    side[2*k+1] = 1;
   }
   var geometry = new BufferGeometry();
   geometry.addAttribute('position', new BufferAttribute(position, 3));
@@ -6087,10 +6049,10 @@ var inverseMatrix = new Matrix4();
 var ray = new Ray();
 // this function will be put on prototype
 /* eslint-disable no-invalid-this */
-function line_raycast(raycaster, intersects) {
-  var precisionSq = raycaster.linePrecision * raycaster.linePrecision;
+function line_raycast(options, intersects) {
+  var precisionSq = options.precision * options.precision;
   inverseMatrix.getInverse(this.matrixWorld);
-  ray.copy(raycaster.ray).applyMatrix4(inverseMatrix);
+  ray.copy(options.ray).applyMatrix4(inverseMatrix);
   var vStart = new Vector3();
   var vEnd = new Vector3();
   var interSegment = new Vector3();
@@ -6103,8 +6065,8 @@ function line_raycast(raycaster, intersects) {
     var distSq = ray.distanceSqToSegment(vStart, vEnd, interRay, interSegment);
     if (distSq > precisionSq) { continue; }
     interRay.applyMatrix4(this.matrixWorld);
-    var distance = raycaster.ray.origin.distanceTo(interRay);
-    if (distance < raycaster.near || distance > raycaster.far) { continue; }
+    var distance = options.ray.origin.distanceTo(interRay);
+    if (distance < options.near || distance > options.far) { continue; }
     intersects.push({
       distance: distance,
       point: interSegment.clone().applyMatrix4(this.matrixWorld),
@@ -6854,7 +6816,6 @@ var Viewer = function Viewer(options /*: {[key: string]: any}*/) {
     this.camera.position.fromArray(this.default_camera_pos);
     this.controls = new Controls(this.camera, this.target);
   }
-  this.raycaster = new Raycaster();
   this.set_common_key_bindings();
   if (this.constructor === Viewer) { this.set_real_space_key_bindings(); }
   if (typeof document === 'undefined') { return; }// for testing on node
@@ -6938,16 +6899,24 @@ var Viewer = function Viewer(options /*: {[key: string]: any}*/) {
 };
 
 Viewer.prototype.pick_atom = function pick_atom (coords/*:Num2*/, camera/*:OrthographicCamera*/) {
-  for (var i = 0, list = this.model_bags; i < list.length; i += 1) {
-    var bag = list[i];
+  for (var i$1 = 0, list$1 = this.model_bags; i$1 < list$1.length; i$1 += 1) {
+    var bag = list$1[i$1];
 
       if (!bag.visible) { continue; }
-    this.raycaster.setFromCamera(coords, camera);
-    this.raycaster.near = camera.near;
+    var z = (camera.near + camera.far) / (camera.near - camera.far);
+    var ray = new Ray();
+    ray.origin.set(coords[0], coords[1], z).unproject(camera);
+    ray.direction.set(0, 0, -1).transformDirection(camera.matrixWorld);
+    var near = camera.near;
     // '0.15' b/c the furthest 15% is hardly visible in the fog
-    this.raycaster.far = camera.far - 0.15 * (camera.far - camera.near);
-    this.raycaster.linePrecision = 0.3;
-    var intersects = this.raycaster.intersectObjects(bag.objects);
+    var far = camera.far - 0.15 * (camera.far - camera.near);
+    var intersects = [];
+    for (var i = 0, list = bag.objects; i < list.length; i += 1) {
+      var object = list[i];
+
+        if (object.visible === false) { continue; }
+      object.raycast({ray: ray, near: near, far: far, precision: 0.3}, intersects);
+    }
     if (intersects.length > 0) {
       intersects.sort(function (x) { return x.line_dist || Infinity; });
       var p = intersects[0].point;
@@ -8543,7 +8512,6 @@ exports.OrthographicCamera = OrthographicCamera;
 exports.Points = Points;
 exports.Quaternion = Quaternion;
 exports.Ray = Ray;
-exports.Raycaster = Raycaster;
 exports.ReciprocalSpaceMap = ReciprocalSpaceMap;
 exports.ReciprocalViewer = ReciprocalViewer;
 exports.STATE = STATE;

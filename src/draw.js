@@ -736,10 +736,10 @@ let inverseMatrix = new Matrix4();
 let ray = new Ray();
 // this function will be put on prototype
 /* eslint-disable no-invalid-this */
-function line_raycast(raycaster, intersects) {
-  const precisionSq = raycaster.linePrecision * raycaster.linePrecision;
+function line_raycast(options, intersects) {
+  const precisionSq = options.precision * options.precision;
   inverseMatrix.getInverse(this.matrixWorld);
-  ray.copy(raycaster.ray).applyMatrix4(inverseMatrix);
+  ray.copy(options.ray).applyMatrix4(inverseMatrix);
   let vStart = new Vector3();
   let vEnd = new Vector3();
   let interSegment = new Vector3();
@@ -752,8 +752,8 @@ function line_raycast(raycaster, intersects) {
     let distSq = ray.distanceSqToSegment(vStart, vEnd, interRay, interSegment);
     if (distSq > precisionSq) continue;
     interRay.applyMatrix4(this.matrixWorld);
-    const distance = raycaster.ray.origin.distanceTo(interRay);
-    if (distance < raycaster.near || distance > raycaster.far) continue;
+    const distance = options.ray.origin.distanceTo(interRay);
+    if (distance < options.near || distance > options.far) continue;
     intersects.push({
       distance: distance,
       point: interSegment.clone().applyMatrix4(this.matrixWorld),

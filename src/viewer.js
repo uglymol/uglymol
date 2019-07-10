@@ -1,7 +1,7 @@
 // @flow
 
 import { OrthographicCamera, Scene, AmbientLight, Color, Vector3,
-         Raycaster, WebGLRenderer, Fog } from './fromthree.js';
+         Ray, WebGLRenderer, Fog } from './fromthree.js';
 
 import { makeLineMaterial, makeLineSegments, makeLine, makeRibbon,
          makeChickenWire, makeGrid, makeSticks, makeBalls, makeWheels, makeCube,
@@ -399,7 +399,6 @@ export class Viewer {
   camera: OrthographicCamera
   controls: Controls
   tied_viewer: ?Viewer
-  raycaster: Raycaster
   renderer: WebGLRenderer
   container: ?HTMLElement
   hud_el: ?HTMLElement
@@ -471,7 +470,6 @@ export class Viewer {
       this.camera.position.fromArray(this.default_camera_pos);
       this.controls = new Controls(this.camera, this.target);
     }
-    this.raycaster = new Raycaster();
     this.set_common_key_bindings();
     if (this.constructor === Viewer) this.set_real_space_key_bindings();
     if (typeof document === 'undefined') return;  // for testing on node
@@ -557,12 +555,18 @@ export class Viewer {
   pick_atom(coords/*:Num2*/, camera/*:OrthographicCamera*/) {
     for (const bag of this.model_bags) {
       if (!bag.visible) continue;
-      this.raycaster.setFromCamera(coords, camera);
-      this.raycaster.near = camera.near;
+      const z = (camera.near + camera.far) / (camera.near - camera.far);
+      let ray = new Ray();
+      ray.origin.set(coords[0], coords[1], z).unproject(camera);
+      ray.direction.set(0, 0, -1).transformDirection(camera.matrixWorld);
+      let near = camera.near;
       // '0.15' b/c the furthest 15% is hardly visible in the fog
-      this.raycaster.far = camera.far - 0.15 * (camera.far - camera.near);
-      this.raycaster.linePrecision = 0.3;
-      let intersects = this.raycaster.intersectObjects(bag.objects);
+      let far = camera.far - 0.15 * (camera.far - camera.near);
+      let intersects = [];
+      for (const object of bag.objects) {
+        if (object.visible === false) continue;
+        object.raycast({ray, near, far, precision: 0.3}, intersects);
+      }
       if (intersects.length > 0) {
         intersects.sort(function (x) { return x.line_dist || Infinity; });
         const p = intersects[0].point;
