@@ -456,19 +456,18 @@ export function makeLineSegments(material /*:ShaderMaterial*/,
                                  color_arr /*:?Color[]*/) {
   // n input vertices => 2n output vertices, n triangles, 3n indexes
   const len = vertex_arr.length;
-  let i;
   const pos = double_pos(vertex_arr);
   const position = new Float32Array(pos);
   let other_vert = new Float32Array(6*len);
-  for (i = 0; i < 6 * len; i += 12) {
+  for (let i = 0; i < 6 * len; i += 12) {
     let j = 0;
     for (; j < 6; j++) other_vert[i+j] = pos[i+j+6];
     for (; j < 12; j++) other_vert[i+j] = pos[i+j-6];
   }
   let side = new Float32Array(2*len);
-  for (i = 0; i < len; i++) {
-    side[2*i] = -1;
-    side[2*i+1] = 1;
+  for (let k = 0; k < len; k++) {
+    side[2*k] = -1;
+    side[2*k+1] = 1;
   }
   let geometry = new BufferGeometry();
   geometry.addAttribute('position', new BufferAttribute(position, 3));
