@@ -396,6 +396,7 @@ export class Viewer {
   window_offset: Num2
   last_ctr: Vector3
   selected: {bag: ?ModelBag, atom: ?AtomT}
+  dbl_click_callback: (Object) => void
   scene: Scene
   light: AmbientLight
   default_camera_pos: Num3
@@ -458,6 +459,7 @@ export class Viewer {
 
     this.last_ctr = new Vector3(Infinity, 0, 0);
     this.selected = {bag: null, atom: null};
+    this.dbl_click_callback = this.toggle_label;
     this.scene = new Scene();
     this.scene.fog = new Fog(this.config.colors.bg, 0, 1);
     this.scene.add(new AmbientLight(0xffffff));
@@ -1241,7 +1243,7 @@ export class Viewer {
     if (pick) {
       const atom = pick.atom;
       this.hud(pick.bag.label + ' ' + atom.long_label());
-      this.toggle_label(pick);
+      this.dbl_click_callback(pick);
       const color = this.config.colors[atom.element] || this.config.colors.def;
       const size = 2.5 * scale_by_height(this.config.bond_line,
                                          this.window_size);

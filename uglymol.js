@@ -6788,6 +6788,7 @@ var Viewer = function Viewer(options /*: {[key: string]: any}*/) {
 
   this.last_ctr = new Vector3(Infinity, 0, 0);
   this.selected = {bag: null, atom: null};
+  this.dbl_click_callback = this.toggle_label;
   this.scene = new Scene();
   this.scene.fog = new Fog(this.config.colors.bg, 0, 1);
   this.scene.add(new AmbientLight(0xffffff));
@@ -7593,7 +7594,7 @@ Viewer.prototype.dblclick = function dblclick (event/*:MouseEvent*/) {
   if (pick) {
     var atom = pick.atom;
     this.hud(pick.bag.label + ' ' + atom.long_label());
-    this.toggle_label(pick);
+    this.dbl_click_callback(pick);
     var color = this.config.colors[atom.element] || this.config.colors.def;
     var size = 2.5 * scale_by_height(this.config.bond_line,
                                        this.window_size);
