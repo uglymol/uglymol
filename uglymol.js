@@ -3174,8 +3174,6 @@ Object.assign( Object3D.prototype, EventDispatcher.prototype, {
     }
   },
 
-  raycast: function () {},
-
   updateMatrix: function () {
     this.matrix.compose( this.position, this.quaternion, this.scale );
 
@@ -5842,7 +5840,7 @@ function makeLine(material /*:ShaderMaterial*/,
 
   var mesh = new Mesh(geometry, material);
   mesh.drawMode = TriangleStripDrawMode;
-  mesh.raycast = line_raycast;
+  mesh.userData.bond_lines = true;
   return mesh;
 }
 
@@ -5876,7 +5874,7 @@ function makeLineSegments(material /*:ShaderMaterial*/,
   geometry.setIndex(make_quad_index_buffer(len/2));
 
   var mesh = new Mesh(geometry, material);
-  mesh.raycast = line_raycast;
+  mesh.userData.bond_lines = true;
   return mesh;
 }
 
@@ -5906,8 +5904,6 @@ function makeWheels(atom_arr /*:AtomT[]*/,
     type: 'um_wheel',
   });
   var obj = new Points(geometry, material);
-  // currently we use only lines for picking
-  obj.raycast = function () {};
   return obj;
 }
 
@@ -5972,7 +5968,7 @@ function makeSticks(vertex_arr /*:Num3[]*/,
   geometry.setIndex(make_quad_index_buffer(len/2));
 
   var mesh = new Mesh(geometry, material);
-  mesh.raycast = line_raycast;
+  mesh.userData.bond_lines = true;
   return mesh;
 }
 
@@ -6031,39 +6027,36 @@ function makeBalls(atom_arr /*:AtomT[]*/,
   });
   material.extensions.fragDepth = true;
   var obj = new Mesh(geometry, material);
-  // currently we use only lines for picking
-  obj.raycast = function () {};
   return obj;
 }
 
 // based on Line.prototype.raycast(), but skipping duplicated points
 var inverseMatrix = new Matrix4();
 var ray = new Ray();
-// this function will be put on prototype
-/* eslint-disable no-invalid-this */
-function line_raycast(options, intersects) {
+function line_raycast(mesh/*:Mesh*/, options/*:Object*/,
+                             intersects/*:Object[]*/) {
   var precisionSq = options.precision * options.precision;
-  inverseMatrix.getInverse(this.matrixWorld);
+  inverseMatrix.getInverse(mesh.matrixWorld);
   ray.copy(options.ray).applyMatrix4(inverseMatrix);
   var vStart = new Vector3();
   var vEnd = new Vector3();
   var interSegment = new Vector3();
   var interRay = new Vector3();
-  var step = this.drawMode === TriangleStripDrawMode ? 1 : 2;
-  var positions = this.geometry.attributes.position.array;
+  var step = mesh.drawMode === TriangleStripDrawMode ? 1 : 2;
+  var positions = mesh.geometry.attributes.position.array;
   for (var i = 0, l = positions.length / 6 - 1; i < l; i += step) {
     vStart.fromArray(positions, 6 * i);
     vEnd.fromArray(positions, 6 * i + 6);
     var distSq = ray.distanceSqToSegment(vStart, vEnd, interRay, interSegment);
     if (distSq > precisionSq) { continue; }
-    interRay.applyMatrix4(this.matrixWorld);
+    interRay.applyMatrix4(mesh.matrixWorld);
     var distance = options.ray.origin.distanceTo(interRay);
     if (distance < options.near || distance > options.far) { continue; }
     intersects.push({
       distance: distance,
-      point: interSegment.clone().applyMatrix4(this.matrixWorld),
+      point: interSegment.clone().applyMatrix4(mesh.matrixWorld),
       index: i,
-      object: this,
+      object: mesh,
       line_dist: Math.sqrt(distSq), // extra property, not in Three.js
     });
   }
@@ -6576,6 +6569,7 @@ var ModelBag = function ModelBag(model/*:Model*/, config/*:Object*/, win_size/*:
   this.conf = config;
   this.win_size = win_size;
   this.objects = []; // list of three.js objects
+  this.atom_array = [];
 };
 
 ModelBag.prototype.get_visible_atoms = function get_visible_atoms () {
@@ -6653,6 +6647,7 @@ ModelBag.prototype.add_bonds = function add_bonds (polymers/*:boolean*/, ligands
       this.objects.push(makeWheels(sphere_arr, sphere_color_arr, linewidth));
     }
   }
+  sphere_arr.forEach(function (v) { this.atom_array.push(v); }, this);
 };
 
 ModelBag.prototype.add_trace = function add_trace () {
@@ -6679,6 +6674,7 @@ ModelBag.prototype.add_trace = function add_trace () {
     var line = makeLine(material, pos, color_slice);
     this.objects.push(line);
   }
+  this.atom_array = visible_atoms;
 };
 
 ModelBag.prototype.add_ribbon = function add_ribbon (smoothness/*:number*/) {
@@ -6903,18 +6899,37 @@ Viewer.prototype.pick_atom = function pick_atom (coords/*:Num2*/, camera/*:Ortho
     // '0.15' b/c the furthest 15% is hardly visible in the fog
     var far = camera.far - 0.15 * (camera.far - camera.near);
     var intersects = [];
-    for (var i = 0, list = bag.objects; i < list.length; i += 1) {
-      var object = list[i];
-
-        if (object.visible === false) { continue; }
-      object.raycast({ray: ray, near: near, far: far, precision: 0.3}, intersects);
+    /*
+    // previous version - line-based search
+    for (const object of bag.objects) {
+      if (object.visible === false) continue;
+      if (object.userData.bond_lines) {
+        line_raycast(object, {ray, near, far, precision: 0.3}, intersects);
+      }
     }
+    */
+    // search directly atom array ignoring matrixWorld
+    var vec = new Vector3();
+    for (var i = 0, list = bag.atom_array; i < list.length; i += 1) {
+      var atom = list[i];
+
+        vec.set(atom.xyz[0] - ray.origin.x,
+              atom.xyz[1] - ray.origin.y,
+              atom.xyz[2] - ray.origin.z);
+      var distance = vec.dot(ray.direction);
+      if (distance < 0 || distance < near || distance > far) { continue; }
+      var dist2 = vec.addScaledVector(ray.direction, -distance).lengthSq();
+      if (dist2 > 0.25) { continue; }
+      intersects.push({distance: distance, atom: atom, dist2: dist2});
+    }
+
     if (intersects.length > 0) {
-      intersects.sort(function (x) { return x.line_dist || Infinity; });
-      var p = intersects[0].point;
-      var atom = bag.model.get_nearest_atom(p.x, p.y, p.z);
-      if (atom != null) {
-        return {bag: bag, atom: atom};
+      intersects.sort(function (x) { return x.dist2 || Infinity; });
+      //const p = intersects[0].point;
+      //const atom = bag.model.get_nearest_atom(p.x, p.y, p.z);
+      var atom$1 = intersects[0].atom;
+      if (atom$1 != null) {
+        return {bag: bag, atom: atom$1};
       }
     }
   }
@@ -7049,6 +7064,7 @@ Viewer.prototype.has_frag_depth = function has_frag_depth () {
 
 Viewer.prototype.set_model_objects = function set_model_objects (model_bag/*:ModelBag*/) {
   model_bag.objects = [];
+  model_bag.atom_array = [];
   var ligand_balls = null;
   if (model_bag.conf.ligand_style === 'ball&stick' && this.has_frag_depth()) {
     ligand_balls = this.config.ball_size;
@@ -8518,6 +8534,7 @@ exports.WebGLRenderer = WebGLRenderer;
 exports.addXyzCross = addXyzCross;
 exports.fog_end_fragment = fog_end_fragment;
 exports.fog_pars_fragment = fog_pars_fragment;
+exports.line_raycast = line_raycast;
 exports.makeBalls = makeBalls;
 exports.makeChickenWire = makeChickenWire;
 exports.makeCube = makeCube;

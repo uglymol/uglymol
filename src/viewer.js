@@ -204,6 +204,7 @@ class ModelBag {
   conf: Object
   win_size: Num2
   objects: Object[]
+  atom_array: AtomT[]
   static ctor_counter: number
   */
   constructor(model/*:Model*/, config/*:Object*/, win_size/*:Num2*/) {
@@ -214,6 +215,7 @@ class ModelBag {
     this.conf = config;
     this.win_size = win_size;
     this.objects = []; // list of three.js objects
+    this.atom_array = [];
   }
 
   get_visible_atoms() {
@@ -289,6 +291,7 @@ class ModelBag {
         this.objects.push(makeWheels(sphere_arr, sphere_color_arr, linewidth));
       }
     }
+    sphere_arr.forEach(function (v) { this.atom_array.push(v); }, this);
   }
 
   add_trace() {
@@ -311,6 +314,7 @@ class ModelBag {
       const line = makeLine(material, pos, color_slice);
       this.objects.push(line);
     }
+    this.atom_array = visible_atoms;
   }
 
   add_ribbon(smoothness/*:number*/) {
@@ -563,14 +567,33 @@ export class Viewer {
       // '0.15' b/c the furthest 15% is hardly visible in the fog
       let far = camera.far - 0.15 * (camera.far - camera.near);
       let intersects = [];
+      /*
+      // previous version - line-based search
       for (const object of bag.objects) {
         if (object.visible === false) continue;
-        object.raycast({ray, near, far, precision: 0.3}, intersects);
+        if (object.userData.bond_lines) {
+          line_raycast(object, {ray, near, far, precision: 0.3}, intersects);
+        }
       }
+      */
+      // search directly atom array ignoring matrixWorld
+      let vec = new Vector3();
+      for (const atom of bag.atom_array) {
+        vec.set(atom.xyz[0] - ray.origin.x,
+                atom.xyz[1] - ray.origin.y,
+                atom.xyz[2] - ray.origin.z);
+        let distance = vec.dot(ray.direction);
+        if (distance < 0 || distance < near || distance > far) continue;
+        let dist2 = vec.addScaledVector(ray.direction, -distance).lengthSq();
+        if (dist2 > 0.25) continue;
+        intersects.push({distance, atom, dist2});
+      }
+
       if (intersects.length > 0) {
-        intersects.sort(function (x) { return x.line_dist || Infinity; });
-        const p = intersects[0].point;
-        const atom = bag.model.get_nearest_atom(p.x, p.y, p.z);
+        intersects.sort(function (x) { return x.dist2 || Infinity; });
+        //const p = intersects[0].point;
+        //const atom = bag.model.get_nearest_atom(p.x, p.y, p.z);
+        const atom = intersects[0].atom;
         if (atom != null) {
           return {bag, atom};
         }
@@ -697,6 +720,7 @@ export class Viewer {
 
   set_model_objects(model_bag/*:ModelBag*/) {
     model_bag.objects = [];
+    model_bag.atom_array = [];
     let ligand_balls = null;
     if (model_bag.conf.ligand_style === 'ball&stick' && this.has_frag_depth()) {
       ligand_balls = this.config.ball_size;

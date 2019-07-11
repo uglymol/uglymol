@@ -1652,8 +1652,6 @@ Object.assign( Object3D.prototype, EventDispatcher.prototype, {
     }
   },
 
-  raycast: function () {},
-
   updateMatrix: function () {
     this.matrix.compose( this.position, this.quaternion, this.scale );
 
