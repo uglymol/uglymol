@@ -1,5 +1,5 @@
 /*!
- * UglyMol v0.6.3. Macromolecular Viewer for Crystallographers.
+ * UglyMol v0.6.4. Macromolecular Viewer for Crystallographers.
  * Copyright 2014 Nat Echols
  * Copyright 2016 Diamond Light Source Ltd
  * Copyright 2016 Marcin Wojdyr
@@ -11,7 +11,7 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 (global = global || self, factory(global.UM = {}));
 }(this, function (exports) { 'use strict';
 
-var VERSION = exports.VERSION = '0.6.3';
+var VERSION = exports.VERSION = '0.6.4';
 
 
 // @flow
