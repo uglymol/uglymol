@@ -20,7 +20,7 @@ let build = {
     name: 'UM',
     intro: `var VERSION = exports.VERSION = '${version}';\n`,
     banner,
-    sourcemap: true,
+    sourcemap: false,
     indent: false,
   },
 };

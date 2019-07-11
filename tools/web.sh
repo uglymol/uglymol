@@ -20,7 +20,8 @@ for path in three/build/three.min.js benchmark/benchmark.js \
     diff -q $npath $outdir/$npath || cp $npath $outdir/$npath
 done
 
-cp uglymol.js uglymol.js.map uglymol.min.js LICENSE perf.html $outdir/
+cp uglymol.js LICENSE perf.html $outdir/
+#cp uglymol.js.map uglymol.min.js $outdir/
 cp perf/* $outdir/perf/
 cp test/*.html $outdir/test/
 

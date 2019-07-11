@@ -8556,4 +8556,3 @@ exports.modelsFromPDB = modelsFromPDB;
 Object.defineProperty(exports, '__esModule', { value: true });
 
 }));
-//# sourceMappingURL=uglymol.js.map
