@@ -6888,6 +6888,7 @@ var Viewer = function Viewer(options /*: {[key: string]: any}*/) {
 };
 
 Viewer.prototype.pick_atom = function pick_atom (coords/*:Num2*/, camera/*:OrthographicCamera*/) {
+  var pick = null;
   for (var i$1 = 0, list$1 = this.model_bags; i$1 < list$1.length; i$1 += 1) {
     var bag = list$1[i$1];
 
@@ -6899,18 +6900,29 @@ Viewer.prototype.pick_atom = function pick_atom (coords/*:Num2*/, camera/*:Ortho
     var near = camera.near;
     // '0.15' b/c the furthest 15% is hardly visible in the fog
     var far = camera.far - 0.15 * (camera.far - camera.near);
-    var intersects = [];
     /*
     // previous version - line-based search
+    let intersects = [];
     for (const object of bag.objects) {
       if (object.visible === false) continue;
       if (object.userData.bond_lines) {
         line_raycast(object, {ray, near, far, precision: 0.3}, intersects);
       }
     }
+    ...
+    if (intersects.length > 0) {
+      intersects.sort(function (x) { return x.dist2 || Infinity; });
+      const p = intersects[0].point;
+      const atom = bag.model.get_nearest_atom(p.x, p.y, p.z);
+      if (atom != null) {
+        return {bag, atom};
+      }
+    }
     */
     // search directly atom array ignoring matrixWorld
     var vec = new Vector3();
+    // required picking precision: 0.35A at zoom 50, 0.27A @z30, 0.44 @z80
+    var precision2 = 0.35 * 0.35 * 0.02 * camera.zoom;
     for (var i = 0, list = bag.atom_array; i < list.length; i += 1) {
       var atom = list[i];
 
@@ -6919,21 +6931,14 @@ Viewer.prototype.pick_atom = function pick_atom (coords/*:Num2*/, camera/*:Ortho
               atom.xyz[2] - ray.origin.z);
       var distance = vec.dot(ray.direction);
       if (distance < 0 || distance < near || distance > far) { continue; }
-      var dist2 = vec.addScaledVector(ray.direction, -distance).lengthSq();
-      if (dist2 > 0.25) { continue; }
-      intersects.push({distance: distance, atom: atom, dist2: dist2});
-    }
-
-    if (intersects.length > 0) {
-      intersects.sort(function (x) { return x.dist2 || Infinity; });
-      //const p = intersects[0].point;
-      //const atom = bag.model.get_nearest_atom(p.x, p.y, p.z);
-      var atom$1 = intersects[0].atom;
-      if (atom$1 != null) {
-        return {bag: bag, atom: atom$1};
+      var diff2 = vec.addScaledVector(ray.direction, -distance).lengthSq();
+      if (diff2 > precision2) { continue; }
+      if (pick == null || distance < pick.distance) {
+        pick = {bag: bag, atom: atom, distance: distance};
       }
     }
   }
+  return pick;
 };
 
 Viewer.prototype.set_colors = function set_colors (scheme/*:?number|string|ColorScheme*/) {

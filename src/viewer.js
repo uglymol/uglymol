@@ -559,6 +559,7 @@ export class Viewer {
   }
 
   pick_atom(coords/*:Num2*/, camera/*:OrthographicCamera*/) {
+    let pick = null;
     for (const bag of this.model_bags) {
       if (!bag.visible) continue;
       const z = (camera.near + camera.far) / (camera.near - camera.far);
@@ -568,39 +569,43 @@ export class Viewer {
       let near = camera.near;
       // '0.15' b/c the furthest 15% is hardly visible in the fog
       let far = camera.far - 0.15 * (camera.far - camera.near);
-      let intersects = [];
       /*
       // previous version - line-based search
+      let intersects = [];
       for (const object of bag.objects) {
         if (object.visible === false) continue;
         if (object.userData.bond_lines) {
           line_raycast(object, {ray, near, far, precision: 0.3}, intersects);
         }
       }
+      ...
+      if (intersects.length > 0) {
+        intersects.sort(function (x) { return x.dist2 || Infinity; });
+        const p = intersects[0].point;
+        const atom = bag.model.get_nearest_atom(p.x, p.y, p.z);
+        if (atom != null) {
+          return {bag, atom};
+        }
+      }
       */
       // search directly atom array ignoring matrixWorld
       let vec = new Vector3();
+      // required picking precision: 0.35A at zoom 50, 0.27A @z30, 0.44 @z80
+      const precision2 = 0.35 * 0.35 * 0.02 * camera.zoom;
       for (const atom of bag.atom_array) {
         vec.set(atom.xyz[0] - ray.origin.x,
                 atom.xyz[1] - ray.origin.y,
                 atom.xyz[2] - ray.origin.z);
         let distance = vec.dot(ray.direction);
         if (distance < 0 || distance < near || distance > far) continue;
-        let dist2 = vec.addScaledVector(ray.direction, -distance).lengthSq();
-        if (dist2 > 0.25) continue;
-        intersects.push({distance, atom, dist2});
-      }
-
-      if (intersects.length > 0) {
-        intersects.sort(function (x) { return x.dist2 || Infinity; });
-        //const p = intersects[0].point;
-        //const atom = bag.model.get_nearest_atom(p.x, p.y, p.z);
-        const atom = intersects[0].atom;
-        if (atom != null) {
-          return {bag, atom};
+        let diff2 = vec.addScaledVector(ray.direction, -distance).lengthSq();
+        if (diff2 > precision2) continue;
+        if (pick == null || distance < pick.distance) {
+          pick = {bag, atom, distance};
         }
       }
     }
+    return pick;
   }
 
   set_colors(scheme/*:?number|string|ColorScheme*/) {
