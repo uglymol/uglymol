@@ -1519,14 +1519,14 @@ export class Viewer {
     this.set_dropzone(zone, function (file) {
       const reader = new FileReader();
       if (/\.(pdb|ent)$/.test(file.name)) {
-        reader.onload = function (evt) {
+        reader.onload = function (evt/*:any*/) {
           self.load_pdb_from_text(evt.target.result);
           self.recenter();
         };
         reader.readAsText(file);
       } else if (/\.(map|ccp4|mrc|dsn6|omap)$/.test(file.name)) {
         const map_format = /\.(dsn6|omap)$/.test(file.name) ? 'dsn6' : 'ccp4';
-        reader.onloadend = function (evt) {
+        reader.onloadend = function (evt/*:any*/) {
           if (evt.target.readyState == 2) {
             self.load_map_from_buffer(evt.target.result, {format: map_format});
             if (self.model_bags.length === 0 && self.map_bags.length === 1) {
@@ -1700,7 +1700,7 @@ Viewer.prototype.KEYBOARD_HELP = [
 
 Viewer.prototype.ABOUT_HELP =
   '&nbsp; <a href="https://uglymol.github.io">uglymol</a> ' +
-  // $FlowFixMe
+  // $FlowFixMe: Cannot resolve name VERSION.
   (typeof VERSION === 'string' ? VERSION : 'dev'); // eslint-disable-line
 
 Viewer.prototype.ColorSchemes = ColorSchemes;

@@ -7876,14 +7876,14 @@ Viewer.prototype.set_pdb_and_map_dropzone = function set_pdb_and_map_dropzone (z
   this.set_dropzone(zone, function (file) {
     var reader = new FileReader();
     if (/\.(pdb|ent)$/.test(file.name)) {
-      reader.onload = function (evt) {
+      reader.onload = function (evt/*:any*/) {
         self.load_pdb_from_text(evt.target.result);
         self.recenter();
       };
       reader.readAsText(file);
     } else if (/\.(map|ccp4|mrc|dsn6|omap)$/.test(file.name)) {
       var map_format = /\.(dsn6|omap)$/.test(file.name) ? 'dsn6' : 'ccp4';
-      reader.onloadend = function (evt) {
+      reader.onloadend = function (evt/*:any*/) {
         if (evt.target.readyState == 2) {
           self.load_map_from_buffer(evt.target.result, {format: map_format});
           if (self.model_bags.length === 0 && self.map_bags.length === 1) {
@@ -8295,14 +8295,14 @@ var ReciprocalViewer = /*@__PURE__*/(function (Viewer) {
     var self = this;
     var reader = new FileReader();
     if (/\.(map|ccp4)$/.test(file.name)) {
-      reader.onloadend = function (evt) {
+      reader.onloadend = function (evt/*:any*/) {
         if (evt.target.readyState == 2) {
           self.load_map_from_ab(evt.target.result);
         }
       };
       reader.readAsArrayBuffer(file);
     } else {
-      reader.onload = function (evt) {
+      reader.onload = function (evt/*:any*/) {
         self.load_from_string(evt.target.result, {});
       };
       reader.readAsText(file);
