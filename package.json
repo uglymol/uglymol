@@ -12,13 +12,14 @@
     "uglymol.min.js",
     "src"
   ],
+  "eslintIgnore": ["src/wasm/*"],
   "dependencies": {},
   "devDependencies": {
     "benchmark": "^2.1.0",
     "chai": "^4.0.0",
     "eslint": "^6.0.1",
     "eslint-config-google": "^0.14.0",
-    "flow-bin": "^0.108.0",
+    "flow-bin": "^0.109.0",
     "http-server": "^0.11.0",
     "istanbul": "^0.4.5",
     "mocha": "^5.2.0",

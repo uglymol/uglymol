@@ -8,7 +8,7 @@ function modulo(a, b) {
   return reminder >= 0 ? reminder : reminder + b;
 }
 
-class GridArray {
+export class GridArray {
   /*::
   dim: number[]
   values: Float32Array

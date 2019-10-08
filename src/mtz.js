@@ -1,0 +1,65 @@
+import { UnitCell } from './unitcell.js';
+import { ElMap, GridArray } from './elmap.js';
+
+/*::
+ import type {Viewer} from './viewer.js'
+ */
+
+export
+function load_maps_from_mtz_buffer(viewer/*:Viewer*/, mtz_buf/*:ArrayBuffer*/) {
+  var t0 = performance.now();
+  /* global Module, HEAPF32 */
+  let arr = new Uint8Array(mtz_buf);
+  let buffer = Module._malloc(arr.length);
+  Module.writeArrayToMemory(arr, buffer);
+  let mtz = new Module.MtzMap(buffer, arr.length);
+  var t1 = performance.now();
+  var t2 = [];
+  var t3 = [];
+  for (let nmap = 0; nmap < 2; ++nmap) {
+    let is_diff = (nmap == 1);
+    let map_data = mtz.calculate_map(is_diff);
+    t2.push(performance.now());
+    let map = new ElMap();
+    map.unit_cell = new UnitCell(
+      mtz.cell_param(0), mtz.cell_param(1), mtz.cell_param(2),
+      mtz.cell_param(3), mtz.cell_param(4), mtz.cell_param(5));
+    map.stats.rms = mtz.rmsd;
+    map.grid = new GridArray([mtz.nx, mtz.ny, mtz.nz]);
+    let len = mtz.nx * mtz.ny * mtz.nz;
+    console.log("fft size", mtz.nx, mtz.ny, mtz.nz);
+    let view = HEAPF32.subarray(map_data/4, map_data/4 + len);
+    let grid_arr = map.grid;
+    //grid_arr.values.set(view);
+    let idx = 0;
+    for (let k = 0; k < grid_arr.dim[2]; ++k) {
+      for (let j = 0; j < grid_arr.dim[1]; ++j) {
+        for (let i = 0; i < grid_arr.dim[0]; ++i) {
+          grid_arr.set_grid_value(i, j, k, view[idx]);
+          ++idx;
+        }
+      }
+    }
+    viewer.add_map(map, is_diff);
+    t3.push(performance.now());
+  }
+  Module._free(buffer);
+  mtz.delete();
+  var t4 = performance.now();
+  console.log("reading mtz: " + (t1 - t0) + " ms.");
+  console.log("map 1 fft: " + (t2[0] - t1) + " ms.");
+  console.log("map 1 copy: " + (t3[0] - t2[0]) + " ms.");
+  console.log("map 2 fft: " + (t2[1] - t3[0]) + " ms.");
+  console.log("map 2 copy: " + (t3[1] - t2[1]) + " ms.");
+  console.log("total: " + (t4 - t0) + " ms.");
+}
+
+export
+function load_maps_from_mtz(viewer/*:Viewer*/, url/*:string*/,
+                            callback/*:?Function*/) {
+  viewer.load_file(url, {binary: true, progress: true}, function (req) {
+    load_maps_from_mtz_buffer(viewer, req.response);
+    if (callback) callback();
+  });
+}
+

@@ -8038,7 +8038,7 @@ Viewer.prototype.KEYBOARD_HELP = [
 
 Viewer.prototype.ABOUT_HELP =
   '&nbsp; <a href="https://uglymol.github.io">uglymol</a> ' +
-  // $FlowFixMe
+  // $FlowFixMe: Cannot resolve name VERSION.
   (typeof VERSION === 'string' ? VERSION : 'dev'); // eslint-disable-line
 
 Viewer.prototype.ColorSchemes = ColorSchemes;
@@ -8507,6 +8507,66 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
 ReciprocalViewer.prototype.MOUSE_HELP =
     Viewer.prototype.MOUSE_HELP.split('\n').slice(0, -2).join('\n');
 
+/*::
+ import type {Viewer} from './viewer.js'
+ */
+
+function load_maps_from_mtz_buffer(viewer/*:Viewer*/, mtz_buf/*:ArrayBuffer*/) {
+  var t0 = performance.now();
+  /* global Module, HEAPF32 */
+  var arr = new Uint8Array(mtz_buf);
+  var buffer = Module._malloc(arr.length);
+  Module.writeArrayToMemory(arr, buffer);
+  var mtz = new Module.MtzMap(buffer, arr.length);
+  var t1 = performance.now();
+  var t2 = [];
+  var t3 = [];
+  for (var nmap = 0; nmap < 2; ++nmap) {
+    var is_diff = (nmap == 1);
+    var map_data = mtz.calculate_map(is_diff);
+    t2.push(performance.now());
+    var map = new ElMap();
+    map.unit_cell = new UnitCell(
+      mtz.cell_param(0), mtz.cell_param(1), mtz.cell_param(2),
+      mtz.cell_param(3), mtz.cell_param(4), mtz.cell_param(5));
+    map.stats.rms = mtz.rmsd;
+    map.grid = new GridArray([mtz.nx, mtz.ny, mtz.nz]);
+    var len = mtz.nx * mtz.ny * mtz.nz;
+    console.log("fft size", mtz.nx, mtz.ny, mtz.nz);
+    var view = HEAPF32.subarray(map_data/4, map_data/4 + len);
+    var grid_arr = map.grid;
+    //grid_arr.values.set(view);
+    var idx = 0;
+    for (var k = 0; k < grid_arr.dim[2]; ++k) {
+      for (var j = 0; j < grid_arr.dim[1]; ++j) {
+        for (var i = 0; i < grid_arr.dim[0]; ++i) {
+          grid_arr.set_grid_value(i, j, k, view[idx]);
+          ++idx;
+        }
+      }
+    }
+    viewer.add_map(map, is_diff);
+    t3.push(performance.now());
+  }
+  Module._free(buffer);
+  mtz.delete();
+  var t4 = performance.now();
+  console.log("reading mtz: " + (t1 - t0) + " ms.");
+  console.log("map 1 fft: " + (t2[0] - t1) + " ms.");
+  console.log("map 1 copy: " + (t3[0] - t2[0]) + " ms.");
+  console.log("map 2 fft: " + (t2[1] - t3[0]) + " ms.");
+  console.log("map 2 copy: " + (t3[1] - t2[1]) + " ms.");
+  console.log("total: " + (t4 - t0) + " ms.");
+}
+
+function load_maps_from_mtz(viewer/*:Viewer*/, url/*:string*/,
+                            callback/*:?Function*/) {
+  viewer.load_file(url, {binary: true, progress: true}, function (req) {
+    load_maps_from_mtz_buffer(viewer, req.response);
+    if (callback) { callback(); }
+  });
+}
+
 exports.AmbientLight = AmbientLight;
 exports.Block = Block;
 exports.BufferAttribute = BufferAttribute;
@@ -8516,6 +8576,7 @@ exports.Color = Color;
 exports.Controls = Controls;
 exports.ElMap = ElMap;
 exports.Fog = Fog;
+exports.GridArray = GridArray;
 exports.Line = Line;
 exports.LineSegments = LineSegments;
 exports.Matrix4 = Matrix4;
@@ -8541,6 +8602,8 @@ exports.addXyzCross = addXyzCross;
 exports.fog_end_fragment = fog_end_fragment;
 exports.fog_pars_fragment = fog_pars_fragment;
 exports.line_raycast = line_raycast;
+exports.load_maps_from_mtz = load_maps_from_mtz;
+exports.load_maps_from_mtz_buffer = load_maps_from_mtz_buffer;
 exports.makeBalls = makeBalls;
 exports.makeChickenWire = makeChickenWire;
 exports.makeCube = makeCube;
