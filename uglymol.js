@@ -1,5 +1,5 @@
 /*!
- * UglyMol v0.6.4. Macromolecular Viewer for Crystallographers.
+ * UglyMol v0.7.0. Macromolecular Viewer for Crystallographers.
  * Copyright 2014 Nat Echols
  * Copyright 2016 Diamond Light Source Ltd
  * Copyright 2016 Marcin Wojdyr
@@ -11,7 +11,7 @@ typeof define === 'function' && define.amd ? define(['exports'], factory) :
 (global = global || self, factory(global.UM = {}));
 }(this, function (exports) { 'use strict';
 
-var VERSION = exports.VERSION = '0.6.4';
+var VERSION = exports.VERSION = '0.7.0';
 
 
 // @flow
@@ -8532,7 +8532,7 @@ function load_maps_from_mtz_buffer(viewer/*:Viewer*/, mtz_buf/*:ArrayBuffer*/) {
     map.stats.rms = mtz.rmsd;
     map.grid = new GridArray([mtz.nx, mtz.ny, mtz.nz]);
     var len = mtz.nx * mtz.ny * mtz.nz;
-    console.log("fft size", mtz.nx, mtz.ny, mtz.nz);
+    console.log('fft size', mtz.nx, mtz.ny, mtz.nz);
     var view = HEAPF32.subarray(map_data/4, map_data/4 + len);
     var grid_arr = map.grid;
     //grid_arr.values.set(view);
@@ -8551,12 +8551,12 @@ function load_maps_from_mtz_buffer(viewer/*:Viewer*/, mtz_buf/*:ArrayBuffer*/) {
   Module._free(buffer);
   mtz.delete();
   var t4 = performance.now();
-  console.log("reading mtz: " + (t1 - t0) + " ms.");
-  console.log("map 1 fft: " + (t2[0] - t1) + " ms.");
-  console.log("map 1 copy: " + (t3[0] - t2[0]) + " ms.");
-  console.log("map 2 fft: " + (t2[1] - t3[0]) + " ms.");
-  console.log("map 2 copy: " + (t3[1] - t2[1]) + " ms.");
-  console.log("total: " + (t4 - t0) + " ms.");
+  console.log('reading mtz: ' + (t1 - t0) + ' ms.');
+  console.log('map 1 fft: ' + (t2[0] - t1) + ' ms.');
+  console.log('map 1 copy: ' + (t3[0] - t2[0]) + ' ms.');
+  console.log('map 2 fft: ' + (t2[1] - t3[0]) + ' ms.');
+  console.log('map 2 copy: ' + (t3[1] - t2[1]) + ' ms.');
+  console.log('total: ' + (t4 - t0) + ' ms.');
 }
 
 function load_maps_from_mtz(viewer/*:Viewer*/, url/*:string*/,

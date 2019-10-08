@@ -7,15 +7,15 @@ import { ElMap, GridArray } from './elmap.js';
 
 export
 function load_maps_from_mtz_buffer(viewer/*:Viewer*/, mtz_buf/*:ArrayBuffer*/) {
-  var t0 = performance.now();
+  let t0 = performance.now();
   /* global Module, HEAPF32 */
   let arr = new Uint8Array(mtz_buf);
   let buffer = Module._malloc(arr.length);
   Module.writeArrayToMemory(arr, buffer);
   let mtz = new Module.MtzMap(buffer, arr.length);
-  var t1 = performance.now();
-  var t2 = [];
-  var t3 = [];
+  let t1 = performance.now();
+  let t2 = [];
+  let t3 = [];
   for (let nmap = 0; nmap < 2; ++nmap) {
     let is_diff = (nmap == 1);
     let map_data = mtz.calculate_map(is_diff);
@@ -27,7 +27,7 @@ function load_maps_from_mtz_buffer(viewer/*:Viewer*/, mtz_buf/*:ArrayBuffer*/) {
     map.stats.rms = mtz.rmsd;
     map.grid = new GridArray([mtz.nx, mtz.ny, mtz.nz]);
     let len = mtz.nx * mtz.ny * mtz.nz;
-    console.log("fft size", mtz.nx, mtz.ny, mtz.nz);
+    console.log('fft size', mtz.nx, mtz.ny, mtz.nz);
     let view = HEAPF32.subarray(map_data/4, map_data/4 + len);
     let grid_arr = map.grid;
     //grid_arr.values.set(view);
@@ -45,13 +45,13 @@ function load_maps_from_mtz_buffer(viewer/*:Viewer*/, mtz_buf/*:ArrayBuffer*/) {
   }
   Module._free(buffer);
   mtz.delete();
-  var t4 = performance.now();
-  console.log("reading mtz: " + (t1 - t0) + " ms.");
-  console.log("map 1 fft: " + (t2[0] - t1) + " ms.");
-  console.log("map 1 copy: " + (t3[0] - t2[0]) + " ms.");
-  console.log("map 2 fft: " + (t2[1] - t3[0]) + " ms.");
-  console.log("map 2 copy: " + (t3[1] - t2[1]) + " ms.");
-  console.log("total: " + (t4 - t0) + " ms.");
+  let t4 = performance.now();
+  console.log('reading mtz: ' + (t1 - t0) + ' ms.');
+  console.log('map 1 fft: ' + (t2[0] - t1) + ' ms.');
+  console.log('map 1 copy: ' + (t3[0] - t2[0]) + ' ms.');
+  console.log('map 2 fft: ' + (t2[1] - t3[0]) + ' ms.');
+  console.log('map 2 copy: ' + (t3[1] - t2[1]) + ' ms.');
+  console.log('total: ' + (t4 - t0) + ' ms.');
 }
 
 export

@@ -1,6 +1,6 @@
 {
   "name": "uglymol",
-  "version": "0.6.4",
+  "version": "0.7.0",
   "description": "Macromolecular Viewer for Crystallographers",
   "homepage": "https://uglymol.github.io",
   "main": "uglymol.js",
