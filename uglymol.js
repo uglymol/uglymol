@@ -8530,21 +8530,10 @@ function load_maps_from_mtz_buffer(viewer/*:Viewer*/, mtz_buf/*:ArrayBuffer*/) {
       mtz.cell_param(0), mtz.cell_param(1), mtz.cell_param(2),
       mtz.cell_param(3), mtz.cell_param(4), mtz.cell_param(5));
     map.stats.rms = mtz.rmsd;
-    map.grid = new GridArray([mtz.nx, mtz.ny, mtz.nz]);
+    map.grid = new GridArray([mtz.nz, mtz.ny, mtz.nx]);
     var len = mtz.nx * mtz.ny * mtz.nz;
     console.log('fft size', mtz.nx, mtz.ny, mtz.nz);
-    var view = HEAPF32.subarray(map_data/4, map_data/4 + len);
-    var grid_arr = map.grid;
-    //grid_arr.values.set(view);
-    var idx = 0;
-    for (var k = 0; k < grid_arr.dim[2]; ++k) {
-      for (var j = 0; j < grid_arr.dim[1]; ++j) {
-        for (var i = 0; i < grid_arr.dim[0]; ++i) {
-          grid_arr.set_grid_value(i, j, k, view[idx]);
-          ++idx;
-        }
-      }
-    }
+    map.grid.values.set(HEAPF32.subarray(map_data/4, map_data/4 + len));
     viewer.add_map(map, is_diff);
     t3.push(performance.now());
   }
