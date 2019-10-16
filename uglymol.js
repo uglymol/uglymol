@@ -7871,32 +7871,31 @@ Viewer.prototype.set_dropzone = function set_dropzone (zone/*:Object*/, callback
   });
 };
 
-Viewer.prototype.set_pdb_and_map_dropzone = function set_pdb_and_map_dropzone (zone/*:Object*/) {
+// for use with set_dropzone
+Viewer.prototype.pick_pdb_and_map = function pick_pdb_and_map (file/*:File*/) {
   var self = this;
-  this.set_dropzone(zone, function (file) {
-    var reader = new FileReader();
-    if (/\.(pdb|ent)$/.test(file.name)) {
-      reader.onload = function (evt/*:any*/) {
-        self.load_pdb_from_text(evt.target.result);
-        self.recenter();
-      };
-      reader.readAsText(file);
-    } else if (/\.(map|ccp4|mrc|dsn6|omap)$/.test(file.name)) {
-      var map_format = /\.(dsn6|omap)$/.test(file.name) ? 'dsn6' : 'ccp4';
-      reader.onloadend = function (evt/*:any*/) {
-        if (evt.target.readyState == 2) {
-          self.load_map_from_buffer(evt.target.result, {format: map_format});
-          if (self.model_bags.length === 0 && self.map_bags.length === 1) {
-            self.recenter();
-          }
+  var reader = new FileReader();
+  if (/\.(pdb|ent)$/.test(file.name)) {
+    reader.onload = function (evt/*:any*/) {
+      self.load_pdb_from_text(evt.target.result);
+      self.recenter();
+    };
+    reader.readAsText(file);
+  } else if (/\.(map|ccp4|mrc|dsn6|omap)$/.test(file.name)) {
+    var map_format = /\.(dsn6|omap)$/.test(file.name) ? 'dsn6' : 'ccp4';
+    reader.onloadend = function (evt/*:any*/) {
+      if (evt.target.readyState == 2) {
+        self.load_map_from_buffer(evt.target.result, {format: map_format});
+        if (self.model_bags.length === 0 && self.map_bags.length === 1) {
+          self.recenter();
         }
-      };
-      reader.readAsArrayBuffer(file);
-    } else {
-      throw Error('Unknown file extension. ' +
-                  'Use: pdb, ent, ccp4, mrc, map, dsn6 or omap.');
-    }
-  });
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    throw Error('Unknown file extension. ' +
+                'Use: pdb, ent, ccp4, mrc, map, dsn6 or omap.');
+  }
 };
 
 Viewer.prototype.set_view = function set_view (options/*:?Object*/) {
@@ -8507,45 +8506,49 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
 ReciprocalViewer.prototype.MOUSE_HELP =
     Viewer.prototype.MOUSE_HELP.split('\n').slice(0, -2).join('\n');
 
+// @flow
+
 /*::
  import type {Viewer} from './viewer.js'
+ declare var Module: any;
+ declare var HEAPF32: Float32Array;
  */
 
 function load_maps_from_mtz_buffer(viewer/*:Viewer*/, mtz_buf/*:ArrayBuffer*/) {
-  var t0 = performance.now();
+  //let t0 = performance.now();
   /* global Module, HEAPF32 */
   var arr = new Uint8Array(mtz_buf);
   var buffer = Module._malloc(arr.length);
   Module.writeArrayToMemory(arr, buffer);
   var mtz = new Module.MtzMap(buffer, arr.length);
-  var t1 = performance.now();
-  var t2 = [];
-  var t3 = [];
+  //let t1 = performance.now();
+  //let t2 = [];
+  //let t3 = [];
   for (var nmap = 0; nmap < 2; ++nmap) {
     var is_diff = (nmap == 1);
     var map_data = mtz.calculate_map(is_diff);
-    t2.push(performance.now());
+    //t2.push(performance.now());
     var map = new ElMap();
     map.unit_cell = new UnitCell(
       mtz.cell_param(0), mtz.cell_param(1), mtz.cell_param(2),
       mtz.cell_param(3), mtz.cell_param(4), mtz.cell_param(5));
     map.stats.rms = mtz.rmsd;
-    map.grid = new GridArray([mtz.nz, mtz.ny, mtz.nx]);
     var len = mtz.nx * mtz.ny * mtz.nz;
     console.log('fft size', mtz.nx, mtz.ny, mtz.nz);
+    map.grid = new GridArray([mtz.nz, mtz.ny, mtz.nx]);
     map.grid.values.set(HEAPF32.subarray(map_data/4, map_data/4 + len));
     viewer.add_map(map, is_diff);
-    t3.push(performance.now());
+    //t3.push(performance.now());
   }
   Module._free(buffer);
   mtz.delete();
-  var t4 = performance.now();
-  console.log('reading mtz: ' + (t1 - t0) + ' ms.');
-  console.log('map 1 fft: ' + (t2[0] - t1) + ' ms.');
-  console.log('map 1 copy: ' + (t3[0] - t2[0]) + ' ms.');
-  console.log('map 2 fft: ' + (t2[1] - t3[0]) + ' ms.');
-  console.log('map 2 copy: ' + (t3[1] - t2[1]) + ' ms.');
-  console.log('total: ' + (t4 - t0) + ' ms.');
+  //let t4 = performance.now();
+  //console.log('reading mtz: ' + (t1 - t0) + ' ms.');
+  //console.log('map 1 fft: ' + (t2[0] - t1) + ' ms.');
+  //console.log('map 1 copy: ' + (t3[0] - t2[0]) + ' ms.');
+  //console.log('map 2 fft: ' + (t2[1] - t3[0]) + ' ms.');
+  //console.log('map 2 copy: ' + (t3[1] - t2[1]) + ' ms.');
+  //console.log('total: ' + (t4 - t0) + ' ms.');
 }
 
 function load_maps_from_mtz(viewer/*:Viewer*/, url/*:string*/,
@@ -8553,6 +8556,25 @@ function load_maps_from_mtz(viewer/*:Viewer*/, url/*:string*/,
   viewer.load_file(url, {binary: true, progress: true}, function (req) {
     load_maps_from_mtz_buffer(viewer, req.response);
     if (callback) { callback(); }
+  });
+}
+
+function set_pdb_and_mtz_dropzone(viewer/*:Viewer*/, zone/*:Object*/) {
+  viewer.set_dropzone(zone, function (file) {
+    if (/\.mtz$/.test(file.name)) {
+      var reader = new FileReader();
+      reader.onloadend = function (evt/*:any*/) {
+        if (evt.target.readyState == 2) {
+          load_maps_from_mtz_buffer(viewer, evt.target.result);
+          if (viewer.model_bags.length === 0 && viewer.map_bags.length <= 2) {
+            viewer.recenter();
+          }
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      viewer.pick_pdb_and_map(file);
+    }
   });
 }
 
@@ -8609,6 +8631,7 @@ exports.makeSticks = makeSticks;
 exports.makeUniforms = makeUniforms;
 exports.makeWheels = makeWheels;
 exports.modelsFromPDB = modelsFromPDB;
+exports.set_pdb_and_mtz_dropzone = set_pdb_and_mtz_dropzone;
 
 Object.defineProperty(exports, '__esModule', { value: true });
 

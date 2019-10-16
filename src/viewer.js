@@ -1514,32 +1514,31 @@ export class Viewer {
     });
   }
 
-  set_pdb_and_map_dropzone(zone/*:Object*/) {
+  // for use with set_dropzone
+  pick_pdb_and_map(file/*:File*/) {
     const self = this;
-    this.set_dropzone(zone, function (file) {
-      const reader = new FileReader();
-      if (/\.(pdb|ent)$/.test(file.name)) {
-        reader.onload = function (evt/*:any*/) {
-          self.load_pdb_from_text(evt.target.result);
-          self.recenter();
-        };
-        reader.readAsText(file);
-      } else if (/\.(map|ccp4|mrc|dsn6|omap)$/.test(file.name)) {
-        const map_format = /\.(dsn6|omap)$/.test(file.name) ? 'dsn6' : 'ccp4';
-        reader.onloadend = function (evt/*:any*/) {
-          if (evt.target.readyState == 2) {
-            self.load_map_from_buffer(evt.target.result, {format: map_format});
-            if (self.model_bags.length === 0 && self.map_bags.length === 1) {
-              self.recenter();
-            }
+    const reader = new FileReader();
+    if (/\.(pdb|ent)$/.test(file.name)) {
+      reader.onload = function (evt/*:any*/) {
+        self.load_pdb_from_text(evt.target.result);
+        self.recenter();
+      };
+      reader.readAsText(file);
+    } else if (/\.(map|ccp4|mrc|dsn6|omap)$/.test(file.name)) {
+      const map_format = /\.(dsn6|omap)$/.test(file.name) ? 'dsn6' : 'ccp4';
+      reader.onloadend = function (evt/*:any*/) {
+        if (evt.target.readyState == 2) {
+          self.load_map_from_buffer(evt.target.result, {format: map_format});
+          if (self.model_bags.length === 0 && self.map_bags.length === 1) {
+            self.recenter();
           }
-        };
-        reader.readAsArrayBuffer(file);
-      } else {
-        throw Error('Unknown file extension. ' +
-                    'Use: pdb, ent, ccp4, mrc, map, dsn6 or omap.');
-      }
-    });
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      throw Error('Unknown file extension. ' +
+                  'Use: pdb, ent, ccp4, mrc, map, dsn6 or omap.');
+    }
   }
 
   set_view(options/*:?Object*/) {
