@@ -32,7 +32,7 @@
   },
   "scripts": {
     "test": "npm run lint && npm run flow && rollup -c && mocha",
-    "coverage": "nyc --reporter=html --reporter=text -x '**/perf/**' mocha --timeout 100000",
+    "coverage": "rollup -c --sourcemap && nyc --reporter=html --reporter=text -x '**/perf/**' mocha --timeout 100000",
     "lint": "eslint src test perf || exit 0",
     "flow": "flow || exit 0",
     "download-data": "node perf/util.js download-data",
