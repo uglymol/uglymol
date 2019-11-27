@@ -28,7 +28,7 @@ cp test/*.html $outdir/test/
 grep -v -- -DEV- dev.html > $outdir/1mru.html
 grep -v -- -DEV- dual.html > $outdir/dual.html
 grep -v -- -DEV- reciprocal.html > $outdir/reciprocal.html
-#grep -v -- -DEV- view.html > $outdir/view/index.html
+grep -v -- -DEV- view.html > $outdir/view/index.html
 sed -e s/1mru/4un4_final/g -e s/\\.map/_m0.map/g <$outdir/1mru.html \
     >$outdir/4un4.html
 sed -e s/1mru/dimple_thaum/g \

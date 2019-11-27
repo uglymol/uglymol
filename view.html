@@ -74,6 +74,14 @@
   <div id="inset"></div>
   <script>
     V = new UM.Viewer({viewer: "viewer", hud: "hud", help: "help"});
+    function load_from_pdbe(id, callback) {
+      V.load_pdb('https://www.ebi.ac.uk/pdbe/entry-files/pdb' + id + '.ent', {},
+                 function () {
+          UM.load_maps_from_mtz(V,
+            'https://www.ebi.ac.uk/pdbe/coordinates/files/' + id + '_map.mtz',
+            null, callback);
+      });
+    }
     function load(use_pdbe) {
       var pdbid = document.getElementById('pdbid').value.toLowerCase();
       var callback = function () {
@@ -84,7 +92,7 @@
               'H shows help',
               'HTML');
       };
-      if (use_pdbe) V.load_from_pdbe(pdbid, callback);
+      if (use_pdbe) load_from_pdbe(pdbid, callback);
       else V.load_from_rcsb(pdbid, callback);
     }
     function load_pdb_redo(id) {
@@ -94,13 +102,14 @@
             'V hides one of the models. H shows help.');
       });
     }
-    V.set_pdb_and_map_dropzone(V.renderer.domElement);
+    //V.set_pdb_and_map_dropzone(V.renderer.domElement);
+    UM.set_pdb_and_mtz_dropzone(V, V.renderer.domElement);
     var id_match = window.location.href.match(/[?&]id=([^&#]+)/);
     if (id_match) {
-      V.load_from_pdbe(id_match[1].toLowerCase());
+      load_from_pdbe(id_match[1].toLowerCase());
     } else {
       V.hud(
-    'Drag and drop your pdb and map (CCP4/DSN6) files to this window.' +
+    'Drag and drop your pdb and map or mtz files to this window.' +
     '\nAlternatively, use PDB code to load files <input type="text"' +
     ' size="5" maxlength="4" minlength="4" pattern="[0-9][0-9a-zA-Z]{3}"' +
     ' value="4UN4" id="pdbid" required' +
@@ -112,6 +121,9 @@
     'HTML');
     }
   </script>
+  <script src="src/wasm/mtzmap.js"></script> <!--DEV--><!--
+  <script src="/wasm/mtzmap.js"></script>
+  -DEV-->
 </body>
 </html>
 document.getElementById('pdbid').value
