@@ -9,7 +9,7 @@
 typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
 typeof define === 'function' && define.amd ? define(['exports'], factory) :
 (global = global || self, factory(global.UM = {}));
-}(this, function (exports) { 'use strict';
+}(this, (function (exports) { 'use strict';
 
 var VERSION = exports.VERSION = '0.7.0';
 
@@ -8514,33 +8514,51 @@ ReciprocalViewer.prototype.MOUSE_HELP =
  declare var HEAPF32: Float32Array;
  */
 
-function load_maps_from_mtz_buffer(viewer/*:Viewer*/, mtz_buf/*:ArrayBuffer*/) {
+function add_map_from_mtz(viewer, mtz, map_data, is_diff/*:boolean*/) {
+  //t2.push(performance.now());
+  var map = new ElMap();
+  map.unit_cell = new UnitCell(
+    mtz.cell_param(0), mtz.cell_param(1), mtz.cell_param(2),
+    mtz.cell_param(3), mtz.cell_param(4), mtz.cell_param(5));
+  map.stats.rms = mtz.rmsd;
+  var len = mtz.nx * mtz.ny * mtz.nz;
+  console.log('fft size', mtz.nx, mtz.ny, mtz.nz);
+  map.grid = new GridArray([mtz.nz, mtz.ny, mtz.nx]);
+  map.grid.values.set(HEAPF32.subarray(map_data/4, map_data/4 + len));
+  viewer.add_map(map, is_diff);
+  //t3.push(performance.now());
+}
+
+function load_maps_from_mtz_buffer(viewer/*:Viewer*/, mtz_buf/*:ArrayBuffer*/,
+                                   labels/*:?string[]*/) {
   //let t0 = performance.now();
   /* global Module, HEAPF32 */
   var arr = new Uint8Array(mtz_buf);
   var buffer = Module._malloc(arr.length);
   Module.writeArrayToMemory(arr, buffer);
-  var mtz = new Module.MtzMap(buffer, arr.length);
+  var mtz = new Module.Mtz(buffer, arr.length);
   //let t1 = performance.now();
   //let t2 = [];
   //let t3 = [];
-  for (var nmap = 0; nmap < 2; ++nmap) {
-    var is_diff = (nmap == 1);
-    var map_data = mtz.calculate_map(is_diff);
-    //t2.push(performance.now());
-    var map = new ElMap();
-    map.unit_cell = new UnitCell(
-      mtz.cell_param(0), mtz.cell_param(1), mtz.cell_param(2),
-      mtz.cell_param(3), mtz.cell_param(4), mtz.cell_param(5));
-    map.stats.rms = mtz.rmsd;
-    var len = mtz.nx * mtz.ny * mtz.nz;
-    console.log('fft size', mtz.nx, mtz.ny, mtz.nz);
-    map.grid = new GridArray([mtz.nz, mtz.ny, mtz.nx]);
-    map.grid.values.set(HEAPF32.subarray(map_data/4, map_data/4 + len));
-    viewer.add_map(map, is_diff);
-    //t3.push(performance.now());
+  if (labels != null) {
+    for (var n = 0; n < labels.length; n += 2) {
+      if (labels[n] === '') { continue; }
+      var map_data = mtz.calculate_map_from_labels(labels[n], labels[n+1]);
+      if (map_data !== 0) {
+        var is_diff = (n % 4 == 2);
+        add_map_from_mtz(viewer, mtz, map_data, is_diff);
+      }
+    }
+  } else {
+    for (var nmap = 0; nmap < 2; ++nmap) {
+      var is_diff$1 = (nmap == 1);
+      var map_data$1 = mtz.calculate_map(is_diff$1);
+      if (map_data$1 !== 0) {
+        add_map_from_mtz(viewer, mtz, map_data$1, is_diff$1);
+      }
+    }
   }
-  Module._free(buffer);
+  //Module._free(buffer);
   mtz.delete();
   //let t4 = performance.now();
   //console.log('reading mtz: ' + (t1 - t0) + ' ms.');
@@ -8552,9 +8570,10 @@ function load_maps_from_mtz_buffer(viewer/*:Viewer*/, mtz_buf/*:ArrayBuffer*/) {
 }
 
 function load_maps_from_mtz(viewer/*:Viewer*/, url/*:string*/,
+                            labels/*:?string[]*/,
                             callback/*:?Function*/) {
   viewer.load_file(url, {binary: true, progress: true}, function (req) {
-    load_maps_from_mtz_buffer(viewer, req.response);
+    load_maps_from_mtz_buffer(viewer, req.response, labels);
     if (callback) { callback(); }
   });
 }
@@ -8635,4 +8654,4 @@ exports.set_pdb_and_mtz_dropzone = set_pdb_and_mtz_dropzone;
 
 Object.defineProperty(exports, '__esModule', { value: true });
 
-}));
+})));
