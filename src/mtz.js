@@ -32,7 +32,11 @@ function load_maps_from_mtz_buffer(viewer/*:Viewer*/, mtz_buf/*:ArrayBuffer*/,
   let arr = new Uint8Array(mtz_buf);
   let buffer = Module._malloc(arr.length);
   Module.writeArrayToMemory(arr, buffer);
-  let mtz = new Module.Mtz(buffer, arr.length);
+  let mtz = new Module.Mtz;
+  if (!mtz.read(buffer, arr.length)) {
+    viewer.hud(mtz.last_error, 'ERR');
+    return;
+  }
   //let t1 = performance.now();
   //let t2 = [];
   //let t3 = [];
@@ -40,12 +44,14 @@ function load_maps_from_mtz_buffer(viewer/*:Viewer*/, mtz_buf/*:ArrayBuffer*/,
     for (let n = 0; n < labels.length; n += 2) {
       if (labels[n] === '') continue;
       let map_data = mtz.calculate_map_from_labels(labels[n], labels[n+1]);
-      if (map_data !== 0) {
-        let is_diff = (n % 4 == 2);
-        add_map_from_mtz(viewer, mtz, map_data, is_diff);
+      if (map_data === 0) {
+        viewer.hud(mtz.last_error, 'ERR');
+        continue;
       }
+      let is_diff = (n % 4 == 2);
+      add_map_from_mtz(viewer, mtz, map_data, is_diff);
     }
-  } else {
+  } else {  // use default labels
     for (let nmap = 0; nmap < 2; ++nmap) {
       let is_diff = (nmap == 1);
       let map_data = mtz.calculate_map(is_diff);
