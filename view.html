@@ -63,6 +63,9 @@
   <script src="uglymol.js"></script> <!--DEV--><!--
   <script src="/uglymol.js"></script>
   -DEV-->
+  <script src="src/wasm/mtz.js"></script> <!--DEV--><!--
+  <script src="/wasm/mtz.js"></script>
+  -DEV-->
 
 </head>
 <body style="background-color: black">
@@ -74,10 +77,11 @@
   <div id="inset"></div>
   <script>
     V = new UM.Viewer({viewer: "viewer", hud: "hud", help: "help"});
+    G = null;
     function load_from_pdbe(id, callback) {
       V.load_pdb('https://www.ebi.ac.uk/pdbe/entry-files/pdb' + id + '.ent', {},
                  function () {
-          UM.load_maps_from_mtz(V,
+          UM.load_maps_from_mtz(G, V,
             'https://www.ebi.ac.uk/pdbe/coordinates/files/' + id + '_map.mtz',
             null, callback);
       });
@@ -102,28 +106,28 @@
             'V hides one of the models. H shows help.');
       });
     }
-    //V.set_pdb_and_map_dropzone(V.renderer.domElement);
-    UM.set_pdb_and_mtz_dropzone(V, V.renderer.domElement);
-    var id_match = window.location.href.match(/[?&]id=([^&#]+)/);
-    if (id_match) {
-      load_from_pdbe(id_match[1].toLowerCase());
-    } else {
-      V.hud(
-    'Drag and drop your pdb and map or mtz files to this window.' +
-    '\nAlternatively, use PDB code to load files <input type="text"' +
-    ' size="5" maxlength="4" minlength="4" pattern="[0-9][0-9a-zA-Z]{3}"' +
-    ' value="4UN4" id="pdbid" required' +
-    ' onkeypress="if (event.keyCode === 13) load(true);"/> ' +
-    '<input type="submit" value="from PDBe" onclick="return load(true);"/> ' +
+    function setup(Module) {
+      G = Module;
+      //V.set_pdb_and_map_dropzone(V.renderer.domElement);
+      UM.set_pdb_and_mtz_dropzone(G, V, V.renderer.domElement);
+      var id_match = window.location.href.match(/[?&]id=([^&#]+)/);
+      if (id_match) {
+        load_from_pdbe(id_match[1].toLowerCase());
+      } else {
+        V.hud(
+      'Drag and drop your pdb and map or mtz files to this window.' +
+      '\nAlternatively, use PDB code to load files <input type="text"' +
+      ' size="5" maxlength="4" minlength="4" pattern="[0-9][0-9a-zA-Z]{3}"' +
+      ' value="4UN4" id="pdbid" required' +
+      ' onkeypress="if (event.keyCode === 13) load(true);"/> ' +
+      '<input type="submit" value="from PDBe" onclick="return load(true);"/> ' +
     //'<input type="submit" value="from RCSB" onclick="return load(false);"/>' +
-    '\nReload the page to remove all the models and maps.' +
-    '\n<a href="#" onclick="V.toggle_help(); return false;">H shows help.</a>',
-    'HTML');
+      '\nReload the page to remove all the models and maps.' +
+      '\n<a href="#" onclick="V.toggle_help();return false;">H shows help.</a>',
+      'HTML');
+      }
     }
+    GemmiMtz().then(setup);
   </script>
-  <script src="src/wasm/mtzmap.js"></script> <!--DEV--><!--
-  <script src="/wasm/mtzmap.js"></script>
-  -DEV-->
 </body>
 </html>
-document.getElementById('pdbid').value
