@@ -14,14 +14,14 @@ $(cat README.md | grep -v '^\[!\[' | sed s,https://uglymol.github.io/,,)
 EOF
 
 cp src/*.js $outdir/src/
-for path in three/build/three.min.js benchmark/benchmark.js \
-            lodash/lodash.min.js platform/platform.js; do
+for path in benchmark/benchmark.js lodash/lodash.min.js platform/platform.js; do
     npath=node_modules/$path
     diff -q $npath $outdir/$npath || cp $npath $outdir/$npath
 done
 
 cp uglymol.js LICENSE perf.html $outdir/
 #cp uglymol.js.map uglymol.min.js $outdir/
+cp src/wasm/mtz.wasm src/wasm/mtz.js $outdir/wasm/
 cp perf/* $outdir/perf/
 cp test/*.html $outdir/test/
 
