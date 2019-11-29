@@ -8561,8 +8561,13 @@ function load_maps_from_mtz(Gemmi/*:Object*/, viewer/*:Viewer*/, url/*:string*/,
                             labels/*:?string[]*/, callback/*:?Function*/) {
   viewer.load_file(url, {binary: true, progress: true}, function (req) {
     var t0 = performance.now();
-    var mtz = Gemmi.readMtz(req.response);
-    load_maps_from_mtz_buffer(viewer, mtz, labels);
+    try {
+      var mtz = Gemmi.readMtz(req.response);
+      load_maps_from_mtz_buffer(viewer, mtz, labels);
+    } catch (e) {
+      viewer.hud(e.message, 'ERR');
+      return;
+    }
     log_timing(t0, 'load_maps_from_mtz');
     if (callback) { callback(); }
   });
@@ -8576,8 +8581,13 @@ function set_pdb_and_mtz_dropzone(Gemmi/*:Object*/, viewer/*:Viewer*/,
       reader.onloadend = function (evt/*:any*/) {
         if (evt.target.readyState == 2) {
           var t0 = performance.now();
-          var mtz = Gemmi.readMtz(evt.target.result);
-          load_maps_from_mtz_buffer(viewer, mtz);
+          try {
+            var mtz = Gemmi.readMtz(evt.target.result);
+            load_maps_from_mtz_buffer(viewer, mtz);
+          } catch (e) {
+            viewer.hud(e.message, 'ERR');
+            return;
+          }
           log_timing(t0, 'mtz -> maps');
           if (viewer.model_bags.length === 0 && viewer.map_bags.length <= 2) {
             viewer.recenter();
