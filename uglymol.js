@@ -6487,6 +6487,7 @@ var INIT_HUD_TEXT = 'This is UglyMol not Coot. ' +
 var COLOR_PROPS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
 var RENDER_STYLES = ['lines', 'trace', 'ribbon', 'ball&stick'];
 var LIGAND_STYLES = ['ball&stick', 'lines'];
+var WATER_STYLES = ['cross', 'dot', 'invisible'];
 var MAP_STYLES = ['marching cubes', 'squarish' ];
 var LINE_STYLES = ['normal', 'simplistic'];
 var LABEL_FONTS = ['bold 14px', '14px', '16px', 'bold 16px'];
@@ -6594,15 +6595,20 @@ ModelBag.prototype.add_bonds = function add_bonds (polymers/*:boolean*/, ligands
                           this.conf.colors, this.hue_shift);
   var vertex_arr /*:Vector3[]*/ = [];
   var color_arr = [];
+  var sphere_arr = [];
+  var sphere_color_arr = [];
   var hydrogens = this.conf.hydrogens;
   for (var i = 0; i < visible_atoms.length; i++) {
     var atom = visible_atoms[i];
     var color = colors[i];
     if (!(atom.is_ligand ? ligands : polymers)) { continue; }
+    if (atom.is_water() && this.conf.water_style === 'invisible') { continue; }
     if (atom.bonds.length === 0 && ball_size == null) { // nonbonded - cross
-      addXyzCross(vertex_arr, atom.xyz, 0.7);
-      for (var n = 0; n < 6; n++) {
-        color_arr.push(color);
+      if (!atom.is_water() || this.conf.water_style === 'cross') {
+        addXyzCross(vertex_arr, atom.xyz, 0.7);
+        for (var n = 0; n < 6; n++) {
+          color_arr.push(color);
+        }
       }
     } else { // bonded, draw lines
       for (var j = 0; j < atom.bonds.length; j++) {
@@ -6615,27 +6621,19 @@ ModelBag.prototype.add_bonds = function add_bonds (polymers/*:boolean*/, ligands
         color_arr.push(color, color);
       }
     }
-  }
-  if (vertex_arr.length === 0) { return; }
-
-  var sphere_arr = visible_atoms;
-  var sphere_color_arr = colors;
-  if (!polymers || !ligands) {
-    sphere_arr = [];
-    sphere_color_arr = [];
-    for (var i$1 = 0; i$1 < visible_atoms.length; i$1++) {
-      if (visible_atoms[i$1].is_ligand ? ligands : polymers) {
-        sphere_arr.push(visible_atoms[i$1]);
-        sphere_color_arr.push(colors[i$1]);
-      }
-    }
+    sphere_arr.push(atom);
+    sphere_color_arr.push(color);
   }
 
-  var linewidth = scale_by_height(this.conf.bond_line, this.win_size);
   if (ball_size != null) {
-    this.objects.push(makeSticks(vertex_arr, color_arr, ball_size / 2));
-    this.objects.push(makeBalls(sphere_arr, sphere_color_arr, ball_size));
-  } else {
+    if (vertex_arr.length !== 0) {
+      this.objects.push(makeSticks(vertex_arr, color_arr, ball_size / 2));
+    }
+    if (sphere_arr.length !== 0) {
+      this.objects.push(makeBalls(sphere_arr, sphere_color_arr, ball_size));
+    }
+  } else if (vertex_arr.length !== 0) {
+    var linewidth = scale_by_height(this.conf.bond_line, this.win_size);
     var material = makeLineMaterial({
       linewidth: linewidth,
       win_size: this.win_size,
@@ -6647,6 +6645,7 @@ ModelBag.prototype.add_bonds = function add_bonds (polymers/*:boolean*/, ligands
       this.objects.push(makeWheels(sphere_arr, sphere_color_arr, linewidth));
     }
   }
+
   sphere_arr.forEach(function (v) { this.atom_array.push(v); }, this);
 };
 
@@ -6765,6 +6764,7 @@ var Viewer = function Viewer(options /*: {[key: string]: any}*/) {
     map_style: MAP_STYLES[0],
     render_style: RENDER_STYLES[0],
     ligand_style: LIGAND_STYLES[0],
+    water_style: WATER_STYLES[0],
     color_prop: COLOR_PROPS[0],
     line_style: LINE_STYLES[0],
     label_font: LABEL_FONTS[0],
@@ -7536,10 +7536,15 @@ Viewer.prototype.set_real_space_key_bindings = function set_real_space_key_bindi
   kb[80] = function (evt) {
     evt.shiftKey ? this.permalink() : this.go_to_nearest_Ca();
   };
-  // t
-  kb[84] = function (evt) {
+  // s
+  kb[83] = function (evt) {
     this.select_next('rendering as', 'render_style', RENDER_STYLES,
                      evt.shiftKey);
+    this.redraw_models();
+  };
+  // t
+  kb[84] = function (evt) {
+    this.select_next('waters as', 'water_style', WATER_STYLES, evt.shiftKey);
     this.redraw_models();
   };
   // u
@@ -8010,8 +8015,9 @@ Viewer.prototype.MOUSE_HELP = [
 Viewer.prototype.KEYBOARD_HELP = [
   '<b>keyboard:</b>',
   'H = toggle help',
-  'T = general style',
+  'S = general style',
   'L = ligand style',
+  'T = water style',
   'C = coloring',
   'B = bg color',
   'E = toggle fog',

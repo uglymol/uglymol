@@ -110,6 +110,7 @@ const INIT_HUD_TEXT = 'This is UglyMol not Coot. ' +
 const COLOR_PROPS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
 const RENDER_STYLES = ['lines', 'trace', 'ribbon', 'ball&stick'];
 const LIGAND_STYLES = ['ball&stick', 'lines'];
+const WATER_STYLES = ['cross', 'dot', 'invisible'];
 const MAP_STYLES = ['marching cubes', 'squarish'/*, 'snapped MC'*/];
 const LINE_STYLES = ['normal', 'simplistic'];
 const LABEL_FONTS = ['bold 14px', '14px', '16px', 'bold 16px'];
@@ -238,15 +239,20 @@ class ModelBag {
                             this.conf.colors, this.hue_shift);
     let vertex_arr /*:Vector3[]*/ = [];
     let color_arr = [];
+    let sphere_arr = [];
+    let sphere_color_arr = [];
     const hydrogens = this.conf.hydrogens;
     for (let i = 0; i < visible_atoms.length; i++) {
       const atom = visible_atoms[i];
       const color = colors[i];
       if (!(atom.is_ligand ? ligands : polymers)) continue;
+      if (atom.is_water() && this.conf.water_style === 'invisible') continue;
       if (atom.bonds.length === 0 && ball_size == null) { // nonbonded - cross
-        addXyzCross(vertex_arr, atom.xyz, 0.7);
-        for (let n = 0; n < 6; n++) {
-          color_arr.push(color);
+        if (!atom.is_water() || this.conf.water_style === 'cross') {
+          addXyzCross(vertex_arr, atom.xyz, 0.7);
+          for (let n = 0; n < 6; n++) {
+            color_arr.push(color);
+          }
         }
       } else { // bonded, draw lines
         for (let j = 0; j < atom.bonds.length; j++) {
@@ -259,27 +265,19 @@ class ModelBag {
           color_arr.push(color, color);
         }
       }
-    }
-    if (vertex_arr.length === 0) return;
-
-    let sphere_arr = visible_atoms;
-    let sphere_color_arr = colors;
-    if (!polymers || !ligands) {
-      sphere_arr = [];
-      sphere_color_arr = [];
-      for (let i = 0; i < visible_atoms.length; i++) {
-        if (visible_atoms[i].is_ligand ? ligands : polymers) {
-          sphere_arr.push(visible_atoms[i]);
-          sphere_color_arr.push(colors[i]);
-        }
-      }
+      sphere_arr.push(atom);
+      sphere_color_arr.push(color);
     }
 
-    const linewidth = scale_by_height(this.conf.bond_line, this.win_size);
     if (ball_size != null) {
-      this.objects.push(makeSticks(vertex_arr, color_arr, ball_size / 2));
-      this.objects.push(makeBalls(sphere_arr, sphere_color_arr, ball_size));
-    } else {
+      if (vertex_arr.length !== 0) {
+        this.objects.push(makeSticks(vertex_arr, color_arr, ball_size / 2));
+      }
+      if (sphere_arr.length !== 0) {
+        this.objects.push(makeBalls(sphere_arr, sphere_color_arr, ball_size));
+      }
+    } else if (vertex_arr.length !== 0) {
+      const linewidth = scale_by_height(this.conf.bond_line, this.win_size);
       const material = makeLineMaterial({
         linewidth: linewidth,
         win_size: this.win_size,
@@ -291,6 +289,7 @@ class ModelBag {
         this.objects.push(makeWheels(sphere_arr, sphere_color_arr, linewidth));
       }
     }
+
     sphere_arr.forEach(function (v) { this.atom_array.push(v); }, this);
   }
 
@@ -438,6 +437,7 @@ export class Viewer {
       map_style: MAP_STYLES[0],
       render_style: RENDER_STYLES[0],
       ligand_style: LIGAND_STYLES[0],
+      water_style: WATER_STYLES[0],
       color_prop: COLOR_PROPS[0],
       line_style: LINE_STYLES[0],
       label_font: LABEL_FONTS[0],
@@ -1185,10 +1185,15 @@ export class Viewer {
     kb[80] = function (evt) {
       evt.shiftKey ? this.permalink() : this.go_to_nearest_Ca();
     };
-    // t
-    kb[84] = function (evt) {
+    // s
+    kb[83] = function (evt) {
       this.select_next('rendering as', 'render_style', RENDER_STYLES,
                        evt.shiftKey);
+      this.redraw_models();
+    };
+    // t
+    kb[84] = function (evt) {
+      this.select_next('waters as', 'water_style', WATER_STYLES, evt.shiftKey);
       this.redraw_models();
     };
     // u
@@ -1671,8 +1676,9 @@ Viewer.prototype.MOUSE_HELP = [
 Viewer.prototype.KEYBOARD_HELP = [
   '<b>keyboard:</b>',
   'H = toggle help',
-  'T = general style',
+  'S = general style',
   'L = ligand style',
+  'T = water style',
   'C = coloring',
   'B = bg color',
   'E = toggle fog',
