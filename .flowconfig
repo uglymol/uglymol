@@ -8,4 +8,7 @@
 
 [options]
 munge_underscores=true
+#types_first=false
 
+[lints]
+#untyped-type-import=off
