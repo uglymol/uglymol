@@ -6,10 +6,10 @@ Benchmark.options.minTime = -Infinity;
 Benchmark.options.minSamples = 1;
 Benchmark.options.initCount = 0;
 
-describe('perf', function () {
+describe('perf', () => {
   'use strict';
   function add(name) {
-    it(name, function () {
+    it(name, () => {
       var save_console_log = console.log;
       console.log = function () {};
       try {

@@ -1,5 +1,4 @@
 
-var assert = require('chai').assert;
 var util = require('../perf/util');
 var modelsFromPDB = require('../uglymol').modelsFromPDB;
 
@@ -22,17 +21,17 @@ function get_connectivity_simple(atoms) {
   return connectivity;
 }
 
-describe('Model', function () {
+describe('Model', () => {
   'use strict';
   var pdb_string = util.open_as_utf8('1YJP.pdb');
   var model = modelsFromPDB(pdb_string)[0];
-  it('atoms', function () {
+  it('atoms', () => {
     for (var i = 0; i < model.atoms.length; i++) {
       var atom = model.atoms[i];
-      assert.equal(atom.i_seq, i);
+      expect(atom.i_seq).toEqual(i);
     }
   });
-  it('bonds', function () {
+  it('bonds', () => {
     var atoms = model.atoms;
     var simple_conn = get_connectivity_simple(atoms);
     // console.log(simple_conn);
@@ -40,28 +39,28 @@ describe('Model', function () {
     for (var i = 0; i < atoms.length; i++) {
       model_conn.push(atoms[i].bonds.sort(function (a, b) { return a - b; }));
     }
-    assert.deepEqual(model_conn, simple_conn);
+    expect(model_conn).toEqual(simple_conn);
   });
-  it('next_residue', function () {
+  it('next_residue', () => {
     var a1 = model.next_residue();  // first residue
-    assert.equal(a1.resseq, 1);
-    assert.equal(a1.name, 'CA');
+    expect(a1.resseq).toEqual(1);
+    expect(a1.name).toEqual('CA');
     var atom_label = a1.long_label();
-    assert.equal(atom_label.indexOf('CA /1'), 0);
+    expect(atom_label.indexOf('CA /1')).toEqual(0);
     var next_res_atom = model.next_residue(a1);
-    assert.equal(next_res_atom.resseq, 2);
-    assert.equal(next_res_atom.name, 'CA');
-    assert.equal(model.next_residue(next_res_atom, true), a1);
+    expect(next_res_atom.resseq).toEqual(2);
+    expect(next_res_atom.name).toEqual('CA');
+    expect(model.next_residue(next_res_atom, true)).toEqual(a1);
     var last_res_atom = model.next_residue(a1, true);
-    assert.equal(model.next_residue(last_res_atom), a1);
+    expect(model.next_residue(last_res_atom)).toEqual(a1);
   });
-  it('get_nearest_atom', function () {
+  it('get_nearest_atom', () => {
     var a1 = model.next_residue();  // first residue
     var atms = [a1, model.next_residue(a1), model.next_residue(a1, true)];
     for (var i = 0; i < atms.length; i++) {
       var a = atms[i];
       var nearest = model.get_nearest_atom(a.xyz[0], a.xyz[1]+0.4, a.xyz[2]);
-      assert.equal(a, nearest);
+      expect(a).toEqual(nearest);
     }
   });
 });

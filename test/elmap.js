@@ -1,5 +1,4 @@
 
-var assert = require('chai').assert;
 var ElMap = require('../uglymol').ElMap;
 var util = require('../perf/util');
 
@@ -12,22 +11,23 @@ var util = require('../perf/util');
   eof
 */
 
-describe('ElMap', function () {
+describe('ElMap', () => {
   'use strict';
   var dmap_buf = util.open_as_array_buffer('1mru.omap');
   var cmap_buf = util.open_as_array_buffer('1mru.map');
   var dmap = new ElMap();
   var cmap = new ElMap();
-  it('#from_dsn6', function () {
+  it('#from_dsn6', () => {
     dmap.from_dsn6(dmap_buf);
   });
-  it('#from_ccp4', function () {
+  it('#from_ccp4', () => {
     cmap.from_ccp4(cmap_buf);
   });
-  it('compare unit cells', function () {
+  it('compare unit cells', () => {
     for (var i = 0; i < 6; i++) {
-      assert.closeTo(dmap.unit_cell.parameters[i],
-                     cmap.unit_cell.parameters[i], 0.02);
+      var p1 = dmap.unit_cell.parameters[i];
+      var p2 = cmap.unit_cell.parameters[i];
+      expect(Math.abs(p1 - p2)).toBeLessThan(0.02);
     }
   });
 });

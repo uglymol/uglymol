@@ -1,8 +1,7 @@
 
-var assert = require('chai').assert;
 var Block = require('../uglymol').Block;
 
-describe('isosurface', function () {
+describe('isosurface', () => {
   'use strict';
 
   function sq(a) { return a * a; }
@@ -24,14 +23,14 @@ describe('isosurface', function () {
   }
   const block = new Block();
   block.set(points, values, dims);
-  it('sphere', function () {
+  it('sphere', () => {
     var isolevel = 3;
     var ret = block.isosurface(isolevel);
-    assert.isAbove(ret.vertices.length, 100*3); // way above
+    expect(ret.vertices.length).toBeGreaterThan(100*3); // way above
     for (var i = 0; i < ret.vertices.length; i += 3) {
       var vertex = ret.vertices.slice(i, i+3);
       var d = dist(vertex, ctr);
-      assert.closeTo(d, isolevel, 1e-6);
+      expect(Math.abs(d - isolevel)).toBeLessThanOrEqual(1e-6);
     }
   });
 });

@@ -2,7 +2,7 @@
 var UM = require('../uglymol');
 var util = require('../perf/util');
 
-describe('Viewer', function () {
+describe('Viewer', () => {
   'use strict';
   var viewer = new UM.Viewer('viewer');
   var emap = new UM.ElMap();
@@ -10,7 +10,7 @@ describe('Viewer', function () {
   emap.from_ccp4(cmap_buf);
   var pdb_string = util.open_as_utf8('1mru.pdb');
   var model = UM.modelsFromPDB(pdb_string)[0];
-  it('misc calls (1mru)', function () {
+  it('misc calls (1mru)', () => {
     viewer.add_map(emap, false);
     viewer.toggle_map_visibility(viewer.map_bags[0], false);
     viewer.toggle_map_visibility(viewer.map_bags[0], true);
@@ -30,13 +30,13 @@ describe('Viewer', function () {
   pdb_string = util.open_as_utf8('1yk4.pdb');
   var model2 = new UM.Model();
   model2.from_pdb(pdb_string.split('\n'));
-  it('misc calls (1yk4)', function () {
+  it('misc calls (1yk4)', () => {
     viewer.add_model(model2);
     viewer.config.hydrogens = true;
     viewer.recenter();
   });
 
-  it('keydown', function () {
+  it('keydown', () => {
     function press(codes) {
       for (var i = 0; i < codes.length; i++) {
         var code = codes[i];
