@@ -1,5 +1,5 @@
 
-import buble from 'rollup-plugin-buble';
+import buble from '@rollup/plugin-buble';
 const version = require('./package.json').version
 
 const banner = `/*!

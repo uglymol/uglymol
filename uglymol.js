@@ -8,8 +8,8 @@
 (function (global, factory) {
 typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
 typeof define === 'function' && define.amd ? define(['exports'], factory) :
-(global = global || self, factory(global.UM = {}));
-}(this, (function (exports) { 'use strict';
+(global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.UM = {}));
+})(this, (function (exports) { 'use strict';
 
 var VERSION = exports.VERSION = '0.7.0';
 
@@ -3789,7 +3789,7 @@ function WebGLGeometries( gl, properties, info ) {
 */
 
 function WebGLObjects( gl, properties, info ) {
-  var geometries = new WebGLGeometries( gl, properties, info );
+  var geometries = new WebGLGeometries( gl, properties);
 
   //
 
@@ -4492,7 +4492,7 @@ function WebGLRenderer( parameters ) {
 
   var capabilities = new WebGLCapabilities( _gl, extensions, parameters );
 
-  var state = new WebGLState( _gl, extensions );
+  var state = new WebGLState( _gl);
   var properties = new WebGLProperties();
   var textures = new WebGLTextures( _gl, extensions, state, properties, capabilities, this.info );
   var objects = new WebGLObjects( _gl, properties, this.info );
@@ -6791,7 +6791,7 @@ var Viewer = function Viewer(options /*: {[key: string]: any}*/) {
   this.dbl_click_callback = this.toggle_label;
   this.scene = new Scene();
   this.scene.fog = new Fog(this.config.colors.bg, 0, 1);
-  this.scene.add(new AmbientLight(0xffffff));
+  this.scene.add(new AmbientLight());
   this.default_camera_pos = [0, 0, 100];
   if (options.share_view) {
     this.target = options.share_view.target;
@@ -7866,8 +7866,8 @@ Viewer.prototype.set_dropzone = function set_dropzone (zone/*:Object*/, callback
 
         try {
         callback(file);
-      } catch (e) {
-        self.hud('Loading ' + file.name + ' failed.\n' + e.message, 'ERR');
+      } catch (e$1) {
+        self.hud('Loading ' + file.name + ' failed.\n' + e$1.message, 'ERR');
         return;
       }
       names.push(file.name);
@@ -8664,4 +8664,4 @@ exports.set_pdb_and_mtz_dropzone = set_pdb_and_mtz_dropzone;
 
 Object.defineProperty(exports, '__esModule', { value: true });
 
-})));
+}));
