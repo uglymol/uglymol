@@ -1972,7 +1972,7 @@ function generateExtensions( extensions, parameters, rendererExtensions ) {
   return chunks.join( '\n' );
 }
 
-function fetchAttributeLocations( gl, program, identifiers ) {
+function fetchAttributeLocations( gl, program ) {
   let attributes = {};
 
   let n = gl.getProgramParameter( program, gl.ACTIVE_ATTRIBUTES );
@@ -2119,7 +2119,7 @@ function WebGLPrograms( renderer, capabilities ) {
     'premultipliedAlpha',
   ];
 
-  this.getParameters = function ( material, fog, object ) {
+  this.getParameters = function ( material, fog ) {
     let precision = renderer.getPrecision();
 
     if ( material.precision !== null ) {
@@ -2196,7 +2196,7 @@ function WebGLPrograms( renderer, capabilities ) {
 * @author mrdoob / http://mrdoob.com/
 */
 
-function WebGLGeometries( gl, properties, info ) {
+function WebGLGeometries( gl, properties ) {
   let geometries = {};
 
   function onGeometryDispose( event ) {
@@ -2384,7 +2384,7 @@ function WebGLObjects( gl, properties, info ) {
 * @author mrdoob / http://mrdoob.com/
 */
 
-function WebGLTextures( _gl, extensions, state, properties, capabilities, info ) {
+function WebGLTextures( _gl, extensions, state, properties ) {
   function onTextureDispose( event ) {
     let texture = event.target;
 
@@ -2501,7 +2501,7 @@ function WebGLProperties() {
 * @author mrdoob / http://mrdoob.com/
 */
 
-function WebGLState( gl, extensions ) {
+function WebGLState( gl ) {
   function ColorBuffer() {
     let color = new Vector4();
     let currentColorClear = new Vector4();
@@ -3707,7 +3707,7 @@ Scene.prototype.constructor = Scene;
 * @author mrdoob / http://mrdoob.com/
 */
 
-function Line( geometry, material, mode ) {
+function Line( geometry, material ) {
   Object3D.call( this );
 
   this.type = 'Line';
@@ -3765,7 +3765,7 @@ Points.prototype = Object.assign( Object.create( Object3D.prototype ), {
 } );
 
 // kept for compatibility with THREE
-function AmbientLight( color ) {}
+function AmbientLight() {}
 
 
 /**

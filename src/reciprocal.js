@@ -226,7 +226,7 @@ export class ReciprocalViewer extends Viewer {
                    : this.change_slab_width_by(0.01);
     };
     // p
-    kb[80] = function (evt) { this.permalink(); };
+    kb[80] = function () { this.permalink(); };
     // s
     kb[83] = function (evt) {
       this.select_next('spot shape', 'spot_shape', SPOT_SHAPES, evt.shiftKey);
@@ -273,11 +273,11 @@ export class ReciprocalViewer extends Viewer {
     // down arrow
     kb[40] = function () { this.change_dmax(-0.025); };
     // add, equals/firefox, equal sign
-    kb[107] = kb[61] = kb[187] = function (evt) {
+    kb[107] = kb[61] = kb[187] = function () {
       this.change_isolevel_by(0, 0.01);
     };
     // subtract, minus/firefox, dash
-    kb[109] = kb[173] = kb[189] = function (evt) {
+    kb[109] = kb[173] = kb[189] = function () {
       this.change_isolevel_by(0, -0.01);
     };
     // [
@@ -411,7 +411,7 @@ export class ReciprocalViewer extends Viewer {
     }
   }
 
-  mousewheel_action(delta/*:number*/, evt/*:Event*/) {
+  mousewheel_action(delta/*:number*/) {
     this.change_zoom_by_factor(1 + 0.0005 * delta);
   }
 

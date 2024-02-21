@@ -1204,7 +1204,7 @@ export class Viewer {
     // v
     kb[86] = function () { this.toggle_inactive_models(); };
     // y
-    kb[89] = function (evt) {
+    kb[89] = function () {
       this.config.hydrogens = !this.config.hydrogens;
       this.hud((this.config.hydrogens ? 'show' : 'hide') +
                ' hydrogens (if any)');

@@ -3493,7 +3493,7 @@ function generateExtensions( extensions, parameters, rendererExtensions ) {
   return chunks.join( '\n' );
 }
 
-function fetchAttributeLocations( gl, program, identifiers ) {
+function fetchAttributeLocations( gl, program ) {
   var attributes = {};
 
   var n = gl.getProgramParameter( program, gl.ACTIVE_ATTRIBUTES );
@@ -3637,7 +3637,7 @@ function WebGLPrograms( renderer, capabilities ) {
     'fog', 'useFog',
     'premultipliedAlpha' ];
 
-  this.getParameters = function ( material, fog, object ) {
+  this.getParameters = function ( material, fog ) {
     var precision = renderer.getPrecision();
 
     if ( material.precision !== null ) {
@@ -3714,7 +3714,7 @@ function WebGLPrograms( renderer, capabilities ) {
 * @author mrdoob / http://mrdoob.com/
 */
 
-function WebGLGeometries( gl, properties, info ) {
+function WebGLGeometries( gl, properties ) {
   var geometries = {};
 
   function onGeometryDispose( event ) {
@@ -3902,7 +3902,7 @@ function WebGLObjects( gl, properties, info ) {
 * @author mrdoob / http://mrdoob.com/
 */
 
-function WebGLTextures( _gl, extensions, state, properties, capabilities, info ) {
+function WebGLTextures( _gl, extensions, state, properties ) {
   function onTextureDispose( event ) {
     var texture = event.target;
 
@@ -4019,7 +4019,7 @@ function WebGLProperties() {
 * @author mrdoob / http://mrdoob.com/
 */
 
-function WebGLState( gl, extensions ) {
+function WebGLState( gl ) {
   function ColorBuffer() {
     var color = new Vector4();
     var currentColorClear = new Vector4();
@@ -5225,7 +5225,7 @@ Scene.prototype.constructor = Scene;
 * @author mrdoob / http://mrdoob.com/
 */
 
-function Line( geometry, material, mode ) {
+function Line( geometry, material ) {
   Object3D.call( this );
 
   this.type = 'Line';
@@ -5283,7 +5283,7 @@ Points.prototype = Object.assign( Object.create( Object3D.prototype ), {
 } );
 
 // kept for compatibility with THREE
-function AmbientLight( color ) {}
+function AmbientLight() {}
 
 
 /**
@@ -7555,7 +7555,7 @@ Viewer.prototype.set_real_space_key_bindings = function set_real_space_key_bindi
   // v
   kb[86] = function () { this.toggle_inactive_models(); };
   // y
-  kb[89] = function (evt) {
+  kb[89] = function () {
     this.config.hydrogens = !this.config.hydrogens;
     this.hud((this.config.hydrogens ? 'show' : 'hide') +
              ' hydrogens (if any)');
@@ -8236,7 +8236,7 @@ var ReciprocalViewer = /*@__PURE__*/(function (Viewer) {
                    : this.change_slab_width_by(0.01);
     };
     // p
-    kb[80] = function (evt) { this.permalink(); };
+    kb[80] = function () { this.permalink(); };
     // s
     kb[83] = function (evt) {
       this.select_next('spot shape', 'spot_shape', SPOT_SHAPES, evt.shiftKey);
@@ -8283,11 +8283,11 @@ var ReciprocalViewer = /*@__PURE__*/(function (Viewer) {
     // down arrow
     kb[40] = function () { this.change_dmax(-0.025); };
     // add, equals/firefox, equal sign
-    kb[107] = kb[61] = kb[187] = function (evt) {
+    kb[107] = kb[61] = kb[187] = function () {
       this.change_isolevel_by(0, 0.01);
     };
     // subtract, minus/firefox, dash
-    kb[109] = kb[173] = kb[189] = function (evt) {
+    kb[109] = kb[173] = kb[189] = function () {
       this.change_isolevel_by(0, -0.01);
     };
     // [
@@ -8423,7 +8423,7 @@ var ReciprocalViewer = /*@__PURE__*/(function (Viewer) {
     }
   };
 
-  ReciprocalViewer.prototype.mousewheel_action = function mousewheel_action (delta/*:number*/, evt/*:Event*/) {
+  ReciprocalViewer.prototype.mousewheel_action = function mousewheel_action (delta/*:number*/) {
     this.change_zoom_by_factor(1 + 0.0005 * delta);
   };
 
