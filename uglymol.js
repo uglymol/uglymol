@@ -82,6 +82,7 @@ function multiply(xyz, mat) {
 
 // @flow
 
+
 /*::
  type Num3 = [number, number, number];
  */
@@ -1205,6 +1206,7 @@ function marchingCubes(dims, values, points, isolevel, method) {
 }
 
 // @flow
+
 
 function modulo(a, b) {
   var reminder = a % b;
@@ -5471,6 +5473,7 @@ return Curve.create(
 
 // @flow
 
+
 /*:: type Num3 = [number, number, number] */
 /*:: import type {AtomT} from './model.js' */
 
@@ -6128,6 +6131,7 @@ function addXyzCross(vertices /*:Num3[]*/, xyz /*:Num3*/, r /*:number*/) {
 
 // @flow
 
+
 /*:: import type {OrthographicCamera} from './fromthree.js' */
 
 // map 2d position to sphere with radius 1.
@@ -6387,6 +6391,7 @@ Controls.prototype.go_to = function go_to (targ /*:Vector3*/, cam_pos /*:?Vector
 };
 
 // @flow
+
 
 /*::
  import type {AtomT, Model} from './model.js'
@@ -8514,6 +8519,7 @@ ReciprocalViewer.prototype.MOUSE_HELP =
 
 // @flow
 
+
 /*::
  import type {Viewer} from './viewer.js'
  */
@@ -8661,7 +8667,5 @@ exports.makeUniforms = makeUniforms;
 exports.makeWheels = makeWheels;
 exports.modelsFromPDB = modelsFromPDB;
 exports.set_pdb_and_mtz_dropzone = set_pdb_and_mtz_dropzone;
-
-Object.defineProperty(exports, '__esModule', { value: true });
 
 }));
