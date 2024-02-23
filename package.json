@@ -1,6 +1,6 @@
 {
   "name": "uglymol",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Macromolecular Viewer for Crystallographers",
   "homepage": "https://uglymol.github.io",
   "main": "uglymol.js",
@@ -13,7 +13,8 @@
     "src"
   ],
   "eslintIgnore": [
-    "src/wasm/*"
+    "src/wasm/*",
+    "src/three/*"
   ],
   "devDependencies": {
     "@rollup/plugin-buble": "^1.0.3",
