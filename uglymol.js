@@ -6489,7 +6489,7 @@ var INIT_HUD_TEXT = 'This is UglyMol not Coot. ' +
 
 // options handled by select_next()
 
-var COLOR_PROPS = ['element', 'B-factor', 'occupancy', 'index', 'chain'];
+var COLOR_PROPS = ['element', 'B-factor', 'pLDDT', 'occupancy', 'index', 'chain'];
 var RENDER_STYLES = ['lines', 'trace', 'ribbon', 'ball&stick'];
 var LIGAND_STYLES = ['ball&stick', 'lines'];
 var WATER_STYLES = ['cross', 'dot', 'invisible'];
@@ -6525,6 +6525,21 @@ function color_by(prop, atoms /*:AtomT[]*/, elem_colors, hue_shift) {
     //console.log('B-factors in [' + vmin + ', ' + vmax + ']');
     color_func = function (atom) {
       return rainbow_value(atom.b, vmin, vmax);
+    };
+  } else if (prop === 'pLDDT') {
+    var steps = [90, 70, 50];
+    var colors = [
+      new Color(0x0053d6), // dark blue
+      new Color(0x65cbf3), // light blue
+      new Color(0xffdb13), // yellow
+      new Color(0xff7d45)  // orange
+    ];
+    color_func = function (atom) {
+      var i = 0;
+      while (i < 3 && atom.b < steps[i]) {
+        ++i;
+      }
+      return colors[i];
     };
   } else if (prop === 'occupancy') {
     color_func = function (atom) {
