@@ -6779,7 +6779,7 @@ var Viewer = function Viewer(options /*: {[key: string]: any}*/) {
   };
 
   // options of the constructor overwrite default values of the config
-  for (var i = 0, list = options; i < list.length; i += 1) {
+  for (var i = 0, list = Object.keys(options); i < list.length; i += 1) {
     var o = list[i];
 
     if (o in this.config) {

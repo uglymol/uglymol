@@ -447,7 +447,7 @@ export class Viewer {
     };
 
     // options of the constructor overwrite default values of the config
-    for (let o of options) {
+    for (let o of Object.keys(options)) {
       if (o in this.config) {
         this.config[o] = options[o];
       }
