@@ -3273,7 +3273,7 @@ Object.assign( BufferGeometry.prototype, EventDispatcher.prototype, {
     this.index = index;
   },
 
-  addAttribute: function ( name, attribute ) {
+  setAttribute: function ( name, attribute ) {
     this.attributes[name] = attribute;
     return this;
   },
@@ -5528,7 +5528,7 @@ function makeLines(pos /*:Float32Array*/, color /*:Color*/,
     type: 'um_lines',
   });
   var geometry = new BufferGeometry();
-  geometry.addAttribute('position', new BufferAttribute(pos, 3));
+  geometry.setAttribute('position', new BufferAttribute(pos, 3));
   return new LineSegments(geometry, material);
 }
 
@@ -5557,8 +5557,8 @@ function makeMultiColorLines(pos /*:Float32Array*/,
     type: 'um_multicolor_lines',
   });
   var geometry = new BufferGeometry();
-  geometry.addAttribute('position', new BufferAttribute(pos, 3));
-  geometry.addAttribute('color', makeColorAttribute(colors));
+  geometry.setAttribute('position', new BufferAttribute(pos, 3));
+  geometry.setAttribute('color', makeColorAttribute(colors));
   return new LineSegments(geometry, material);
 }
 
@@ -5725,10 +5725,10 @@ function makeRibbon(vertices /*:AtomT[]*/,
     pos[3*i+1] = v.y;
     pos[3*i+2] = v.z;
   }
-  geometry.addAttribute('position', new BufferAttribute(pos, 3));
-  geometry.addAttribute('color', makeColorAttribute(color_arr));
+  geometry.setAttribute('position', new BufferAttribute(pos, 3));
+  geometry.setAttribute('color', makeColorAttribute(color_arr));
   var tan = new Float32Array(tang_arr);
-  geometry.addAttribute('tan', new BufferAttribute(tan, 3));
+  geometry.setAttribute('tan', new BufferAttribute(tan, 3));
   for (var n = -4; n < 5; n++) {
     var material = new ShaderMaterial({
       uniforms: makeUniforms({shift: 0.1 * n}),
@@ -5747,7 +5747,7 @@ function makeChickenWire(data /*:{vertices: number[], segments: number[]}*/,
                          options /*:{[key: string]: any}*/) {
   var geom = new BufferGeometry();
   var position = new Float32Array(data.vertices);
-  geom.addAttribute('position', new BufferAttribute(position, 3));
+  geom.setAttribute('position', new BufferAttribute(position, 3));
 
   // Although almost all browsers support OES_element_index_uint nowadays,
   // use Uint32 indexes only when needed.
@@ -5782,7 +5782,7 @@ function makeGrid() {
   }
   var geom = new BufferGeometry();
   var pos_arr = new Float32Array(pos);
-  geom.addAttribute('position', new BufferAttribute(pos_arr, 3));
+  geom.setAttribute('position', new BufferAttribute(pos_arr, 3));
   var material = new ShaderMaterial({
     uniforms: makeUniforms({ucolor: new Color(0x888888)}),
     //linewidth: 3,
@@ -5835,11 +5835,11 @@ function makeLine(material /*:ShaderMaterial*/,
   }
   var color = double_color(color_arr);
   var geometry = new BufferGeometry();
-  geometry.addAttribute('position', new BufferAttribute(position, 3));
-  geometry.addAttribute('previous', new BufferAttribute(previous, 3));
-  geometry.addAttribute('next', new BufferAttribute(next, 3));
-  geometry.addAttribute('side', new BufferAttribute(side, 1));
-  geometry.addAttribute('color', new BufferAttribute(color, 3));
+  geometry.setAttribute('position', new BufferAttribute(position, 3));
+  geometry.setAttribute('previous', new BufferAttribute(previous, 3));
+  geometry.setAttribute('next', new BufferAttribute(next, 3));
+  geometry.setAttribute('side', new BufferAttribute(side, 1));
+  geometry.setAttribute('color', new BufferAttribute(color, 3));
 
   var mesh = new Mesh(geometry, material);
   mesh.drawMode = TriangleStripDrawMode;
@@ -5867,12 +5867,12 @@ function makeLineSegments(material /*:ShaderMaterial*/,
     side[2*k+1] = 1;
   }
   var geometry = new BufferGeometry();
-  geometry.addAttribute('position', new BufferAttribute(position, 3));
-  geometry.addAttribute('other', new BufferAttribute(other_vert, 3));
-  geometry.addAttribute('side', new BufferAttribute(side, 1));
+  geometry.setAttribute('position', new BufferAttribute(position, 3));
+  geometry.setAttribute('other', new BufferAttribute(other_vert, 3));
+  geometry.setAttribute('side', new BufferAttribute(side, 1));
   if (color_arr != null) {
     var color = double_color(color_arr);
-    geometry.addAttribute('color', new BufferAttribute(color, 3));
+    geometry.setAttribute('color', new BufferAttribute(color, 3));
   }
   geometry.setIndex(make_quad_index_buffer(len/2));
 
@@ -5897,8 +5897,8 @@ function makeWheels(atom_arr /*:AtomT[]*/,
     pos[3*i+1] = xyz[1];
     pos[3*i+2] = xyz[2];
   }
-  geometry.addAttribute('position', new BufferAttribute(pos, 3));
-  geometry.addAttribute('color', makeColorAttribute(color_arr));
+  geometry.setAttribute('position', new BufferAttribute(pos, 3));
+  geometry.setAttribute('color', makeColorAttribute(color_arr));
   var material = new ShaderMaterial({
     uniforms: makeUniforms({size: size}),
     vertexShader: wheel_vert,
@@ -5952,7 +5952,7 @@ function makeSticks(vertex_arr /*:Num3[]*/,
     for (var j$1 = 0; j$1 < 6; j$1++) { axis[i+j$1+6] = axis[i+j$1]; }
   }
   var geometry = new BufferGeometry();
-  geometry.addAttribute('position', new BufferAttribute(position, 3));
+  geometry.setAttribute('position', new BufferAttribute(position, 3));
   var corner = new Float32Array(4*len);
   for (var i$1 = 0; 2 * i$1 < len; i$1++) {
     corner[8*i$1 + 0] = -1;  // 0
@@ -5964,10 +5964,10 @@ function makeSticks(vertex_arr /*:Num3[]*/,
     corner[8*i$1 + 6] = +1;  // 3
     corner[8*i$1 + 7] = -1;  // 3
   }
-  geometry.addAttribute('axis', new BufferAttribute(axis, 3));
-  geometry.addAttribute('corner', new BufferAttribute(corner, 2));
+  geometry.setAttribute('axis', new BufferAttribute(axis, 3));
+  geometry.setAttribute('corner', new BufferAttribute(corner, 2));
   var color = double_color(color_arr);
-  geometry.addAttribute('color', new BufferAttribute(color, 3));
+  geometry.setAttribute('color', new BufferAttribute(color, 3));
   geometry.setIndex(make_quad_index_buffer(len/2));
 
   var mesh = new Mesh(geometry, material);
@@ -5990,7 +5990,7 @@ function makeBalls(atom_arr /*:AtomT[]*/,
       }
     }
   }
-  geometry.addAttribute('position', new BufferAttribute(pos, 3));
+  geometry.setAttribute('position', new BufferAttribute(pos, 3));
 
   var corner = new Float32Array(N * 4 * 2);
   for (var i$1 = 0; i$1 < N; i$1++) {
@@ -6003,7 +6003,7 @@ function makeBalls(atom_arr /*:AtomT[]*/,
     corner[8*i$1 + 6] = +1;  // 3
     corner[8*i$1 + 7] = -1;  // 3
   }
-  geometry.addAttribute('corner', new BufferAttribute(corner, 2));
+  geometry.setAttribute('corner', new BufferAttribute(corner, 2));
 
   var colors = new Float32Array(N * 4 * 3);
   for (var i$2 = 0; i$2 < N; i$2++) {
@@ -6014,7 +6014,7 @@ function makeBalls(atom_arr /*:AtomT[]*/,
       colors[3 * (4*i$2 + j$1) + 2] = col.b;
     }
   }
-  geometry.addAttribute('color', new BufferAttribute(colors, 3));
+  geometry.setAttribute('color', new BufferAttribute(colors, 3));
 
   geometry.setIndex(make_quad_index_buffer(N));
 
@@ -6100,8 +6100,8 @@ function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
   var uvs = new Float32Array([0, 1, 1, 1, 0, 0, 1, 0]);
   var indices = new Uint16Array([0, 2, 1, 2, 3, 1]);
   geometry.setIndex(new BufferAttribute(indices, 1));
-  geometry.addAttribute('position', new BufferAttribute(position, 3));
-  geometry.addAttribute('uvs', new BufferAttribute(uvs, 2));
+  geometry.setAttribute('position', new BufferAttribute(position, 3));
+  geometry.setAttribute('uvs', new BufferAttribute(uvs, 2));
 
   var material = new ShaderMaterial({
     uniforms: makeUniforms({map: texture,
@@ -8424,10 +8424,10 @@ var ReciprocalViewer = /*@__PURE__*/(function (Viewer) {
     var color_arr = new Float32Array(3 * data.lattice_ids.length);
     this.colorize_by_id(color_arr, data.lattice_ids);
     var geometry = new BufferGeometry();
-    geometry.addAttribute('position', new BufferAttribute(data.pos, 3));
-    geometry.addAttribute('color', new BufferAttribute(color_arr, 3));
+    geometry.setAttribute('position', new BufferAttribute(data.pos, 3));
+    geometry.setAttribute('color', new BufferAttribute(color_arr, 3));
     var groups = new Float32Array(data.lattice_ids);
-    geometry.addAttribute('group', new BufferAttribute(groups, 1));
+    geometry.setAttribute('group', new BufferAttribute(groups, 1));
     this.points = new Points(geometry, this.point_material);
     this.scene.add(this.points);
     this.request_render();

@@ -1749,7 +1749,7 @@ Object.assign( BufferGeometry.prototype, EventDispatcher.prototype, {
     this.index = index;
   },
 
-  addAttribute: function ( name, attribute ) {
+  setAttribute: function ( name, attribute ) {
     this.attributes[name] = attribute;
     return this;
   },

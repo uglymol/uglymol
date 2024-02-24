@@ -392,10 +392,10 @@ export class ReciprocalViewer extends Viewer {
     let color_arr = new Float32Array(3 * data.lattice_ids.length);
     this.colorize_by_id(color_arr, data.lattice_ids);
     let geometry = new BufferGeometry();
-    geometry.addAttribute('position', new BufferAttribute(data.pos, 3));
-    geometry.addAttribute('color', new BufferAttribute(color_arr, 3));
+    geometry.setAttribute('position', new BufferAttribute(data.pos, 3));
+    geometry.setAttribute('color', new BufferAttribute(color_arr, 3));
     const groups = new Float32Array(data.lattice_ids);
-    geometry.addAttribute('group', new BufferAttribute(groups, 1));
+    geometry.setAttribute('group', new BufferAttribute(groups, 1));
     this.points = new Points(geometry, this.point_material);
     this.scene.add(this.points);
     this.request_render();

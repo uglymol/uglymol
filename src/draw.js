@@ -90,7 +90,7 @@ export function makeLines(pos /*:Float32Array*/, color /*:Color*/,
     type: 'um_lines',
   });
   let geometry = new BufferGeometry();
-  geometry.addAttribute('position', new BufferAttribute(pos, 3));
+  geometry.setAttribute('position', new BufferAttribute(pos, 3));
   return new LineSegments(geometry, material);
 }
 
@@ -119,8 +119,8 @@ export function makeMultiColorLines(pos /*:Float32Array*/,
     type: 'um_multicolor_lines',
   });
   let geometry = new BufferGeometry();
-  geometry.addAttribute('position', new BufferAttribute(pos, 3));
-  geometry.addAttribute('color', makeColorAttribute(colors));
+  geometry.setAttribute('position', new BufferAttribute(pos, 3));
+  geometry.setAttribute('color', makeColorAttribute(colors));
   return new LineSegments(geometry, material);
 }
 
@@ -312,10 +312,10 @@ export function makeRibbon(vertices /*:AtomT[]*/,
     pos[3*i+1] = v.y;
     pos[3*i+2] = v.z;
   }
-  geometry.addAttribute('position', new BufferAttribute(pos, 3));
-  geometry.addAttribute('color', makeColorAttribute(color_arr));
+  geometry.setAttribute('position', new BufferAttribute(pos, 3));
+  geometry.setAttribute('color', makeColorAttribute(color_arr));
   const tan = new Float32Array(tang_arr);
-  geometry.addAttribute('tan', new BufferAttribute(tan, 3));
+  geometry.setAttribute('tan', new BufferAttribute(tan, 3));
   for (let n = -4; n < 5; n++) {
     const material = new ShaderMaterial({
       uniforms: makeUniforms({shift: 0.1 * n}),
@@ -335,7 +335,7 @@ function makeChickenWire(data /*:{vertices: number[], segments: number[]}*/,
                          options /*:{[key: string]: any}*/) {
   let geom = new BufferGeometry();
   const position = new Float32Array(data.vertices);
-  geom.addAttribute('position', new BufferAttribute(position, 3));
+  geom.setAttribute('position', new BufferAttribute(position, 3));
 
   // Although almost all browsers support OES_element_index_uint nowadays,
   // use Uint32 indexes only when needed.
@@ -385,7 +385,7 @@ export function makeGrid() {
   }
   let geom = new BufferGeometry();
   const pos_arr = new Float32Array(pos);
-  geom.addAttribute('position', new BufferAttribute(pos_arr, 3));
+  geom.setAttribute('position', new BufferAttribute(pos_arr, 3));
   let material = new ShaderMaterial({
     uniforms: makeUniforms({ucolor: new Color(0x888888)}),
     //linewidth: 3,
@@ -438,11 +438,11 @@ export function makeLine(material /*:ShaderMaterial*/,
   }
   const color = double_color(color_arr);
   let geometry = new BufferGeometry();
-  geometry.addAttribute('position', new BufferAttribute(position, 3));
-  geometry.addAttribute('previous', new BufferAttribute(previous, 3));
-  geometry.addAttribute('next', new BufferAttribute(next, 3));
-  geometry.addAttribute('side', new BufferAttribute(side, 1));
-  geometry.addAttribute('color', new BufferAttribute(color, 3));
+  geometry.setAttribute('position', new BufferAttribute(position, 3));
+  geometry.setAttribute('previous', new BufferAttribute(previous, 3));
+  geometry.setAttribute('next', new BufferAttribute(next, 3));
+  geometry.setAttribute('side', new BufferAttribute(side, 1));
+  geometry.setAttribute('color', new BufferAttribute(color, 3));
 
   let mesh = new Mesh(geometry, material);
   mesh.drawMode = TriangleStripDrawMode;
@@ -470,12 +470,12 @@ export function makeLineSegments(material /*:ShaderMaterial*/,
     side[2*k+1] = 1;
   }
   let geometry = new BufferGeometry();
-  geometry.addAttribute('position', new BufferAttribute(position, 3));
-  geometry.addAttribute('other', new BufferAttribute(other_vert, 3));
-  geometry.addAttribute('side', new BufferAttribute(side, 1));
+  geometry.setAttribute('position', new BufferAttribute(position, 3));
+  geometry.setAttribute('other', new BufferAttribute(other_vert, 3));
+  geometry.setAttribute('side', new BufferAttribute(side, 1));
   if (color_arr != null) {
     const color = double_color(color_arr);
-    geometry.addAttribute('color', new BufferAttribute(color, 3));
+    geometry.setAttribute('color', new BufferAttribute(color, 3));
   }
   geometry.setIndex(make_quad_index_buffer(len/2));
 
@@ -516,8 +516,8 @@ export function makeWheels(atom_arr /*:AtomT[]*/,
     pos[3*i+1] = xyz[1];
     pos[3*i+2] = xyz[2];
   }
-  geometry.addAttribute('position', new BufferAttribute(pos, 3));
-  geometry.addAttribute('color', makeColorAttribute(color_arr));
+  geometry.setAttribute('position', new BufferAttribute(pos, 3));
+  geometry.setAttribute('color', makeColorAttribute(color_arr));
   let material = new ShaderMaterial({
     uniforms: makeUniforms({size: size}),
     vertexShader: wheel_vert,
@@ -646,7 +646,7 @@ export function makeSticks(vertex_arr /*:Num3[]*/,
     for (let j = 0; j < 6; j++) axis[i+j+6] = axis[i+j];
   }
   let geometry = new BufferGeometry();
-  geometry.addAttribute('position', new BufferAttribute(position, 3));
+  geometry.setAttribute('position', new BufferAttribute(position, 3));
   let corner = new Float32Array(4*len);
   for (let i = 0; 2 * i < len; i++) {
     corner[8*i + 0] = -1;  // 0
@@ -658,10 +658,10 @@ export function makeSticks(vertex_arr /*:Num3[]*/,
     corner[8*i + 6] = +1;  // 3
     corner[8*i + 7] = -1;  // 3
   }
-  geometry.addAttribute('axis', new BufferAttribute(axis, 3));
-  geometry.addAttribute('corner', new BufferAttribute(corner, 2));
+  geometry.setAttribute('axis', new BufferAttribute(axis, 3));
+  geometry.setAttribute('corner', new BufferAttribute(corner, 2));
   const color = double_color(color_arr);
-  geometry.addAttribute('color', new BufferAttribute(color, 3));
+  geometry.setAttribute('color', new BufferAttribute(color, 3));
   geometry.setIndex(make_quad_index_buffer(len/2));
 
   let mesh = new Mesh(geometry, material);
@@ -684,7 +684,7 @@ export function makeBalls(atom_arr /*:AtomT[]*/,
       }
     }
   }
-  geometry.addAttribute('position', new BufferAttribute(pos, 3));
+  geometry.setAttribute('position', new BufferAttribute(pos, 3));
 
   let corner = new Float32Array(N * 4 * 2);
   for (let i = 0; i < N; i++) {
@@ -697,7 +697,7 @@ export function makeBalls(atom_arr /*:AtomT[]*/,
     corner[8*i + 6] = +1;  // 3
     corner[8*i + 7] = -1;  // 3
   }
-  geometry.addAttribute('corner', new BufferAttribute(corner, 2));
+  geometry.setAttribute('corner', new BufferAttribute(corner, 2));
 
   let colors = new Float32Array(N * 4 * 3);
   for (let i = 0; i < N; i++) {
@@ -708,7 +708,7 @@ export function makeBalls(atom_arr /*:AtomT[]*/,
       colors[3 * (4*i + j) + 2] = col.b;
     }
   }
-  geometry.addAttribute('color', new BufferAttribute(colors, 3));
+  geometry.setAttribute('color', new BufferAttribute(colors, 3));
 
   geometry.setIndex(make_quad_index_buffer(N));
 
@@ -813,8 +813,8 @@ export function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
   const uvs = new Float32Array([0, 1, 1, 1, 0, 0, 1, 0]);
   const indices = new Uint16Array([0, 2, 1, 2, 3, 1]);
   geometry.setIndex(new BufferAttribute(indices, 1));
-  geometry.addAttribute('position', new BufferAttribute(position, 3));
-  geometry.addAttribute('uvs', new BufferAttribute(uvs, 2));
+  geometry.setAttribute('position', new BufferAttribute(position, 3));
+  geometry.setAttribute('uvs', new BufferAttribute(uvs, 2));
 
   let material = new ShaderMaterial({
     uniforms: makeUniforms({map: texture,
