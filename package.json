@@ -2,16 +2,44 @@
   "name": "uglymol",
   "version": "0.7.1",
   "description": "Macromolecular Viewer for Crystallographers",
+  "keywords": [
+    "crystallography",
+    "biochemistry",
+    "webgl",
+    "coot",
+    "protein",
+    "structure"
+  ],
   "homepage": "https://uglymol.github.io",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/uglymol/uglymol.git"
+  },
+  "license": "MIT",
   "main": "uglymol.js",
-  "jsnext:main": "src/all.js",
   "module": "src/all.js",
+  "jsnext:main": "src/all.js",
   "files": [
     "uglymol.js",
     "uglymol.js.map",
     "uglymol.min.js",
     "src"
   ],
+  "scripts": {
+    "build": "npm test && npm run uglify",
+    "bundle": "rollup -c",
+    "coverage": "rollup -c --sourcemap && jest --testMatch='**/test/*.js' --coverage --collectCoverageFrom='uglymol.js'",
+    "download-data": "node perf/util.js download-data",
+    "flow": "flow || exit 0",
+    "lint": "eslint src test perf || exit 0",
+    "prepublish": "npm run build",
+    "serve": "serve -l 7890",
+    "start": "npm run watch & npm run serve",
+    "test": "npm run lint && npm run flow && rollup -c && jest --testMatch='**/test/*.js'",
+    "uglify": "uglifyjs uglymol.js -o uglymol.min.js --compress --mangle",
+    "version": "npm run build && git add -A uglymol.js",
+    "watch": "rollup -c --watch"
+  },
   "eslintIgnore": [
     "src/wasm/*",
     "src/three/*"
@@ -25,33 +53,5 @@
     "rollup": "^4.12.0",
     "serve": "^14.2.1",
     "uglify-js": "^3.12.5"
-  },
-  "scripts": {
-    "test": "npm run lint && npm run flow && rollup -c && jest --testMatch='**/test/*.js'",
-    "coverage": "rollup -c --sourcemap && jest --testMatch='**/test/*.js' --coverage --collectCoverageFrom='uglymol.js'",
-    "lint": "eslint src test perf || exit 0",
-    "flow": "flow || exit 0",
-    "download-data": "node perf/util.js download-data",
-    "bundle": "rollup -c",
-    "uglify": "uglifyjs uglymol.js -o uglymol.min.js --compress --mangle",
-    "build": "npm test && npm run uglify",
-    "version": "npm run build && git add -A uglymol.js",
-    "prepublish": "npm run build",
-    "watch": "rollup -c --watch",
-    "serve": "serve -l 7890",
-    "start": "npm run watch & npm run serve"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/uglymol/uglymol.git"
-  },
-  "keywords": [
-    "crystallography",
-    "biochemistry",
-    "webgl",
-    "coot",
-    "protein",
-    "structure"
-  ],
-  "license": "MIT"
+  }
 }
