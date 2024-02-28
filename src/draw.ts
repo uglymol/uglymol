@@ -1,12 +1,10 @@
-// @flow
-
 import { BufferAttribute, BufferGeometry, ShaderMaterial,
          Object3D, Mesh, Line, LineSegments, Points,
          Color, Vector3, Matrix4, Ray, CatmullRomCurve3,
          TriangleStripDrawMode, Texture } from './fromthree.js';
 
-/*:: type Num3 = [number, number, number] */
-/*:: import type {AtomT} from './model.js' */
+import type { Atom } from './model';
+type Num3 = [number, number, number];
 
 const CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
                     [0, 0, 0], [0, 1, 0],
@@ -21,7 +19,7 @@ const CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
                     [1, 1, 0], [1, 1, 1],
                     [0, 1, 1], [1, 1, 1]];
 
-function makeColorAttribute(colors /*:Color[]*/) {
+function makeColorAttribute(colors: Color[]) {
   const col = new Float32Array(colors.length * 3);
   for (let i = 0; i < colors.length; i++) {
     col[3*i+0] = colors[i].r;
@@ -79,8 +77,7 @@ void main() {
 ${fog_end_fragment}
 }`;
 
-export function makeLines(pos /*:Float32Array*/, color /*:Color*/,
-                          linewidth /*:number*/) {
+export function makeLines(pos: Float32Array, color: Color, linewidth: number) {
   const material = new ShaderMaterial({
     uniforms: makeUniforms({vcolor: color}),
     vertexShader: unicolor_vert,
@@ -89,17 +86,20 @@ export function makeLines(pos /*:Float32Array*/, color /*:Color*/,
     linewidth: linewidth,
     type: 'um_lines',
   });
-  let geometry = new BufferGeometry();
+  const geometry = new BufferGeometry();
   geometry.setAttribute('position', new BufferAttribute(pos, 3));
   return new LineSegments(geometry, material);
 }
 
-export function makeCube(size /*:number*/,
-                         ctr /*:Vector3*/,
-                         options /*:{[key:string]: any}*/) {
+interface CubeOptions {
+  color: number;
+  linewidth: number;
+}
+
+export function makeCube(size: number, ctr: Vector3, options: CubeOptions) {
   const pos = new Float32Array(CUBE_EDGES.length * 3);
   for (let i = 0; i < CUBE_EDGES.length; i++) {
-    let coor = CUBE_EDGES[i];
+    const coor = CUBE_EDGES[i];
     pos[3*i+0] = ctr.x + size * (coor[0] - 0.5);
     pos[3*i+1] = ctr.y + size * (coor[1] - 0.5);
     pos[3*i+2] = ctr.z + size * (coor[2] - 0.5);
@@ -107,9 +107,9 @@ export function makeCube(size /*:number*/,
   return makeLines(pos, options.color, options.linewidth);
 }
 
-export function makeMultiColorLines(pos /*:Float32Array*/,
-                                    colors /*:Color[]*/,
-                                    linewidth /*:number*/) {
+export function makeMultiColorLines(pos: Float32Array,
+                                    colors: Color[],
+                                    linewidth: number) {
   const material = new ShaderMaterial({
     uniforms: makeUniforms({}),
     vertexShader: varcolor_vert,
@@ -118,22 +118,22 @@ export function makeMultiColorLines(pos /*:Float32Array*/,
     linewidth: linewidth,
     type: 'um_multicolor_lines',
   });
-  let geometry = new BufferGeometry();
+  const geometry = new BufferGeometry();
   geometry.setAttribute('position', new BufferAttribute(pos, 3));
   geometry.setAttribute('color', makeColorAttribute(colors));
   return new LineSegments(geometry, material);
 }
 
 // A cube with 3 edges (for x, y, z axes) colored in red, green and blue.
-export function makeRgbBox(transform_func /*:Num3 => Num3*/, color /*:Color*/) {
+export function makeRgbBox(transform_func: (Num3) => Num3, color: Color) {
   const pos = new Float32Array(CUBE_EDGES.length * 3);
   for (let i = 0; i < CUBE_EDGES.length; i++) {
-    let coor = transform_func(CUBE_EDGES[i]);
+    const coor = transform_func(CUBE_EDGES[i]);
     pos[3*i+0] = coor[0];
     pos[3*i+1] = coor[1];
     pos[3*i+2] = coor[2];
   }
-  let colors = [
+  const colors = [
     new Color(0xff0000), new Color(0xffaa00),
     new Color(0x00ff00), new Color(0xaaff00),
     new Color(0x0000ff), new Color(0x00aaff),
@@ -144,8 +144,8 @@ export function makeRgbBox(transform_func /*:Num3 => Num3*/, color /*:Color*/) {
   return makeMultiColorLines(pos, colors, 1);
 }
 
-function double_pos(pos /*:Num3[]*/) {
-  let double_pos = [];
+function double_pos(pos: Num3[]) {
+  const double_pos = [];
   for (let i = 0; i < pos.length; i++) {
     const v = pos[i];
     double_pos.push(v[0], v[1], v[2]);
@@ -154,9 +154,9 @@ function double_pos(pos /*:Num3[]*/) {
   return double_pos;
 }
 
-function double_color(color_arr /*:Color[]*/) {
+function double_color(color_arr: Color[]) {
   const len = color_arr.length;
-  let color = new Float32Array(6*len);
+  const color = new Float32Array(6*len);
   for (let i = 0; i < len; i++) {
     const col = color_arr[i];
     color[6*i] = col.r;
@@ -171,8 +171,8 @@ function double_color(color_arr /*:Color[]*/) {
 
 // draw quads as 2 triangles: 4 attributes / quad, 6 indices / quad
 function make_quad_index_buffer(len) {
-  let index = (4*len < 65536 ? new Uint16Array(6*len)
-                             : new Uint32Array(6*len));
+  const index = (4*len < 65536 ? new Uint16Array(6*len)
+                               : new Uint32Array(6*len));
   const vert_order = [0, 1, 2, 0, 2, 3];
   for (let i = 0; i < len; i++) {
     for (let j = 0; j < 6; j++) {
@@ -230,8 +230,8 @@ void main() {
   gl_Position.xy += side * linewidth * normal / win_size;
 }`;
 
-function interpolate_vertices(segment, smooth) /*:Vector3[]*/{
-  let vertices = [];
+function interpolate_vertices(segment, smooth): Vector3[] {
+  const vertices = [];
   for (let i = 0; i < segment.length; i++) {
     const xyz = segment[i].xyz;
     vertices.push(new Vector3(xyz[0], xyz[1], xyz[2]));
@@ -243,7 +243,7 @@ function interpolate_vertices(segment, smooth) /*:Vector3[]*/{
 
 function interpolate_colors(colors, smooth) {
   if (!smooth || smooth < 2) return colors;
-  let ret = [];
+  const ret = [];
   for (let i = 0; i < colors.length - 1; i++) {
     for (let j = 0; j < smooth; j++) {
       // currently we don't really interpolate colors
@@ -257,7 +257,7 @@ function interpolate_colors(colors, smooth) {
 // a simplistic linear interpolation, no need to SLERP
 function interpolate_directions(dirs, smooth) {
   smooth = smooth || 1;
-  let ret = [];
+  const ret = [];
   let i;
   for (i = 0; i < dirs.length - 1; i++) {
     const p = dirs[i];
@@ -272,13 +272,13 @@ function interpolate_directions(dirs, smooth) {
   return ret;
 }
 
-export function makeUniforms(params/*:{[id:string]:mixed}*/) {
-  let uniforms = {
+export function makeUniforms(params: Record<string, any>) {
+  const uniforms = {
     fogNear: { value: null },  // will be updated in setProgram()
     fogFar: { value: null },
     fogColor: { value: null },
   };
-  for (let p in params) {  // eslint-disable-line guard-for-in
+  for (const p in params) {  // eslint-disable-line guard-for-in
     uniforms[p] = { value: params[p] };
   }
   return uniforms;
@@ -296,15 +296,15 @@ void main() {
 }`;
 
 // 9-line ribbon
-export function makeRibbon(vertices /*:AtomT[]*/,
-                           colors /*:Color[]*/,
-                           tangents /*:Num3[]*/,
-                           smoothness /*:number*/) {
+export function makeRibbon(vertices: Atom[],
+                           colors: Color[],
+                           tangents: Num3[],
+                           smoothness: number) {
   const vertex_arr = interpolate_vertices(vertices, smoothness);
   const color_arr = interpolate_colors(colors, smoothness);
   const tang_arr = interpolate_directions(tangents, smoothness);
-  let obj = new Object3D();
-  let geometry = new BufferGeometry();
+  const obj = new Object3D();
+  const geometry = new BufferGeometry();
   const pos = new Float32Array(vertex_arr.length * 3);
   for (let i = 0; i < vertex_arr.length; i++) {
     const v = vertex_arr[i];
@@ -331,9 +331,9 @@ export function makeRibbon(vertices /*:AtomT[]*/,
 
 
 export
-function makeChickenWire(data /*:{vertices: number[], segments: number[]}*/,
-                         options /*:{[key: string]: any}*/) {
-  let geom = new BufferGeometry();
+function makeChickenWire(data: {vertices: number[], segments: number[]},
+                         options: {[key: string]: unknown}) {
+  const geom = new BufferGeometry();
   const position = new Float32Array(data.vertices);
   geom.setAttribute('position', new BufferAttribute(position, 3));
 
@@ -374,19 +374,21 @@ void main() {
   gl_FragColor = vcolor;
 }`;
 
-export function makeGrid() {
+export type GridType = LineSegments & { color_value: Color};
+
+export function makeGrid(): GridType {
   const N = 50;
-  let pos = [];
+  const pos = [];
   for (let i = -N; i <= N; i++) {
     let z = 0; // z only marks major/minor axes
     if (i % 5 === 0) z = i % 2 === 0 ? 2 : 1;
     pos.push(-N, i, z, N, i, z);  // horizontal line
     pos.push(i, -N, z, i, N, z);  // vertical line
   }
-  let geom = new BufferGeometry();
+  const geom = new BufferGeometry();
   const pos_arr = new Float32Array(pos);
   geom.setAttribute('position', new BufferAttribute(pos_arr, 3));
-  let material = new ShaderMaterial({
+  const material = new ShaderMaterial({
     uniforms: makeUniforms({ucolor: new Color(0x888888)}),
     //linewidth: 3,
     vertexShader: grid_vert,
@@ -395,15 +397,15 @@ export function makeGrid() {
     type: 'um_grid',
   });
   material.transparent = true;
-  let obj = new LineSegments(geom, material);
+  const obj = new LineSegments(geom, material);
   obj.frustumCulled = false;  // otherwise the renderer could skip it
   obj.color_value = material.uniforms.ucolor.value; // shortcut
   return obj;
 }
 
 
-export function makeLineMaterial(options /*:{[key: string]: mixed}*/) {
-  let uniforms = makeUniforms({
+export function makeLineMaterial(options: Record<string, any>) {
+  const uniforms = makeUniforms({
     linewidth: options.linewidth,
     win_size: options.win_size,
   });
@@ -417,59 +419,59 @@ export function makeLineMaterial(options /*:{[key: string]: mixed}*/) {
 }
 
 // vertex_arr and color_arr must be of the same length
-export function makeLine(material /*:ShaderMaterial*/,
-                         vertex_arr /*:Num3[]*/,
-                         color_arr /*:Color[]*/) {
+export function makeLine(material: ShaderMaterial,
+                         vertex_arr: Num3[],
+                         color_arr: Color[]) {
   const len = vertex_arr.length;
   const pos = double_pos(vertex_arr);
   const position = new Float32Array(pos);
   // could we use three overlapping views of the same buffer?
-  let previous = new Float32Array(6*len);
+  const previous = new Float32Array(6*len);
   let i;
   for (i = 0; i < 6; i++) previous[i] = pos[i];
   for (; i < 6 * len; i++) previous[i] = pos[i-6];
-  let next = new Float32Array(6*len);
+  const next = new Float32Array(6*len);
   for (i = 0; i < 6 * (len-1); i++) next[i] = pos[i+6];
   for (; i < 6 * len; i++) next[i] = pos[i];
-  let side = new Float32Array(2*len);
+  const side = new Float32Array(2*len);
   for (i = 0; i < len; i++) {
     side[2*i] = 1;
     side[2*i+1] = -1;
   }
   const color = double_color(color_arr);
-  let geometry = new BufferGeometry();
+  const geometry = new BufferGeometry();
   geometry.setAttribute('position', new BufferAttribute(position, 3));
   geometry.setAttribute('previous', new BufferAttribute(previous, 3));
   geometry.setAttribute('next', new BufferAttribute(next, 3));
   geometry.setAttribute('side', new BufferAttribute(side, 1));
   geometry.setAttribute('color', new BufferAttribute(color, 3));
 
-  let mesh = new Mesh(geometry, material);
+  const mesh = new Mesh(geometry, material);
   mesh.drawMode = TriangleStripDrawMode;
   mesh.userData.bond_lines = true;
   return mesh;
 }
 
 // vertex_arr and color_arr must be of the same length
-export function makeLineSegments(material /*:ShaderMaterial*/,
-                                 vertex_arr /*:Num3[]*/,
-                                 color_arr /*:?Color[]*/) {
+export function makeLineSegments(material: ShaderMaterial,
+                                 vertex_arr: Num3[],
+                                 color_arr?: Color[]) {
   // n input vertices => 2n output vertices, n triangles, 3n indexes
   const len = vertex_arr.length;
   const pos = double_pos(vertex_arr);
   const position = new Float32Array(pos);
-  let other_vert = new Float32Array(6*len);
+  const other_vert = new Float32Array(6*len);
   for (let i = 0; i < 6 * len; i += 12) {
     let j = 0;
     for (; j < 6; j++) other_vert[i+j] = pos[i+j+6];
     for (; j < 12; j++) other_vert[i+j] = pos[i+j-6];
   }
-  let side = new Float32Array(2*len);
+  const side = new Float32Array(2*len);
   for (let k = 0; k < len; k++) {
     side[2*k] = -1;
     side[2*k+1] = 1;
   }
-  let geometry = new BufferGeometry();
+  const geometry = new BufferGeometry();
   geometry.setAttribute('position', new BufferAttribute(position, 3));
   geometry.setAttribute('other', new BufferAttribute(other_vert, 3));
   geometry.setAttribute('side', new BufferAttribute(side, 1));
@@ -479,7 +481,7 @@ export function makeLineSegments(material /*:ShaderMaterial*/,
   }
   geometry.setIndex(make_quad_index_buffer(len/2));
 
-  let mesh = new Mesh(geometry, material);
+  const mesh = new Mesh(geometry, material);
   mesh.userData.bond_lines = true;
   return mesh;
 }
@@ -505,10 +507,8 @@ void main() {
 ${fog_end_fragment}
 }`;
 
-export function makeWheels(atom_arr /*:AtomT[]*/,
-                           color_arr /*:Color[]*/,
-                           size /*:number*/) {
-  let geometry = new BufferGeometry();
+export function makeWheels(atom_arr: Atom[], color_arr: Color[], size: number) {
+  const geometry = new BufferGeometry();
   const pos = new Float32Array(atom_arr.length * 3);
   for (let i = 0; i < atom_arr.length; i++) {
     const xyz = atom_arr[i].xyz;
@@ -518,14 +518,14 @@ export function makeWheels(atom_arr /*:AtomT[]*/,
   }
   geometry.setAttribute('position', new BufferAttribute(pos, 3));
   geometry.setAttribute('color', makeColorAttribute(color_arr));
-  let material = new ShaderMaterial({
+  const material = new ShaderMaterial({
     uniforms: makeUniforms({size: size}),
     vertexShader: wheel_vert,
     fragmentShader: wheel_frag,
     fog: true,
     type: 'um_wheel',
   });
-  let obj = new Points(geometry, material);
+  const obj = new Points(geometry, material);
   return obj;
 }
 
@@ -621,14 +621,13 @@ void main() {
 ${fog_end_fragment}
 }`;
 
-export function makeSticks(vertex_arr /*:Num3[]*/,
-                           color_arr /*:Color[]*/,
-                           radius /*:number*/) {
-  let uniforms = makeUniforms({
+export
+function makeSticks(vertex_arr: Num3[], color_arr: Color[], radius: number) {
+  const uniforms = makeUniforms({
     radius: radius,
     lightDir: light_dir,
   });
-  let material = new ShaderMaterial({
+  const material = new ShaderMaterial({
     uniforms: uniforms,
     vertexShader: stick_vert,
     fragmentShader: stick_frag,
@@ -640,14 +639,14 @@ export function makeSticks(vertex_arr /*:Num3[]*/,
   const len = vertex_arr.length;
   const pos = double_pos(vertex_arr);
   const position = new Float32Array(pos);
-  let axis = new Float32Array(6*len);
+  const axis = new Float32Array(6*len);
   for (let i = 0; i < 6 * len; i += 12) {
     for (let j = 0; j < 6; j++) axis[i+j] = pos[i+j+6] - pos[i+j];
     for (let j = 0; j < 6; j++) axis[i+j+6] = axis[i+j];
   }
-  let geometry = new BufferGeometry();
+  const geometry = new BufferGeometry();
   geometry.setAttribute('position', new BufferAttribute(position, 3));
-  let corner = new Float32Array(4*len);
+  const corner = new Float32Array(4*len);
   for (let i = 0; 2 * i < len; i++) {
     corner[8*i + 0] = -1;  // 0
     corner[8*i + 1] = -1;  // 0
@@ -664,18 +663,17 @@ export function makeSticks(vertex_arr /*:Num3[]*/,
   geometry.setAttribute('color', new BufferAttribute(color, 3));
   geometry.setIndex(make_quad_index_buffer(len/2));
 
-  let mesh = new Mesh(geometry, material);
+  const mesh = new Mesh(geometry, material);
   mesh.userData.bond_lines = true;
   return mesh;
 }
 
-export function makeBalls(atom_arr /*:AtomT[]*/,
-                          color_arr /*:Color[]*/,
-                          radius /*:number*/) {
+export
+function makeBalls(atom_arr: Atom[], color_arr: Color[], radius: number) {
   const N = atom_arr.length;
-  let geometry = new BufferGeometry();
+  const geometry = new BufferGeometry();
 
-  let pos = new Float32Array(N * 4 * 3);
+  const pos = new Float32Array(N * 4 * 3);
   for (let i = 0; i < N; i++) {
     const xyz = atom_arr[i].xyz;
     for (let j = 0; j < 4; j++) {
@@ -686,7 +684,7 @@ export function makeBalls(atom_arr /*:AtomT[]*/,
   }
   geometry.setAttribute('position', new BufferAttribute(pos, 3));
 
-  let corner = new Float32Array(N * 4 * 2);
+  const corner = new Float32Array(N * 4 * 2);
   for (let i = 0; i < N; i++) {
     corner[8*i + 0] = -1;  // 0
     corner[8*i + 1] = -1;  // 0
@@ -699,7 +697,7 @@ export function makeBalls(atom_arr /*:AtomT[]*/,
   }
   geometry.setAttribute('corner', new BufferAttribute(corner, 2));
 
-  let colors = new Float32Array(N * 4 * 3);
+  const colors = new Float32Array(N * 4 * 3);
   for (let i = 0; i < N; i++) {
     const col = color_arr[i];
     for (let j = 0; j < 4; j++) {
@@ -712,7 +710,7 @@ export function makeBalls(atom_arr /*:AtomT[]*/,
 
   geometry.setIndex(make_quad_index_buffer(N));
 
-  let material = new ShaderMaterial({
+  const material = new ShaderMaterial({
     uniforms: makeUniforms({
       radius: radius,
       lightDir: light_dir,
@@ -723,28 +721,35 @@ export function makeBalls(atom_arr /*:AtomT[]*/,
     type: 'um_sphere',
   });
   material.extensions.fragDepth = true;
-  let obj = new Mesh(geometry, material);
+  const obj = new Mesh(geometry, material);
   return obj;
 }
 
+interface LineRaycastOptions {
+  precision: number;
+  ray: Ray;
+  near: number;
+  far: number;
+}
 // based on Line.prototype.raycast(), but skipping duplicated points
-let inverseMatrix = new Matrix4();
-let ray = new Ray();
-export function line_raycast(mesh/*:Mesh*/, options/*:Object*/,
-                             intersects/*:Object[]*/) {
+const inverseMatrix = new Matrix4();
+const ray = new Ray();
+export
+function line_raycast(mesh: Mesh, options: LineRaycastOptions,
+                      intersects: object[]) {
   const precisionSq = options.precision * options.precision;
   inverseMatrix.getInverse(mesh.matrixWorld);
   ray.copy(options.ray).applyMatrix4(inverseMatrix);
-  let vStart = new Vector3();
-  let vEnd = new Vector3();
-  let interSegment = new Vector3();
-  let interRay = new Vector3();
+  const vStart = new Vector3();
+  const vEnd = new Vector3();
+  const interSegment = new Vector3();
+  const interRay = new Vector3();
   const step = mesh.drawMode === TriangleStripDrawMode ? 1 : 2;
   const positions = mesh.geometry.attributes.position.array;
   for (let i = 0, l = positions.length / 6 - 1; i < l; i += step) {
     vStart.fromArray(positions, 6 * i);
     vEnd.fromArray(positions, 6 * i + 6);
-    let distSq = ray.distanceSqToSegment(vStart, vEnd, interRay, interSegment);
+    const distSq = ray.distanceSqToSegment(vStart, vEnd, interRay, interSegment);
     if (distSq > precisionSq) continue;
     interRay.applyMatrix4(mesh.matrixWorld);
     const distance = options.ray.origin.distanceTo(interRay);
@@ -761,11 +766,11 @@ export function line_raycast(mesh/*:Mesh*/, options/*:Object*/,
 
 function makeCanvasWithText(text, options) {
   if (typeof document === 'undefined') return;  // for testing on node
-  let canvas = document.createElement('canvas');
+  const canvas = document.createElement('canvas');
   // Canvas size should be 2^N.
   canvas.width = 256;  // arbitrary limit, to keep it simple
   canvas.height = 16;  // font size
-  let context = canvas.getContext('2d');
+  const context = canvas.getContext('2d');
   if (!context) return null;
   context.font = (options.font || 'bold 14px') + ' sans-serif';
   //context.fillStyle = 'green';
@@ -800,14 +805,14 @@ ${fog_end_fragment}
 }`;
 
 
-export function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
+export function makeLabel(text: string, options: Record<string, any>) {
   const canvas = makeCanvasWithText(text, options);
   if (!canvas) return;
-  let texture = new Texture(canvas);
+  const texture = new Texture(canvas);
   texture.needsUpdate = true;
 
   // Rectangle geometry.
-  let geometry = new BufferGeometry();
+  const geometry = new BufferGeometry();
   const pos = options.pos;
   const position = new Float32Array([].concat(pos, pos, pos, pos));
   const uvs = new Float32Array([0, 1, 1, 1, 0, 0, 1, 0]);
@@ -816,7 +821,7 @@ export function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
   geometry.setAttribute('position', new BufferAttribute(position, 3));
   geometry.setAttribute('uvs', new BufferAttribute(uvs, 2));
 
-  let material = new ShaderMaterial({
+  const material = new ShaderMaterial({
     uniforms: makeUniforms({map: texture,
                             canvas_size: [canvas.width, canvas.height],
                             win_size: options.win_size,
@@ -827,7 +832,7 @@ export function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
     type: 'um_label',
   });
   material.transparent = true;
-  let mesh = new Mesh(geometry, material);
+  const mesh = new Mesh(geometry, material);
   mesh.remake = function (text, options) {
     texture.image = makeCanvasWithText(text, options);
     texture.needsUpdate = true;
@@ -837,7 +842,7 @@ export function makeLabel(text /*:string*/, options /*:{[key:string]: any}*/) {
 
 // Add vertices of a 3d cross (representation of an unbonded atom)
 export
-function addXyzCross(vertices /*:Num3[]*/, xyz /*:Num3*/, r /*:number*/) {
+function addXyzCross(vertices: Num3[], xyz: Num3, r: number) {
   vertices.push([xyz[0]-r, xyz[1], xyz[2]], [xyz[0]+r, xyz[1], xyz[2]]);
   vertices.push([xyz[0], xyz[1]-r, xyz[2]], [xyz[0], xyz[1]+r, xyz[2]]);
   vertices.push([xyz[0], xyz[1], xyz[2]-r], [xyz[0], xyz[1], xyz[2]+r]);

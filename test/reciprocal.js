@@ -4,7 +4,7 @@ var UM = require('../uglymol');
 
 describe('ReciprocalViewer', () => {
   'use strict';
-  var viewer = new UM.ReciprocalViewer('rv');
+  var viewer = new UM.ReciprocalViewer();
   //var data = util.open_as_utf8('rlp.csv');
   //viewer.load_from_string(data, false);
   it('misc calls', () => {

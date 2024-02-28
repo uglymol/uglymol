@@ -1,106 +1,141 @@
-// @flow
-
 import { OrthographicCamera, Scene, AmbientLight, Color, Vector3,
          Ray, WebGLRenderer, Fog } from './fromthree.js';
-
 import { makeLineMaterial, makeLineSegments, makeLine, makeRibbon,
          makeChickenWire, makeGrid, makeSticks, makeBalls, makeWheels, makeCube,
-         makeRgbBox, makeLabel, addXyzCross } from './draw.js';
-import { STATE, Controls } from './controls.js';
-import { ElMap } from './elmap.js';
-import { modelsFromPDB } from './model.js';
+         makeRgbBox, makeLabel, addXyzCross } from './draw';
+import { STATE, Controls } from './controls';
+import { ElMap } from './elmap';
+import { modelsFromPDB } from './model';
 
-/*::
- import type {AtomT, Model} from './model.js'
- import type {Mesh} from './fromthree.js'
+import type { Atom, Model } from './model';
+import type { Mesh } from './fromthree.js';
+import type { GridType } from './draw';
 
- type ColorScheme = {
-   name: string,
-   bg: number,
-   fg: number,
-   [name:string]: number | number[],
- };
- type Num2 = [number, number]
- type Num3 = [number, number, number];
- */
+type Num2 = [number, number];
+type Num3 = [number, number, number];
 
-const ColorSchemes /*:ColorScheme[]*/ = [ // Viewer.prototype.ColorSchemes
-  { // generally mimicks Coot
-    name: 'coot dark',
-    bg: 0x000000,
-    fg: 0xFFFFFF,
-    map_den: 0x3362B2,
-    map_pos: 0x298029,
-    map_neg: 0x8B2E2E,
-    center: 0xC997B0,
+type ColorScheme = {
+  bg: Color,
+  fg: Color,
+  map_den?: Color,
+  map_pos?: Color,
+  map_neg?: Color,
+  center?: Color,
+  H?: Color,
+  C?: Color,
+  N?: Color,
+  O?: Color,
+  S?: Color,
+  P?: Color,
+  MG?: Color,
+  CL?: Color,
+  CA?: Color,
+  MN?: Color,
+  FE?: Color,
+  NI?: Color,
+  def?: Color,
+};
+
+export type ViewerConfig = {
+  bond_line: number,
+  map_line: number,
+  map_radius: number,
+  max_map_radius: number,
+  default_isolevel: number,
+  center_cube_size: number,
+  map_style: string,
+  render_style: string,
+  ligand_style: string,
+  water_style: string,
+  color_prop: string,
+  line_style: string,
+  label_font: string,
+  color_scheme: string,
+  colors?: ColorScheme,
+  hydrogens: boolean,
+  ball_size: number,
+  stay?: boolean;
+};
+
+const ColorSchemes: Record<string, ColorScheme> = {
+  // the default scheme that generally mimicks Coot
+  'coot dark': {
+    bg: new Color(0x000000),
+    fg: new Color(0xFFFFFF),
+    map_den: new Color(0x3362B2),
+    map_pos: new Color(0x298029),
+    map_neg: new Color(0x8B2E2E),
+    center: new Color(0xC997B0),
     // atoms
-    H: 0x858585, // H is normally invisible
+    H: new Color(0x858585), // H is normally invisible
     // C, N and O are taken approximately (by color-picker) from coot
-    C: 0xb3b300,
-    N: 0x7EAAFB,
-    O: 0xF24984,
-    S: 0x40ff40, // S in coot is too similar to C, here it is greener
+    C: new Color(0xb3b300),
+    N: new Color(0x7EAAFB),
+    O: new Color(0xF24984),
+    S: new Color(0x40ff40), // S in coot is too similar to C, here it's greener
     // Coot doesn't define other colors (?)
-    MG: 0xc0c0c0,
-    P: 0xffc040,
-    CL: 0xa0ff60,
-    CA: 0xffffff,
-    MN: 0xff90c0,
-    FE: 0xa03000,
-    NI: 0x00ff80,
-    def: 0xa0a0a0, // default atom color
+    MG: new Color(0xc0c0c0),
+    P:  new Color(0xffc040),
+    CL: new Color(0xa0ff60),
+    CA: new Color(0xffffff),
+    MN: new Color(0xff90c0),
+    FE: new Color(0xa03000),
+    NI: new Color(0x00ff80),
+    def: new Color(0xa0a0a0), // default atom color
   },
+
   // scheme made of "solarized" colors (http://ethanschoonover.com/solarized):
   // base03  base02  base01  base00  base0   base1   base2   base3
   // #002b36 #073642 #586e75 #657b83 #839496 #93a1a1 #eee8d5 #fdf6e3
   // yellow  orange  red     magenta violet  blue    cyan    green
   // #b58900 #cb4b16 #dc322f #d33682 #6c71c4 #268bd2 #2aa198 #859900
-  {
-    name: 'solarized dark',
-    bg: 0x002b36,
-    fg: 0xfdf6e3,
-    map_den: 0x268bd2,
-    map_pos: 0x859900,
-    map_neg: 0xd33682,
-    center: 0xfdf6e3,
-    H: 0x586e75,
-    C: 0x93a1a1,
-    N: 0x6c71c4,
-    O: 0xcb4b16,
-    S: 0xb58900,
-    def: 0xeee8d5,
+  'solarized dark': {
+    bg: new Color(0x002b36),
+    fg: new Color(0xfdf6e3),
+    map_den: new Color(0x268bd2),
+    map_pos: new Color(0x859900),
+    map_neg: new Color(0xd33682),
+    center: new Color(0xfdf6e3),
+    H: new Color(0x586e75),
+    C: new Color(0x93a1a1),
+    N: new Color(0x6c71c4),
+    O: new Color(0xcb4b16),
+    S: new Color(0xb58900),
+    def: new Color(0xeee8d5),
   },
-  {
-    name: 'solarized light',
-    bg: 0xfdf6e3,
-    fg: 0x002b36,
-    map_den: 0x268bd2,
-    map_pos: 0x859900,
-    map_neg: 0xd33682,
-    center: 0x002b36,
-    H: 0x93a1a1,
-    C: 0x586e75,
-    N: 0x6c71c4,
-    O: 0xcb4b16,
-    S: 0xb58900,
-    def: 0x073642,
+
+  'solarized light': {
+    bg: new Color(0xfdf6e3),
+    fg: new Color(0x002b36),
+    map_den: new Color(0x268bd2),
+    map_pos: new Color(0x859900),
+    map_neg: new Color(0xd33682),
+    center: new Color(0x002b36),
+    H: new Color(0x93a1a1),
+    C: new Color(0x586e75),
+    N: new Color(0x6c71c4),
+    O: new Color(0xcb4b16),
+    S: new Color(0xb58900),
+    def: new Color(0x073642),
   },
-  { // like in Coot after Edit > Background Color > White
-    name: 'coot light',
-    bg: 0xFFFFFF,
-    fg: 0x000000,
-    map_den: 0x3362B2,
-    map_pos: 0x298029,
-    map_neg: 0x8B2E2E,
-    center: 0xC7C769,
-    H: 0x999999,
-    C: 0xA96464,
-    N: 0x1C51B3,
-    O: 0xC33869,
-    S: 0x9E7B3D,
-    def: 0x808080,
+
+  // like in Coot after Edit > Background Color > White
+  'coot light': {
+    bg: new Color(0xFFFFFF),
+    fg: new Color(0x000000),
+    map_den: new Color(0x3362B2),
+    map_pos: new Color(0x298029),
+    map_neg: new Color(0x8B2E2E),
+    center: new Color(0xC7C769),
+    H: new Color(0x999999),
+    C: new Color(0xA96464),
+    N: new Color(0x1C51B3),
+    O: new Color(0xC33869),
+    S: new Color(0x9E7B3D),
+    def: new Color(0x808080),
   },
-];
+};
+
 
 const INIT_HUD_TEXT = 'This is UglyMol not Coot. ' +
   '<a href="#" onclick="V.toggle_help(); return false;">H shows help.</a>';
@@ -115,8 +150,8 @@ const MAP_STYLES = ['marching cubes', 'squarish'/*, 'snapped MC'*/];
 const LINE_STYLES = ['normal', 'simplistic'];
 const LABEL_FONTS = ['bold 14px', '14px', '16px', 'bold 16px'];
 
-function rainbow_value(v/*:number*/, vmin/*:number*/, vmax/*:number*/) {
-  let c = new Color(0xe0e0e0);
+function rainbow_value(v: number, vmin: number, vmax: number) {
+  const c = new Color(0xe0e0e0);
   if (vmin < vmax) {
     const ratio = (v - vmin) / (vmax - vmin);
     const hue = (240 - (240 * ratio)) / 360;
@@ -125,7 +160,7 @@ function rainbow_value(v/*:number*/, vmin/*:number*/, vmax/*:number*/) {
   return c;
 }
 
-function color_by(prop, atoms /*:AtomT[]*/, elem_colors, hue_shift) {
+function color_by(prop: string, atoms: Atom[], elem_colors, hue_shift: number) {
   let color_func;
   const last_atom = atoms[atoms.length-1];
   if (prop === 'index') {
@@ -190,16 +225,15 @@ function scale_by_height(value, size) { // for scaling bond_line
 }
 
 class MapBag {
-  /*::
-  map: ElMap
-  name: string
-  isolevel: number
-  visible: boolean
-  types: string[]
-  block_ctr: Vector3
-  el_objects: Object[]
-  */
-  constructor(map/*:ElMap*/, config/*:Object*/, is_diff_map/*:boolean*/) {
+  map: ElMap;
+  name: string;
+  isolevel: number;
+  visible: boolean;
+  types: string[];
+  block_ctr: Vector3;
+  el_objects: object[];
+
+  constructor(map: ElMap, config: ViewerConfig, is_diff_map: boolean) {
     this.map = map;
     this.name = '';
     this.isolevel = is_diff_map ? 3.0 : config.default_isolevel;
@@ -210,20 +244,18 @@ class MapBag {
   }
 }
 
-
 class ModelBag {
-  /*::
-  model: Model
-  label: string
-  visible: boolean
-  hue_shift: number
-  conf: Object
-  win_size: Num2
-  objects: Object[]
-  atom_array: AtomT[]
-  static ctor_counter: number
-  */
-  constructor(model/*:Model*/, config/*:Object*/, win_size/*:Num2*/) {
+  model: Model;
+  label: string;
+  visible: boolean;
+  hue_shift: number;
+  conf: ViewerConfig;
+  win_size: Num2;
+  objects: object[];
+  atom_array: Atom[]
+  static ctor_counter: number;
+
+  constructor(model: Model, config: ViewerConfig, win_size: Num2) {
     this.model = model;
     this.label = '(model #' + ++ModelBag.ctor_counter + ')';
     this.visible = true;
@@ -248,14 +280,14 @@ class ModelBag {
     return non_h;
   }
 
-  add_bonds(polymers/*:boolean*/, ligands/*:boolean*/, ball_size/*:?number*/) {
+  add_bonds(polymers: boolean, ligands: boolean, ball_size?: number) {
     const visible_atoms = this.get_visible_atoms();
     const colors = color_by(this.conf.color_prop, visible_atoms,
                             this.conf.colors, this.hue_shift);
-    let vertex_arr /*:Vector3[]*/ = [];
-    let color_arr = [];
-    let sphere_arr = [];
-    let sphere_color_arr = [];
+    const vertex_arr: Vector3[] = [];
+    const color_arr = [];
+    const sphere_arr = [];
+    const sphere_color_arr = [];
     const hydrogens = this.conf.hydrogens;
     for (let i = 0; i < visible_atoms.length; i++) {
       const atom = visible_atoms[i];
@@ -321,7 +353,7 @@ class ModelBag {
     for (const seg of segments) {
       const color_slice = colors.slice(k, k + seg.length);
       k += seg.length;
-      let pos = [];
+      const pos = [];
       for (const atom of seg) {
         pos.push(atom.xyz);
       }
@@ -331,7 +363,7 @@ class ModelBag {
     this.atom_array = visible_atoms;
   }
 
-  add_ribbon(smoothness/*:number*/) {
+  add_ribbon(smoothness: number) {
     const segments = this.model.extract_trace();
     const res_map = this.model.get_residues();
     const visible_atoms = [].concat.apply([], segments);
@@ -339,7 +371,7 @@ class ModelBag {
                             this.conf.colors, this.hue_shift);
     let k = 0;
     for (const seg of segments) {
-      let tangents = [];
+      const tangents = [];
       let last = [0, 0, 0];
       for (const atom of seg) {
         const residue = res_map[atom.resid()];
@@ -368,7 +400,7 @@ function vec3_to_fixed(vec, n) {
 }
 
 // for two-finger touch events
-function touch_info(evt/*:TouchEvent*/) {
+function touch_info(evt: TouchEvent) {
   const touches = evt.touches;
   const dx = touches[0].pageX - touches[1].pageX;
   const dy = touches[0].pageY - touches[1].pageY;
@@ -379,67 +411,76 @@ function touch_info(evt/*:TouchEvent*/) {
 
 // makes sense only for full-window viewer
 function parse_url_fragment() {
-  let ret = {};
+  const ret : Record<string, any> = {};
   if (typeof window === 'undefined') return ret;
   const params = window.location.hash.substr(1).split('&');
   for (let i = 0; i < params.length; i++) {
     const kv = params[i].split('=');
-    let val = kv[1];
-    if (kv[0] === 'xyz' || kv[0] === 'eye') {
-      val = val.split(',').map(Number);
-    } else if (kv[0] === 'zoom') {
-      val = Number(val);
+    const key = kv[0];
+    const val = kv[1];
+    if (key === 'xyz' || key === 'eye') {
+      ret[key] = val.split(',').map(Number);
+    } else if (key === 'zoom') {
+      ret[key] = Number(val);
+    } else {
+      ret[key] = val;
     }
-    ret[kv[0]] = val;
   }
   return ret;
 }
 
 
 export class Viewer {
-  /*::
-  model_bags: ModelBag[]
-  map_bags: MapBag[]
-  decor: {cell_box: ?Object , selection: ?Object, zoom_grid: Object,
-          mark: ?Object}
-  labels: {[id:string]: {o: Mesh, bag: ModelBag}}
-  nav: ?Object
-  xhr_headers: {[id:string]: string}
-  config: Object
-  window_size: Num2
-  window_offset: Num2
-  last_ctr: Vector3
-  selected: {bag: ?ModelBag, atom: ?AtomT}
-  dbl_click_callback: (Object) => void
-  scene: Scene
-  light: AmbientLight
-  default_camera_pos: Num3
-  target: Vector3
-  camera: OrthographicCamera
-  controls: Controls
-  tied_viewer: ?Viewer
-  renderer: WebGLRenderer
-  container: ?HTMLElement
-  hud_el: ?HTMLElement
-  help_el: ?HTMLElement
-  initial_hud_html: string
-  scheduled: boolean
-  ColorSchemes: ColorScheme[]
-  MOUSE_HELP: string
-  KEYBOARD_HELP: string
-  ABOUT_HELP: string
-  mousemove: (MouseEvent) => void
-  mouseup: (MouseEvent) => void
-  key_bindings: Array<Function|false>
-  */
-  constructor(options /*: {[key: string]: any}*/) {
+  model_bags: ModelBag[];
+  map_bags: MapBag[];
+  decor: {
+      cell_box: object | null,
+      selection: object | null,
+      zoom_grid: GridType,
+      mark: object | null
+  };
+  labels: {[index:string]: {o: Mesh, bag: ModelBag}};
+  //nav: object | null;
+  xhr_headers: Record<string, string>;
+  config: ViewerConfig;
+  window_size: Num2;
+  window_offset: Num2;
+  last_ctr: Vector3;
+  selected: {bag: ModelBag | null, atom: Atom | null};
+  dbl_click_callback: (object) => void;
+  scene: Scene;
+  light: AmbientLight;
+  default_camera_pos: Num3;
+  target: Vector3;
+  camera: OrthographicCamera;
+  controls: Controls;
+  tied_viewer: Viewer | null;
+  renderer: WebGLRenderer;
+  container: HTMLElement | null;
+  hud_el: HTMLElement | null;
+  help_el: HTMLElement | null;
+  initial_hud_html: string;
+  scheduled: boolean;
+  MOUSE_HELP: string;
+  KEYBOARD_HELP: string;
+  ABOUT_HELP: string;
+  mousemove: (MouseEvent) => void;
+  mouseup: (MouseEvent) => void;
+  key_bindings: Array<((string) => void) | false | undefined>;
+  ColorSchemes: typeof ColorSchemes;
+
+  constructor(options: Record<string, any>) {
     // rendered objects
     this.model_bags = [];
     this.map_bags = [];
-    this.decor = { cell_box: null, selection: null, zoom_grid: makeGrid(),
-                   mark: null };
+    this.decor = {
+      cell_box: null,
+      selection: null,
+      zoom_grid: makeGrid(),
+      mark: null,
+    };
     this.labels = {};
-    this.nav = null;
+    //this.nav = null;
     this.xhr_headers = {};
 
     this.config = {
@@ -456,13 +497,14 @@ export class Viewer {
       color_prop: COLOR_PROPS[0],
       line_style: LINE_STYLES[0],
       label_font: LABEL_FONTS[0],
-      colors: this.ColorSchemes[0],
+      color_scheme: 'coot dark',
+      // `colors` is assigned in set_colors()
       hydrogens: false,
       ball_size: 0.4,
     };
 
     // options of the constructor overwrite default values of the config
-    for (let o of Object.keys(options)) {
+    for (const o of Object.keys(options)) {
       if (o in this.config) {
         this.config[o] = options[o];
       }
@@ -523,7 +565,6 @@ export class Viewer {
     this.camera.zoom = this.camera.right / 35.0;  // arbitrary choice
     this.update_camera();
     const el = this.renderer.domElement;
-    // $FlowFixMe: flow can't figure out that this.container != null
     this.container.appendChild(el);
     if (options.focusable) {
       el.tabIndex = 0;
@@ -532,11 +573,10 @@ export class Viewer {
     this.scene.add(this.decor.zoom_grid);
 
     window.addEventListener('resize', this.resize.bind(this));
-    let keydown_el = (options.focusable ? el : window);
+    const keydown_el = (options.focusable ? el : window);
     keydown_el.addEventListener('keydown', this.keydown.bind(this));
     el.addEventListener('contextmenu', function (e) { e.preventDefault(); });
-    el.addEventListener('mousewheel', this.mousewheel.bind(this));
-    el.addEventListener('MozMousePixelScroll', this.mousewheel.bind(this));
+    el.addEventListener('wheel', this.wheel.bind(this));
     el.addEventListener('mousedown', this.mousedown.bind(this));
     el.addEventListener('touchstart', this.touchstart.bind(this));
     el.addEventListener('touchmove', this.touchmove.bind(this));
@@ -544,15 +584,15 @@ export class Viewer {
     el.addEventListener('touchcancel', this.touchend.bind(this));
     el.addEventListener('dblclick', this.dblclick.bind(this));
 
-    let self = this;
+    const self = this;
 
-    this.mousemove = function (event/*:MouseEvent*/) {
+    this.mousemove = function (event: MouseEvent) {
       event.preventDefault();
       //event.stopPropagation();
       self.controls.move(self.relX(event), self.relY(event));
     };
 
-    this.mouseup = function (event/*:MouseEvent*/) {
+    this.mouseup = function (event: MouseEvent) {
       event.preventDefault();
       event.stopPropagation();
       document.removeEventListener('mousemove', self.mousemove);
@@ -573,17 +613,17 @@ export class Viewer {
     this.request_render();
   }
 
-  pick_atom(coords/*:Num2*/, camera/*:OrthographicCamera*/) {
+  pick_atom(coords: Num2, camera: OrthographicCamera) {
     let pick = null;
     for (const bag of this.model_bags) {
       if (!bag.visible) continue;
       const z = (camera.near + camera.far) / (camera.near - camera.far);
-      let ray = new Ray();
+      const ray = new Ray();
       ray.origin.set(coords[0], coords[1], z).unproject(camera);
       ray.direction.set(0, 0, -1).transformDirection(camera.matrixWorld);
-      let near = camera.near;
+      const near = camera.near;
       // '0.15' b/c the furthest 15% is hardly visible in the fog
-      let far = camera.far - 0.15 * (camera.far - camera.near);
+      const far = camera.far - 0.15 * (camera.far - camera.near);
       /*
       // previous version - line-based search
       let intersects = [];
@@ -604,16 +644,16 @@ export class Viewer {
       }
       */
       // search directly atom array ignoring matrixWorld
-      let vec = new Vector3();
+      const vec = new Vector3();
       // required picking precision: 0.35A at zoom 50, 0.27A @z30, 0.44 @z80
       const precision2 = 0.35 * 0.35 * 0.02 * camera.zoom;
       for (const atom of bag.atom_array) {
         vec.set(atom.xyz[0] - ray.origin.x,
                 atom.xyz[1] - ray.origin.y,
                 atom.xyz[2] - ray.origin.z);
-        let distance = vec.dot(ray.direction);
+        const distance = vec.dot(ray.direction);
         if (distance < 0 || distance < near || distance > far) continue;
-        let diff2 = vec.addScaledVector(ray.direction, -distance).lengthSq();
+        const diff2 = vec.addScaledVector(ray.direction, -distance).lengthSq();
         if (diff2 > precision2) continue;
         if (pick == null || distance < pick.distance) {
           pick = {bag, atom, distance};
@@ -623,46 +663,26 @@ export class Viewer {
     return pick;
   }
 
-  set_colors(scheme/*:?number|string|ColorScheme*/) {
-    function to_col(x) { return new Color(x); }
-    if (scheme == null) {
-      scheme = this.config.colors;
-    } else if (typeof scheme === 'number') {
-      scheme = this.ColorSchemes[scheme % this.ColorSchemes.length];
-    } else if (typeof scheme === 'string') {
-      for (const sc of this.ColorSchemes) {
-        if (sc.name === scheme) {
-          scheme = sc;
-          break;
-        }
-      }
-      throw Error('Unknown color scheme.');
-    }
-    if (typeof scheme.bg === 'number') {
-      for (const key in scheme) {
-        if (key !== 'name') {
-          scheme[key] = scheme[key] instanceof Array ? scheme[key].map(to_col)
-                                                     : to_col(scheme[key]);
-        }
-      }
-    }
+  set_colors() {
+    const scheme = ColorSchemes[this.config.color_scheme];
+    if (!scheme) throw Error('Unknown color scheme.');
     this.decor.zoom_grid.color_value.set(scheme.fg);
-    this.config.config = scheme;
+    this.config.colors = scheme;
     this.redraw_all();
   }
 
   // relative position on canvas in normalized device coordinates [-1, +1]
-  relX(evt/*:{pageX: number}*/) {
+  relX(evt: {pageX: number}) {
     return 2 * (evt.pageX - this.window_offset[0]) / this.window_size[0] - 1;
   }
 
-  relY(evt/*:{pageY: number}*/) {
+  relY(evt: {pageY: number}) {
     return 1 - 2 * (evt.pageY - this.window_offset[1]) / this.window_size[1];
   }
 
-  hud(text/*:?string*/, type/*:?string*/) {
+  hud(text?: string, type?: string) {
     if (typeof document === 'undefined') return;  // for testing on node
-    let el = this.hud_el;
+    const el = this.hud_el;
     if (el) {
       if (text != null) {
         if (type === 'HTML') {
@@ -681,7 +701,7 @@ export class Viewer {
     }
   }
 
-  redraw_center(force/*:?boolean*/) {
+  redraw_center(force?: boolean) {
     const size = this.config.center_cube_size;
     if (force ||
         this.target.distanceToSquared(this.last_ctr) > 0.01 * size * size) {
@@ -692,13 +712,12 @@ export class Viewer {
       this.decor.mark = makeCube(size, this.target, {
         color: this.config.colors.center,
         linewidth: 2,
-        win_size: this.window_size,
       });
       this.scene.add(this.decor.mark);
     }
   }
 
-  redraw_maps(force/*:?boolean*/) {
+  redraw_maps(force?: boolean) {
     this.redraw_center(force);
     const r = this.config.map_radius;
     for (const map_bag of this.map_bags) {
@@ -708,7 +727,7 @@ export class Viewer {
     }
   }
 
-  remove_and_dispose(obj/*:Object*/) {
+  remove_and_dispose(obj: any) {
     this.scene.remove(obj);
     if (obj.geometry) obj.geometry.dispose();
     if (obj.material) {
@@ -717,20 +736,20 @@ export class Viewer {
       }
       obj.material.dispose();
     }
-    for (let o of obj.children) {
+    for (const o of obj.children) {
       this.remove_and_dispose(o);
     }
   }
 
-  clear_el_objects(map_bag/*:MapBag*/) {
-    for (let o of map_bag.el_objects) {
+  clear_el_objects(map_bag: MapBag) {
+    for (const o of map_bag.el_objects) {
       this.remove_and_dispose(o);
     }
     map_bag.el_objects = [];
   }
 
-  clear_model_objects(model_bag/*:ModelBag*/) {
-    for (let o of model_bag.objects) {
+  clear_model_objects(model_bag: ModelBag) {
+    for (const o of model_bag.objects) {
       this.remove_and_dispose(o);
     }
     model_bag.objects = [];
@@ -740,7 +759,7 @@ export class Viewer {
     return this.renderer && this.renderer.extensions.get('EXT_frag_depth');
   }
 
-  set_model_objects(model_bag/*:ModelBag*/) {
+  set_model_objects(model_bag: ModelBag) {
     model_bag.objects = [];
     model_bag.atom_array = [];
     let ligand_balls = null;
@@ -778,13 +797,13 @@ export class Viewer {
         model_bag.add_bonds(false, true, ligand_balls);
         break;
     }
-    for (let o of model_bag.objects) {
+    for (const o of model_bag.objects) {
       this.scene.add(o);
     }
   }
 
   // Add/remove label if `show` is specified, toggle otherwise.
-  toggle_label(pick/*:{bag:?ModelBag, atom:?AtomT}*/, show/*:?boolean*/) {
+  toggle_label(pick: {bag?: ModelBag, atom?: Atom}, show?: boolean) {
     if (pick.atom == null) return;
     const text = pick.atom.short_label();
     const uid = text; // we assume that the labels inside one model are unique
@@ -793,8 +812,8 @@ export class Viewer {
     if (show) {
       if (is_shown) return;
       if (pick.atom == null) return; // silly flow
-      let atom_style = pick.atom.is_ligand ? 'ligand_style' : 'render_style';
-      let balls = pick.bag && pick.bag.conf[atom_style] === 'ball&stick';
+      const atom_style = pick.atom.is_ligand ? 'ligand_style' : 'render_style';
+      const balls = pick.bag && pick.bag.conf[atom_style] === 'ball&stick';
       const label = makeLabel(text, {
         pos: pick.atom.xyz,
         font: this.config.label_font,
@@ -814,7 +833,7 @@ export class Viewer {
   }
 
   redraw_labels() {
-    for (let uid in this.labels) { // eslint-disable-line guard-for-in
+    for (const uid in this.labels) { // eslint-disable-line guard-for-in
       const text = uid;
       this.labels[uid].o.remake(text, {
         font: this.config.label_font,
@@ -823,7 +842,7 @@ export class Viewer {
     }
   }
 
-  toggle_map_visibility(map_bag/*:MapBag*/) {
+  toggle_map_visibility(map_bag: MapBag) {
     if (typeof map_bag === 'number') {
       map_bag = this.map_bags[map_bag];
     }
@@ -832,7 +851,7 @@ export class Viewer {
     this.request_render();
   }
 
-  redraw_map(map_bag/*:MapBag*/) {
+  redraw_map(map_bag: MapBag) {
     this.clear_el_objects(map_bag);
     if (map_bag.visible) {
       map_bag.map.block.clear();
@@ -840,7 +859,7 @@ export class Viewer {
     }
   }
 
-  toggle_model_visibility(model_bag/*:?ModelBag*/, visible/*:?boolean*/) {
+  toggle_model_visibility(model_bag?: ModelBag, visible?: boolean) {
     model_bag = model_bag || this.selected.bag;
     if (model_bag == null) return;
     model_bag.visible = visible == null ? !model_bag.visible : visible;
@@ -848,7 +867,7 @@ export class Viewer {
     this.request_render();
   }
 
-  redraw_model(model_bag/*:ModelBag*/) {
+  redraw_model(model_bag: ModelBag) {
     this.clear_model_objects(model_bag);
     if (model_bag.visible) {
       this.set_model_objects(model_bag);
@@ -861,7 +880,7 @@ export class Viewer {
     }
   }
 
-  add_el_objects(map_bag/*:MapBag*/) {
+  add_el_objects(map_bag: MapBag) {
     if (!map_bag.visible || this.config.map_radius <= 0) return;
     if (map_bag.map.block.empty()) {
       const t = this.target;
@@ -881,7 +900,7 @@ export class Viewer {
     }
   }
 
-  change_isolevel_by(map_idx/*:number*/, delta/*:number*/) {
+  change_isolevel_by(map_idx: number, delta: number) {
     if (map_idx >= this.map_bags.length) return;
     const map_bag = this.map_bags[map_idx];
     map_bag.isolevel += delta;
@@ -890,9 +909,9 @@ export class Viewer {
     this.add_el_objects(map_bag);
     const abs_level = map_bag.map.abs_level(map_bag.isolevel);
     let abs_text = abs_level.toFixed(4);
-    let tied = this.tied_viewer;
+    const tied = this.tied_viewer;
     if (tied && map_idx < tied.map_bags.length) {
-      let tied_bag = tied.map_bags[map_idx];
+      const tied_bag = tied.map_bags[map_idx];
       // Should we tie by sigma or absolute level? Now it's sigma.
       tied_bag.isolevel = map_bag.isolevel;
       abs_text += ' / ' + tied_bag.map.abs_level(tied_bag.isolevel).toFixed(4);
@@ -903,7 +922,7 @@ export class Viewer {
              map_bag.map.unit + ' (' + map_bag.isolevel.toFixed(2) + ' rmsd)');
   }
 
-  change_map_radius(delta/*:number*/) {
+  change_map_radius(delta: number) {
     const rmax = this.config.max_map_radius;
     const cf = this.config;
     cf.map_radius = Math.min(Math.max(cf.map_radius + delta, 0), rmax);
@@ -916,8 +935,8 @@ export class Viewer {
     this.redraw_maps(true);
   }
 
-  change_slab_width_by(delta/*:number*/) {
-    let slab_width = this.controls.slab_width;
+  change_slab_width_by(delta: number) {
+    const slab_width = this.controls.slab_width;
     slab_width[0] = Math.max(slab_width[0] + delta, 0.01);
     slab_width[1] = Math.max(slab_width[1] + delta, 0.01);
     this.update_camera();
@@ -925,44 +944,43 @@ export class Viewer {
     this.hud('clip width: ' + final_width.toPrecision(3));
   }
 
-  change_zoom_by_factor(mult/*:number*/) {
+  change_zoom_by_factor(mult: number) {
     this.camera.zoom *= mult;
     this.update_camera();
     this.hud('zoom: ' + this.camera.zoom.toPrecision(3));
   }
 
-  change_bond_line(delta/*:number*/) {
+  change_bond_line(delta: number) {
     this.config.bond_line = Math.max(this.config.bond_line + delta, 0.1);
     this.redraw_models();
     this.hud('bond width: ' + scale_by_height(this.config.bond_line,
                                               this.window_size).toFixed(1));
   }
 
-  change_map_line(delta/*:number*/) {
+  change_map_line(delta: number) {
     this.config.map_line = Math.max(this.config.map_line + delta, 0.1);
     this.redraw_maps(true);
     this.hud('wireframe width: ' + this.config.map_line.toFixed(1));
   }
 
   toggle_full_screen() {
-    let d = document;
-    // $FlowFixMe: Property mozFullScreenElement is missing in Document
+    const d = document;
+    // @ts-expect-error no mozFullScreenElement
     if (d.fullscreenElement || d.mozFullScreenElement ||
-        // $FlowFixMe: Property webkitExitFullscreen is missing in Document
+        // @ts-expect-error no msFullscreenElement
         d.webkitFullscreenElement || d.msFullscreenElement) {
-      // $FlowFixMe: Property webkitExitFullscreen is missing in Document
-      let ex = d.exitFullscreen || d.webkitExitFullscreen ||
-      // $FlowFixMe: property `msExitFullscreen` not found in document
-               d.mozCancelFullScreen || d.msExitFullscreen;
-      // $FlowFixMe: cannot call property `exitFullscreen` of unknown type
+      // @ts-expect-error no webkitExitFullscreen
+      const ex = d.exitFullscreen || d.webkitExitFullscreen ||
+                 // @ts-expect-error no msExitFullscreen
+                 d.mozCancelFullScreen || d.msExitFullscreen;
       if (ex) ex.call(d);
     } else {
-      let el = this.container;
+      const el = this.container;
       if (!el) return;
-      // $FlowFixMe: Property webkitRequestFullscreen is missing in HTMLElement
-      let req = el.requestFullscreen || el.webkitRequestFullscreen ||
-      // $FlowFixMe: property `msRequestFullscreen` not found in HTMLElement
-                el.mozRequestFullScreen || el.msRequestFullscreen;
+      // @ts-expect-error no webkitRequestFullscreen
+      const req = el.requestFullscreen || el.webkitRequestFullscreen ||
+                  // @ts-expect-error no msRequestFullscreen
+                  el.mozRequestFullScreen || el.msRequestFullscreen;
       if (req) req.call(el);
     }
   }
@@ -980,7 +998,7 @@ export class Viewer {
     }
   }
 
-  get_cell_box_func() /*:?Function*/ {
+  get_cell_box_func() {
     let uc = null;
     if (this.selected.bag != null) {
       uc = this.selected.bag.model.unit_cell;
@@ -992,8 +1010,8 @@ export class Viewer {
     return uc && uc.orthogonalize.bind(uc);
   }
 
-  shift_clip(delta/*:number*/) {
-    let eye = this.camera.position.clone().sub(this.target);
+  shift_clip(delta: number) {
+    const eye = this.camera.position.clone().sub(this.target);
     eye.multiplyScalar(delta / eye.length());
     this.target.add(eye);
     this.camera.position.add(eye);
@@ -1021,9 +1039,9 @@ export class Viewer {
                '"V" is for working with multiple models.');
       return;
     }
-    let show_all = !this.model_bags.every(function (m) { return m.visible; });
+    const show_all = !this.model_bags.every(function (m) { return m.visible; });
     for (const model_bag of this.model_bags) {
-      let show = show_all || model_bag === this.selected.bag;
+      const show = show_all || model_bag === this.selected.bag;
       this.toggle_model_visibility(model_bag, show);
     }
     this.hud(show_all ? 'All models visible' : 'Inactive models hidden');
@@ -1049,7 +1067,7 @@ export class Viewer {
   }
 
   toggle_help() {
-    let el = this.help_el;
+    const el = this.help_el;
     if (!el) return;
     el.style.display = el.style.display === 'block' ? 'none' : 'block';
     if (el.innerHTML === '') {
@@ -1058,8 +1076,7 @@ export class Viewer {
     }
   }
 
-  select_next(info/*:string*/, key/*:string*/,
-              options/*:Array<string|ColorScheme>*/, back/*:boolean*/) {
+  select_next(info: string, key: string, options: string[], back: boolean) {
     const old_idx = options.indexOf(this.config[key]);
     const len = options.length;
     const new_idx = (old_idx + (back ? len - 1 : 1)) % len;
@@ -1067,14 +1084,12 @@ export class Viewer {
     let html = info + ':';
     for (let i = 0; i < len; i++) {
       const tag = (i === new_idx ? 'u' : 's');
-      const opt_name = typeof options[i] === 'string' ? options[i]
-                                                      : options[i].name;
-      html += ' <' + tag + '>' + opt_name + '</' + tag + '>';
+      html += ' <' + tag + '>' + options[i] + '</' + tag + '>';
     }
     this.hud(html, 'HTML');
   }
 
-  keydown(evt/*:KeyboardEvent*/) {
+  keydown(evt: KeyboardEvent) {
     if (evt.ctrlKey) return;
     const action = this.key_bindings[evt.keyCode];
     if (action) {
@@ -1087,11 +1102,11 @@ export class Viewer {
   }
 
   set_common_key_bindings() {
-    let kb = new Array(256);
+    const kb = new Array(256);
     // b
     kb[66] = function (evt) {
-      this.select_next('color scheme', 'colors', this.ColorSchemes,
-                       evt.shiftKey);
+      const schemes = Object.keys(this.ColorSchemes);
+      this.select_next('color scheme', 'color_scheme', schemes, evt.shiftKey);
       this.set_colors();
     };
     // c
@@ -1173,7 +1188,7 @@ export class Viewer {
   }
 
   set_real_space_key_bindings() {
-    let kb = this.key_bindings;
+    const kb = this.key_bindings;
     // Home
     kb[36] = function (evt) {
       evt.shiftKey ? this.change_map_line(0.1) : this.change_bond_line(0.2);
@@ -1231,7 +1246,7 @@ export class Viewer {
     kb[190] = function (evt) { if (evt.shiftKey) this.shift_clip(-1); };
   }
 
-  mousedown(event/*:MouseEvent*/) {
+  mousedown(event: MouseEvent) {
     //event.preventDefault(); // default involves setting focus, which we need
     event.stopPropagation();
     document.addEventListener('mouseup', this.mouseup);
@@ -1257,13 +1272,13 @@ export class Viewer {
     this.request_render();
   }
 
-  dblclick(event/*:MouseEvent*/) {
+  dblclick(event: MouseEvent) {
     if (event.button !== 0) return;
     if (this.decor.selection) {
       this.remove_and_dispose(this.decor.selection);
       this.decor.selection = null;
     }
-    const mouse = [this.relX(event), this.relY(event)];
+    const mouse: Num2 = [this.relX(event), this.relY(event)];
     const pick = this.pick_atom(mouse, this.camera);
     if (pick) {
       const atom = pick.atom;
@@ -1280,7 +1295,7 @@ export class Viewer {
     this.request_render();
   }
 
-  touchstart(event/*:TouchEvent*/) {
+  touchstart(event: TouchEvent) {
     const touches = event.touches;
     if (touches.length === 1) {
       this.controls.start(STATE.ROTATE,
@@ -1293,7 +1308,7 @@ export class Viewer {
     this.request_render();
   }
 
-  touchmove(event/*:TouchEvent*/) {
+  touchmove(event: TouchEvent) {
     event.preventDefault();
     event.stopPropagation();
     const touches = event.touches;
@@ -1310,18 +1325,17 @@ export class Viewer {
     this.redraw_maps();
   }
 
-  // $FlowFixMe TODO: wheel()+WheelEvent are more standard
-  mousewheel(evt/*:MouseWheelEvent*/) {
+  wheel(evt: WheelEvent) {
     evt.preventDefault();
     evt.stopPropagation();
-    // evt.wheelDelta for WebKit, evt.detail for Firefox
-    const delta = evt.wheelDelta || -2 * (evt.detail || 0);
-    this.mousewheel_action(delta, evt);
+    this.mousewheel_action(evt.deltaY, evt);
     this.request_render();
   }
 
-  mousewheel_action(delta/*:number*/, evt/*:WheelEvent*/) {
-    this.change_isolevel_by(evt.shiftKey ? 1 : 0, 0.0005 * delta);
+  // overrided in ReciprocalViewer
+  mousewheel_action(delta: number, evt: WheelEvent) {
+    const map_idx = evt.shiftKey ? 1 : 0;
+    this.change_isolevel_by(map_idx, 0.0005 * delta);
   }
 
   resize(/*evt*/) {
@@ -1347,9 +1361,11 @@ export class Viewer {
 
   // If xyz set recenter on it looking toward the model center.
   // Otherwise recenter on the model center looking along the z axis.
-  recenter(xyz/*:?Num3*/, cam/*:?Num3*/, steps/*:?number*/) {
+  recenter(xyz?: Num3, cam?: Num3, steps?: number) {
     const bag = this.selected.bag;
-    let new_up = new Vector3(0, 1, 0);
+    const new_up = new Vector3(0, 1, 0);
+    let vec_cam;
+    let vec_xyz;
     let eye;
     if (xyz != null && cam == null && bag != null) {
       // look from specified point toward the center of the molecule,
@@ -1357,8 +1373,8 @@ export class Viewer {
       const mc = bag.model.get_center();
       eye = new Vector3(xyz[0] - mc[0], xyz[1] - mc[1], xyz[2] - mc[2]);
       eye.setLength(100);
-      xyz = new Vector3(xyz[0], xyz[1], xyz[2]);
-      cam = eye.clone().add(xyz);
+      vec_xyz = new Vector3(xyz[0], xyz[1], xyz[2]);
+      vec_cam = eye.clone().add(vec_xyz);
     } else {
       if (xyz == null) {
         if (bag != null) {
@@ -1368,14 +1384,14 @@ export class Viewer {
           xyz = uc_func ? uc_func([0.5, 0.5, 0.5]) : [0, 0, 0];
         }
       }
-      xyz = new Vector3(xyz[0], xyz[1], xyz[2]);
+      vec_xyz = new Vector3(xyz[0], xyz[1], xyz[2]);
       if (cam != null) {
-        cam = new Vector3(cam[0], cam[1], cam[2]);
-        eye = cam.clone().sub(xyz);
+        vec_cam = new Vector3(cam[0], cam[1], cam[2]);
+        eye = vec_cam.clone().sub(vec_xyz);
         new_up.copy(this.camera.up); // preserve the up direction
       } else {
         const dc = this.default_camera_pos;
-        cam = new Vector3(xyz.x + dc[0], xyz.y + dc[1], xyz.z + dc[2]);
+        vec_cam = new Vector3(xyz[0] + dc[0], xyz[1] + dc[1], xyz[2] + dc[2]);
       }
     }
     if (eye != null) {
@@ -1383,10 +1399,10 @@ export class Viewer {
       if (new_up.lengthSq() < 0.0001) new_up.x += 1;
       new_up.normalize();
     }
-    this.controls.go_to(xyz, cam, new_up, steps);
+    this.controls.go_to(vec_xyz, vec_cam, new_up, steps);
   }
 
-  center_next_residue(back/*:boolean*/) {
+  center_next_residue(back: boolean) {
     const bag = this.selected.bag;
     if (bag == null) return;
     const atom = bag.model.next_residue(this.selected.atom, back);
@@ -1395,9 +1411,9 @@ export class Viewer {
     }
   }
 
-  select_atom(pick/*:{bag:ModelBag, atom:AtomT}*/, options/*:Object*/={}) {
+  select_atom(pick: {bag: ModelBag, atom: Atom}, options: {steps?: number}={}) {
     this.hud('-> ' + pick.bag.label + ' ' + pick.atom.long_label());
-    let xyz = pick.atom.xyz;
+    const xyz = pick.atom.xyz;
     this.controls.go_to(new Vector3(xyz[0], xyz[1], xyz[2]),
                         null, null, options.steps);
     this.toggle_label(this.selected, false);
@@ -1430,9 +1446,9 @@ export class Viewer {
     }
     this.renderer.render(this.scene, this.camera);
     if (tied && !tied.scheduled) tied.renderer.render(tied.scene, tied.camera);
-    if (this.nav) {
-      this.nav.renderer.render(this.nav.scene, this.camera);
-    }
+    //if (this.nav) {
+    //  this.nav.renderer.render(this.nav.scene, this.camera);
+    //}
     this.scheduled = false;
     if (this.controls.is_moving()) {
       this.request_render();
@@ -1446,7 +1462,7 @@ export class Viewer {
     }
   }
 
-  add_model(model/*:Model*/, options/*:Object*/={}) {
+  add_model(model: Model, options: {hue_shift?: number}={}) {
     const model_bag = new ModelBag(model, this.config, this.window_size);
     model_bag.hue_shift = options.hue_shift || 0.06 * this.model_bags.length;
     this.model_bags.push(model_bag);
@@ -1454,7 +1470,7 @@ export class Viewer {
     this.request_render();
   }
 
-  add_map(map/*:ElMap*/, is_diff_map/*:boolean*/) {
+  add_map(map: ElMap, is_diff_map: boolean) {
     //map.show_debug_info();
     const map_bag = new MapBag(map, this.config, is_diff_map);
     this.map_bags.push(map_bag);
@@ -1462,10 +1478,10 @@ export class Viewer {
     this.request_render();
   }
 
-  load_file(url/*:string*/, options/*:{[id:string]: mixed}*/,
-            callback/*:Function*/) {
+  load_file(url: string, options: Record<string, any>,
+            callback: (XMLHttpRequest) => void ) {
     if (this.renderer === null) return;  // no WebGL detected
-    let req = new XMLHttpRequest();
+    const req = new XMLHttpRequest();
     req.open('GET', url, true);
     if (options.binary) {
       req.responseType = 'arraybuffer';
@@ -1473,7 +1489,7 @@ export class Viewer {
       // http://stackoverflow.com/questions/7374911/
       req.overrideMimeType('text/plain');
     }
-    let self = this;
+    const self = this;
     Object.keys(this.xhr_headers).forEach(function (name) {
       req.setRequestHeader(name, self.xhr_headers[name]);
     });
@@ -1493,7 +1509,7 @@ export class Viewer {
       }
     };
     if (options.progress) {
-      req.addEventListener('progress', function (evt /*:ProgressEvent*/) {
+      req.addEventListener('progress', function (evt: ProgressEvent) {
         if (evt.lengthComputable && evt.loaded && evt.total) {
           const fn = url.split('/').pop();
           self.hud('loading ' + fn + ' ... ' + ((evt.loaded / 1024) | 0) +
@@ -1509,20 +1525,22 @@ export class Viewer {
     }
   }
 
-  set_dropzone(zone/*:Object*/, callback/*:Function*/) {
+  set_dropzone(zone: HTMLElement, callback: (File) => void) {
     const self = this;
-    zone.addEventListener('dragover', function (e) {
+    zone.addEventListener('dragover', function (e: DragEvent) {
       e.stopPropagation();
       e.preventDefault();
       e.dataTransfer.dropEffect = 'copy';
       self.hud('ready for file drop...');
     });
-    zone.addEventListener('drop', function (e) {
+    zone.addEventListener('drop', function (e: DragEvent) {
       e.stopPropagation();
       e.preventDefault();
-      let names = [];
-      for (const file of e.dataTransfer.files) {
+      const names = [];
+      for (let i = 0; i < e.dataTransfer.files.length; i++) {
+        const file = e.dataTransfer.files.item(i);
         try {
+          self.hud('Loading ' + file.name);
           callback(file);
         } catch (e) {
           self.hud('Loading ' + file.name + ' failed.\n' + e.message, 'ERR');
@@ -1530,25 +1548,26 @@ export class Viewer {
         }
         names.push(file.name);
       }
-      self.hud('loading ' + names.join(', '));
+      self.hud('loaded ' + names.join(', '));
     });
   }
 
   // for use with set_dropzone
-  pick_pdb_and_map(file/*:File*/) {
+  pick_pdb_and_map(file: File) {
     const self = this;
     const reader = new FileReader();
     if (/\.(pdb|ent)$/.test(file.name)) {
-      reader.onload = function (evt/*:any*/) {
-        self.load_pdb_from_text(evt.target.result);
+      reader.onload = function (evt) {
+        self.load_pdb_from_text(evt.target.result as string);
         self.recenter();
       };
       reader.readAsText(file);
     } else if (/\.(map|ccp4|mrc|dsn6|omap)$/.test(file.name)) {
       const map_format = /\.(dsn6|omap)$/.test(file.name) ? 'dsn6' : 'ccp4';
-      reader.onloadend = function (evt/*:any*/) {
+      reader.onloadend = function (evt) {
         if (evt.target.readyState == 2) {
-          self.load_map_from_buffer(evt.target.result, {format: map_format});
+          self.load_map_from_buffer(evt.target.result as ArrayBuffer,
+                                    {format: map_format});
           if (self.model_bags.length === 0 && self.map_bags.length === 1) {
             self.recenter();
           }
@@ -1561,14 +1580,14 @@ export class Viewer {
     }
   }
 
-  set_view(options/*:?Object*/) {
+  set_view(options) {
     const frag = parse_url_fragment();
     if (frag.zoom) this.camera.zoom = frag.zoom;
     this.recenter(frag.xyz || (options && options.center), frag.eye, 1);
   }
 
   // Load molecular model from PDB file and centers the view
-  load_pdb_from_text(text/*:string*/) {
+  load_pdb_from_text(text: string) {
     const len = this.model_bags.length;
     const models = modelsFromPDB(text);
     for (const model of models) {
@@ -1577,8 +1596,9 @@ export class Viewer {
     this.selected.bag = this.model_bags[len];
   }
 
-  load_pdb(url/*:string*/, options/*:?Object*/, callback/*:?Function*/) {
-    let self = this;
+  load_pdb(url: string, options?: Record<string, any>,
+           callback?: () => void) {
+    const self = this;
     this.load_file(url, {binary: false, progress: true}, function (req) {
       self.load_pdb_from_text(req.responseText);
       if (options == null || !options.stay) self.set_view(options);
@@ -1586,7 +1606,8 @@ export class Viewer {
     });
   }
 
-  load_map(url/*:?string*/, options/*:Object*/, callback/*:?Function*/) {
+  load_map(url: string | null, options: Record<string, any>,
+           callback?: () => void) {
     if (url == null) {
       if (callback) callback();
       return;
@@ -1594,15 +1615,15 @@ export class Viewer {
     if (options.format !== 'ccp4' && options.format !== 'dsn6') {
       throw Error('Unknown map format.');
     }
-    let self = this;
+    const self = this;
     this.load_file(url, {binary: true, progress: true}, function (req) {
       self.load_map_from_buffer(req.response, options);
       if (callback) callback();
     });
   }
 
-  load_map_from_buffer(buffer/*:ArrayBuffer*/, options/*:Object*/) {
-    let map = new ElMap();
+  load_map_from_buffer(buffer: ArrayBuffer, options: Record<string, any>) {
+    const map = new ElMap();
     if (options.format === 'dsn6') {
       map.from_dsn6(buffer);
     } else {
@@ -1613,35 +1634,35 @@ export class Viewer {
 
   // Load a normal map and a difference map.
   // To show the first map ASAP we do not download both maps in parallel.
-  load_maps(url1/*:string*/, url2/*:string*/,
-            options/*:Object*/, callback/*:?Function*/) {
+  load_maps(url1: string, url2: string,
+            options: Record<string, any>, callback?: () => void) {
     const format = options.format || 'ccp4';
-    let self = this;
+    const self = this;
     this.load_map(url1, {diff_map: false, format: format}, function () {
       self.load_map(url2, {diff_map: true, format: format}, callback);
     });
   }
 
   // Load a model (PDB), normal map and a difference map - in this order.
-  load_pdb_and_maps(pdb/*:string*/, map1/*:string*/, map2/*:string*/,
-                    options/*:Object*/, callback/*:?Function*/) {
-    let self = this;
+  load_pdb_and_maps(pdb: string, map1: string, map2: string,
+                    options: Record<string, any>, callback?: () => void) {
+    const self = this;
     this.load_pdb(pdb, options, function () {
       self.load_maps(map1, map2, options, callback);
     });
   }
 
   // for backward compatibility:
-  load_ccp4_maps(url1/*:string*/, url2/*:string*/, callback/*:?Function*/) {
+  load_ccp4_maps(url1: string, url2: string, callback?: () => void) {
     this.load_maps(url1, url2, {format: 'ccp4'}, callback);
   }
-  load_pdb_and_ccp4_maps(pdb/*:string*/, map1/*:string*/, map2/*:string*/,
-                         callback/*:?Function*/) {
+  load_pdb_and_ccp4_maps(pdb: string, map1: string, map2: string,
+                         callback?: () => void) {
     this.load_pdb_and_maps(pdb, map1, map2, {format: 'ccp4'}, callback);
   }
 
   // pdb_id here should be lowercase ('1abc')
-  load_from_pdbe(pdb_id/*:string*/, callback/*:?Function*/) {
+  load_from_pdbe(pdb_id: string, callback?: () => void) {
     const id = pdb_id.toLowerCase();
     this.load_pdb_and_maps(
       'https://www.ebi.ac.uk/pdbe/entry-files/pdb' + id + '.ent',
@@ -1649,7 +1670,7 @@ export class Viewer {
       'https://www.ebi.ac.uk/pdbe/coordinates/files/' + id + '_diff.ccp4',
       {format: 'ccp4'}, callback);
   }
-  load_from_rcsb(pdb_id/*:string*/, callback/*:?Function*/) {
+  load_from_rcsb(pdb_id: string, callback?: () => void) {
     const id = pdb_id.toLowerCase();
     this.load_pdb_and_maps(
       'https://files.rcsb.org/download/' + id + '.pdb',
@@ -1720,7 +1741,7 @@ Viewer.prototype.KEYBOARD_HELP = [
 
 Viewer.prototype.ABOUT_HELP =
   '&nbsp; <a href="https://uglymol.github.io">uglymol</a> ' +
-  // $FlowFixMe: Cannot resolve name VERSION.
+  // @ts-expect-error Cannot find name 'VERSION'
   (typeof VERSION === 'string' ? VERSION : 'dev'); // eslint-disable-line
 
 Viewer.prototype.ColorSchemes = ColorSchemes;

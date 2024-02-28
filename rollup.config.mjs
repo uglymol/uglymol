@@ -1,5 +1,6 @@
 
 import buble from '@rollup/plugin-buble';
+import sucrase from '@rollup/plugin-sucrase';
 import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const version = require('./package.json').version
@@ -13,9 +14,14 @@ const banner = `/*!
  */`;
 
 let build = {
-  input: 'src/all.js',
+  input: 'src/all.ts',
   //treeshake: false,
-  plugins: [],
+  plugins: [
+    sucrase({
+      include: ['**/src/*.ts'],
+      transforms: ['typescript']
+    })
+  ],
   output: {
     file: 'uglymol.js',
     format: 'umd',

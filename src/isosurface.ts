@@ -1,19 +1,16 @@
-// @flow
-/*:: type Num3 = [number, number, number] */
+type Num3 = [number, number, number];
 
 export class Block {
-  /*::
-  _points: ?Num3[]
-  _values: ?number[]
+  _points: Num3[] | null;
+  _values: number[] | null;
   _size: Num3
-  */
   constructor() {
     this._points = null;
     this._values = null;
     this._size = [0, 0, 0];
   }
 
-  set(points /*:Num3[]*/, values/*:number[]*/, size/*:Num3*/) {
+  set(points: Num3[], values: number[], size: Num3) {
     if (size[0] <= 0 || size[1] <= 0 || size[2] <= 0) {
       throw Error('Grid dimensions are zero along at least one edge');
     }
@@ -32,11 +29,11 @@ export class Block {
     this._values = null;
   }
 
-  empty() /*:boolean*/ {
+  empty() : boolean {
     return this._values === null;
   }
 
-  isosurface(isolevel /*: number*/, method /*: string*/) {
+  isosurface(isolevel: number, method: string) {
     //if (method === 'marching tetrahedra') {
     //  return marchingTetrahedra(block, isolevel);
     //}
@@ -607,7 +604,7 @@ const edgeIndex = [[0,1], [1,2], [2,3], [3,0], [4,5], [5,6],
 
 // return offsets relative to vertex [0,0,0]
 function calculateVertOffsets(dims) {
-  let vert_offsets = [];
+  const vert_offsets = [];
   for (let i = 0; i < 8; ++i) {
     const v = cubeVerts[i];
     vert_offsets.push(v[0] + dims[2] * (v[1] + dims[1] * v[2]));
@@ -619,17 +616,17 @@ function calculateVertOffsets(dims) {
 function marchingCubes(dims, values, points, isolevel, method) {
   const snap = (method === 'snapped MC');
   const seg_table = (method === 'squarish' ? segTable2 : segTable);
-  let vlist = new Array(12);
+  const vlist = new Array(12);
   const vert_offsets = calculateVertOffsets(dims);
-  let vertex_values = new Float32Array(8);
-  let p0 /*:Num3*/ = [0, 0, 0]; // unused initial value - to make Flow happy
-  let vertex_points = [p0, p0, p0, p0, p0, p0, p0, p0];
+  const vertex_values = new Float32Array(8);
+  const p0: Num3 = [0, 0, 0]; // unused initial value - to make Flow happy
+  const vertex_points = [p0, p0, p0, p0, p0, p0, p0, p0];
   const size_x = dims[0];
   const size_y = dims[1];
   const size_z = dims[2];
   if (values == null || points == null) return;
-  let vertices = [];
-  let segments = [];
+  const vertices = [];
+  const segments = [];
   let vertex_count = 0;
   for (let x = 0; x < size_x - 1; x++) {
     for (let y = 0; y < size_y - 1; y++) {

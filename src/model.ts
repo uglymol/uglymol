@@ -1,10 +1,6 @@
-// @flow
+import { UnitCell } from './unitcell';
 
-import { UnitCell } from './unitcell.js';
-
-/*::
- type Num3 = [number, number, number];
- */
+type Num3 = [number, number, number];
 
 const AMINO_ACIDS = [
   'ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HIS', 'ILE', 'LEU',
@@ -17,7 +13,7 @@ const NUCLEIC_ACIDS = [
 
 const NOT_LIGANDS = ['HOH'].concat(AMINO_ACIDS, NUCLEIC_ACIDS);
 
-export function modelsFromPDB(pdb_string/*:string*/) {
+export function modelsFromPDB(pdb_string: string) {
   const models = [new Model()];
   let pdb_tail = models[0].from_pdb(pdb_string.split('\n'));
   while (pdb_tail != null) {
@@ -29,16 +25,15 @@ export function modelsFromPDB(pdb_string/*:string*/) {
 }
 
 export class Model {
-  /*::
-  atoms: Atom[]
-  unit_cell: ?UnitCell
-  space_group: null
-  has_hydrogens: boolean
-  lower_bound: [number, number, number]
-  upper_bound: [number, number, number]
-  residue_map: ?{[id:string]: Atom[]}
-  cubes: ?Cubicles
-  */
+  atoms: Atom[];
+  unit_cell: UnitCell | null;
+  space_group: null;
+  has_hydrogens: boolean;
+  lower_bound: Num3;
+  upper_bound: Num3;
+  residue_map: {[id:string]: Atom[]} | null;
+  cubes: Cubicles | null;
+
   constructor() {
     this.atoms = [];
     this.unit_cell = null;
@@ -50,7 +45,7 @@ export class Model {
     this.cubes = null;
   }
 
-  from_pdb(pdb_lines /*:string[]*/) /*:?string[]*/ {
+  from_pdb(pdb_lines: string[]): string[] | null {
     let chain_index = 0;  // will be ++'ed for the first atom
     let last_chain = null;
     let atom_i_seq = 0;
@@ -59,7 +54,7 @@ export class Model {
       const line = pdb_lines[i];
       const rec_type = line.substring(0, 6).toUpperCase();
       if (rec_type === 'ATOM  ' || rec_type === 'HETATM') {
-        let new_atom = new Atom();
+        const new_atom = new Atom();
         new_atom.from_pdb_line(line);
         new_atom.i_seq = atom_i_seq++;
         if (!this.has_hydrogens && new_atom.element === 'H') {
@@ -101,8 +96,8 @@ export class Model {
   }
 
   calculate_bounds() {
-    let lower = this.lower_bound = [Infinity, Infinity, Infinity];
-    let upper = this.upper_bound = [-Infinity, -Infinity, -Infinity];
+    const lower = this.lower_bound = [Infinity, Infinity, Infinity];
+    const upper = this.upper_bound = [-Infinity, -Infinity, -Infinity];
     for (let i = 0; i < this.atoms.length; i++) {
       const atom = this.atoms[i];
       for (let j = 0; j < 3; j++) {
@@ -118,7 +113,7 @@ export class Model {
     }
   }
 
-  next_residue(atom /*:?Atom*/, backward /*:?boolean*/) {
+  next_residue(atom: Atom | null, backward: boolean) {
     const len = this.atoms.length;
     const start = (atom ? atom.i_seq : 0) + len;  // +len to avoid idx<0 below
     for (let i = (atom ? 1 : 0); i < len; i++) {
@@ -132,7 +127,7 @@ export class Model {
   }
 
   extract_trace() {
-    let segments = [];
+    const segments = [];
     let current_segment = [];
     let last_atom = null;
     for (let i = 0; i < this.atoms.length; i++) {
@@ -166,7 +161,7 @@ export class Model {
 
   get_residues() {
     if (this.residue_map != null) return this.residue_map;
-    let residues = {};
+    const residues = {};
     for (let i = 0; i < this.atoms.length; i++) {
       const atom = this.atoms[i];
       const resid = atom.resid();
@@ -182,7 +177,7 @@ export class Model {
   }
 
   // tangent vector to the ribbon representation
-  calculate_tangent_vector(residue /*:Atom[]*/) {
+  calculate_tangent_vector(residue: Atom[]): Num3 {
     let a1 = null;
     let a2 = null;
     // it may be too simplistic
@@ -204,7 +199,7 @@ export class Model {
     return [d[0]/len, d[1]/len, d[2]/len];
   }
 
-  get_center() {
+  get_center(): Num3 {
     let xsum = 0, ysum = 0, zsum = 0;  // eslint-disable-line
     const n_atoms = this.atoms.length;
     for (let i = 0; i < n_atoms; i++) {
@@ -240,8 +235,7 @@ export class Model {
     this.cubes = cubes;
   }
 
-  get_nearest_atom(x /*:number*/, y /*:number*/, z /*:number*/,
-                   atom_name /*:?string*/) {
+  get_nearest_atom(x: number, y: number, z: number, atom_name?: string) {
     const cubes = this.cubes;
     if (cubes == null) throw Error('Missing Cubicles');
     const box_id = cubes.find_box_id(x, y, z);
@@ -266,23 +260,22 @@ export class Model {
 
 // Single atom and associated labels
 class Atom {
-  /*::
-  hetero: boolean
-  name: string
-  altloc: string
-  resname: string
-  chain: string
-  chain_index: number
-  resseq: number
-  icode: ?string
-  xyz: [number, number, number]
-  occ: number
-  b: number
-  element: string
-  i_seq: number
-  is_ligand: ?boolean
+  hetero: boolean;
+  name: string;
+  altloc: string;
+  resname: string;
+  chain: string;
+  chain_index: number;
+  resseq: number;
+  icode: string | null;
+  xyz: Num3;
+  occ: number;
+  b: number;
+  element: string;
+  i_seq: number;
+  is_ligand: boolean | null;
   bonds: number[];
-  */
+
   constructor() {
     this.hetero = false;
     this.name = '';
@@ -302,7 +295,7 @@ class Atom {
   }
 
   // http://www.wwpdb.org/documentation/format33/sect9.html#ATOM
-  from_pdb_line(pdb_line /*:string*/) {
+  from_pdb_line(pdb_line: string) {
     if (pdb_line.length < 66) {
       throw Error('ATOM or HETATM record is too short: ' + pdb_line);
     }
@@ -338,18 +331,18 @@ class Atom {
     return Math.sqrt(this.b / (8 * 3.14159 * 3.14159));
   }
 
-  distance_sq(other /*:Atom*/) {
+  distance_sq(other: Atom) {
     const dx = this.xyz[0] - other.xyz[0];
     const dy = this.xyz[1] - other.xyz[1];
     const dz = this.xyz[2] - other.xyz[2];
     return dx*dx + dy*dy + dz*dz;
   }
 
-  distance(other /*:Atom*/) {
+  distance(other: Atom) {
     return Math.sqrt(this.distance_sq(other));
   }
 
-  midpoint(other /*:Atom*/) {
+  midpoint(other: Atom) {
     return [(this.xyz[0] + other.xyz[0]) / 2,
             (this.xyz[1] + other.xyz[1]) / 2,
             (this.xyz[2] + other.xyz[2]) / 2];
@@ -367,13 +360,7 @@ class Atom {
     return this.resname === 'HOH';
   }
 
-  is_same_residue(other /*:Atom*/, ignore_altloc /*:?boolean*/) {
-    return other.resseq === this.resseq && other.icode === this.icode &&
-           other.chain === this.chain && other.resname === this.resname &&
-           (ignore_altloc || other.altloc === this.altloc);
-  }
-
-  is_same_conformer(other /*:Atom*/) {
+  is_same_conformer(other: Atom) {
     return this.altloc === '' || other.altloc === '' ||
            this.altloc === other.altloc;
   }
@@ -388,7 +375,7 @@ class Atom {
     return 1.99;
   }
 
-  is_bonded_to(other /*:Atom*/) {
+  is_bonded_to(other: Atom) {
     const MAX_DIST = 2.2 * 2.2;
     if (!this.is_same_conformer(other)) return false;
     const dxyz2 = this.distance_sq(other);
@@ -402,7 +389,7 @@ class Atom {
   }
 
   long_label() {
-    const a = this;
+    const a = this;  // eslint-disable-line @typescript-eslint/no-this-alias
     return a.name + ' /' + a.resseq + ' ' + a.resname + '/' + a.chain +
            ' - occ: ' + a.occ.toFixed(2) + ' bf: ' + a.b.toFixed(2) +
            ' ele: ' + a.element + ' pos: (' + a.xyz[0].toFixed(2) + ',' +
@@ -410,26 +397,24 @@ class Atom {
   }
 
   short_label() {
-    const a = this;
+    const a = this;  // eslint-disable-line @typescript-eslint/no-this-alias
     return a.name + ' /' + a.resseq + ' ' + a.resname + '/' + a.chain;
   }
 }
-/*:: export type AtomT = Atom; */
 
 
 // Partition atoms into boxes for quick neighbor searching.
 class Cubicles {
-  /*::
-  boxes: number[][]
-  box_length: number
-  lower_bound: Num3
-  upper_bound: Num3
-  xdim: number
-  ydim: number
-  zdim: number
-  */
-  constructor(atoms/*:Atom[]*/, box_length/*:number*/,
-              lower_bound/*:Num3*/, upper_bound/*:Num3*/) {
+  boxes: number[][];
+  box_length: number;
+  lower_bound: Num3;
+  upper_bound: Num3;
+  xdim: number;
+  ydim: number;
+  zdim: number;
+
+  constructor(atoms: Atom[], box_length: number,
+              lower_bound: Num3, upper_bound: Num3) {
     this.boxes = [];
     this.box_length = box_length;
     this.lower_bound = lower_bound;
@@ -452,7 +437,7 @@ class Cubicles {
     }
   }
 
-  find_box_id(x/*:number*/, y/*:number*/, z/*:number*/) {
+  find_box_id(x: number, y: number, z: number) {
     const xstep = Math.floor((x - this.lower_bound[0]) / this.box_length);
     const ystep = Math.floor((y - this.lower_bound[1]) / this.box_length);
     const zstep = Math.floor((z - this.lower_bound[2]) / this.box_length);
@@ -461,8 +446,8 @@ class Cubicles {
     return box_id;
   }
 
-  get_nearby_atoms(box_id/*:number*/) {
-    let indices = [];
+  get_nearby_atoms(box_id: number) {
+    const indices = [];
     const xydim = this.xdim * this.ydim;
     const uv = Math.max(box_id % xydim, 0);
     const u = Math.max(uv % this.xdim, 0);
@@ -490,3 +475,4 @@ class Cubicles {
   }
 }
 
+export type { Atom };

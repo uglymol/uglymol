@@ -1,27 +1,27 @@
 
 /* Dependencies between files (ES6 modules):
  *
- *      isosurface.js <--,
+ *      isosurface.ts <--,
  *                        \
- *                  v-- elmap.js <-.
- *        unitcell.js               \
- *                  ^-  model.js <- viewer.js
+ *                  v-- elmap.ts <-.
+ *        unitcell.ts               \
+ *                  ^-  model.ts <- viewer.ts
  * fromthree.js <--------------------' / /
- *         ^  ^----- draw.js <--------' /
- *         '------ controls.js <-------'
+ *         ^  ^----- draw.ts <--------' /
+ *         '------ controls.ts <-------'
  */
 
 // UnitCell class with methods to fractionalize/orthogonalize coords
-export * from './unitcell.js';
+export * from './unitcell';
 
 // molecule model
-export * from './model.js';
+export * from './model';
 
 // isosurface extraction, marching cubes etc.
-export * from './isosurface.js';
+export * from './isosurface';
 
 // electron density map
-export * from './elmap.js';
+export * from './elmap';
 
 // GRAPHICS
 
@@ -29,16 +29,16 @@ export * from './elmap.js';
 export * from './fromthree.js';
 
 // drawing primitives
-export * from './draw.js';
+export * from './draw';
 
 // mouse/touchscreen controls
-export * from './controls.js';
+export * from './controls';
 
 // Viewer
-export * from './viewer.js';
+export * from './viewer';
 
 // ReciprocalViewer - small extra code that shows reciprocal lattice
-export * from './reciprocal.js';
+export * from './reciprocal';
 
 // Reading mtz files
-export * from './mtz.js';
+export * from './mtz';

@@ -1,7 +1,7 @@
-// @flow
+import { UnitCell } from './unitcell';
+import { Block } from './isosurface';
 
-import { UnitCell } from './unitcell.js';
-import { Block } from './isosurface.js';
+type Num3 = [number, number, number];
 
 function modulo(a, b) {
   const reminder = a % b;
@@ -9,32 +9,31 @@ function modulo(a, b) {
 }
 
 export class GridArray {
-  /*::
-  dim: number[]
-  values: Float32Array
-  */
-  constructor(dim /*:number[]*/) {
+  dim: Num3;
+  values: Float32Array;
+
+  constructor(dim: Num3) {
     this.dim = dim; // dimensions of the grid for the entire unit cell
     this.values = new Float32Array(dim[0] * dim[1] * dim[2]);
   }
 
-  grid2index(i/*:number*/, j/*:number*/, k/*:number*/) {
+  grid2index(i: number, j: number, k: number) {
     i = modulo(i, this.dim[0]);
     j = modulo(j, this.dim[1]);
     k = modulo(k, this.dim[2]);
     return this.dim[2] * (this.dim[1] * i + j) + k;
   }
 
-  grid2index_unchecked(i/*:number*/, j/*:number*/, k/*:number*/) {
+  grid2index_unchecked(i: number, j: number, k: number) {
     return this.dim[2] * (this.dim[1] * i + j) + k;
   }
 
-  grid2frac(i/*:number*/, j/*:number*/, k/*:number*/) {
+  grid2frac(i: number, j: number, k: number): Num3 {
     return [i / this.dim[0], j / this.dim[1], k / this.dim[2]];
   }
 
   // return grid coordinates (rounded down) for the given fractional coordinates
-  frac2grid(xyz/*:number[]*/) {
+  frac2grid(xyz: Num3) {
     // at one point "| 0" here made extract_block() 40% faster on V8 3.14,
     // but I don't see any effect now
     return [Math.floor(xyz[0] * this.dim[0]) | 0,
@@ -42,12 +41,12 @@ export class GridArray {
             Math.floor(xyz[2] * this.dim[2]) | 0];
   }
 
-  set_grid_value(i/*:number*/, j/*:number*/, k/*:number*/, value/*:number*/) {
+  set_grid_value(i: number, j: number, k: number, value: number) {
     const idx = this.grid2index(i, j, k);
     this.values[idx] = value;
   }
 
-  get_grid_value(i/*:number*/, j/*:number*/, k/*:number*/) {
+  get_grid_value(i: number, j: number, k: number) {
     const idx = this.grid2index(i, j, k);
     return this.values[idx];
   }
@@ -67,13 +66,13 @@ function calculate_stddev(a, offset) {
 }
 
 export class ElMap {
-  /*::
-  unit_cell: ?UnitCell
-  grid: ?GridArray
-  stats: { mean: number, rms: number }
-  block: Block
-  unit: string
-  */
+  unit_cell: UnitCell | null;
+  grid: GridArray | null;
+  stats: { mean: number, rms: number };
+  block: Block;
+  unit: string;
+  box_size?: Num3; // used in ReciprocalSpaceMap
+
   constructor() {
     this.unit_cell = null;
     this.grid = null;
@@ -81,13 +80,13 @@ export class ElMap {
     this.block = new Block();
   }
 
-  abs_level(sigma /*:number*/) {
+  abs_level(sigma: number) {
     return sigma * this.stats.rms + this.stats.mean;
   }
 
   // http://www.ccp4.ac.uk/html/maplib.html#description
   // eslint-disable-next-line complexity
-  from_ccp4(buf /*:ArrayBuffer*/, expand_symmetry /*:?boolean*/) {
+  from_ccp4(buf: ArrayBuffer, expand_symmetry?: boolean) {
     if (expand_symmetry === undefined) expand_symmetry = true;
     if (buf.byteLength < 1024) throw Error('File shorter than 1024 bytes.');
     //console.log('buf type: ' + Object.prototype.toString.call(buf));
@@ -104,7 +103,7 @@ export class ElMap {
     else if (mode === 0) nb = 1;
     else throw Error('Only Mode 2 and Mode 0 of CCP4 map is supported.');
     const start = [iview[4], iview[5], iview[6]];
-    const n_grid = [iview[7], iview[8], iview[9]];
+    const n_grid: Num3 = [iview[7], iview[8], iview[9]];
     const nsymbt = iview[23]; // size of extended header in bytes
     if (1024 + nsymbt + nb*n_crs[0]*n_crs[1]*n_crs[2] !== buf.byteLength) {
       throw Error('ccp4 file too short or too long');
@@ -149,7 +148,7 @@ export class ElMap {
     }
 
     const end = [start[0] + n_crs[0], start[1] + n_crs[1], start[2] + n_crs[2]];
-    let it = [0, 0, 0];
+    const it = [0, 0, 0];
     for (it[2] = start[2]; it[2] < end[2]; it[2]++) { // sections
       for (it[1] = start[1]; it[1] < end[1]; it[1]++) { // rows
         for (it[0] = start[0]; it[0] < end[0]; it[0]++) { // cols
@@ -168,14 +167,14 @@ export class ElMap {
         }
         if (/^\s*x\s*,\s*y\s*,\s*z\s*$/i.test(symop)) continue;  // skip x,y,z
         //console.log('sym ops', symop.trim());
-        let mat = parse_symop(symop);
+        const mat = parse_symop(symop);
         // Note: we apply here symops to grid points instead of coordinates.
         // In the cases we came across it is equivalent, but in general not.
         for (j = 0; j < 3; ++j) {
           mat[j][3] = Math.round(mat[j][3] * n_grid[j]) | 0;
         }
         idx = (1024 + nsymbt) / nb | 0;
-        let xyz = [0, 0, 0];
+        const xyz = [0, 0, 0];
         for (it[2] = start[2]; it[2] < end[2]; it[2]++) { // sections
           for (it[1] = start[1]; it[1] < end[1]; it[1]++) { // rows
             for (it[0] = start[0]; it[0] < end[0]; it[0]++) { // cols
@@ -197,7 +196,7 @@ export class ElMap {
   // DSN6 MAP FORMAT
   // http://www.uoxray.uoregon.edu/tnt/manual/node104.html
   // Density values are stored as bytes.
-  from_dsn6(buf /*: ArrayBuffer*/) {
+  from_dsn6(buf: ArrayBuffer) {
     //console.log('buf type: ' + Object.prototype.toString.call(buf));
     const u8data = new Uint8Array(buf);
     const iview = new Int16Array(u8data.buffer);
@@ -214,9 +213,9 @@ export class ElMap {
     if (iview[18] !== 100) {
       throw Error('Endian swap failed');
     }
-    const origin = [iview[0], iview[1], iview[2]];
-    const n_real = [iview[3], iview[4], iview[5]];
-    const n_grid = [iview[6], iview[7], iview[8]];
+    const origin: Num3 = [iview[0], iview[1], iview[2]];
+    const n_real: Num3 = [iview[3], iview[4], iview[5]];
+    const n_grid: Num3 = [iview[6], iview[7], iview[8]];
     const cell_mult = 1.0 / iview[17];
     this.unit_cell = new UnitCell(cell_mult * iview[9],
                                   cell_mult * iview[10],
@@ -270,7 +269,7 @@ export class ElMap {
 
   // Extract a block of density for calculating an isosurface using the
   // separate marching cubes implementation.
-  extract_block(radius/*:number*/, center /*:[number,number,number]*/) {
+  extract_block(radius: number, center: Num3) {
     const grid = this.grid;
     const unit_cell = this.unit_cell;
     if (grid == null || unit_cell == null) return;
@@ -280,11 +279,11 @@ export class ElMap {
                radius / unit_cell.parameters[2]];
     const grid_min = grid.frac2grid([fc[0] - r[0], fc[1] - r[1], fc[2] - r[2]]);
     const grid_max = grid.frac2grid([fc[0] + r[0], fc[1] + r[1], fc[2] + r[2]]);
-    const size = [grid_max[0] - grid_min[0] + 1,
-                  grid_max[1] - grid_min[1] + 1,
-                  grid_max[2] - grid_min[2] + 1];
-    let points = [];
-    let values = [];
+    const size: Num3 = [grid_max[0] - grid_min[0] + 1,
+                        grid_max[1] - grid_min[1] + 1,
+                        grid_max[2] - grid_min[2] + 1];
+    const points = [];
+    const values = [];
     for (let i = grid_min[0]; i <= grid_max[0]; i++) {
       for (let j = grid_min[1]; j <= grid_max[1]; j++) {
         for (let k = grid_min[2]; k <= grid_max[2]; k++) {
@@ -299,7 +298,7 @@ export class ElMap {
     this.block.set(points, values, size);
   }
 
-  isomesh_in_block(sigma/*:number*/, method/*:string*/) {
+  isomesh_in_block(sigma: number, method: string) {
     const abs_level = this.abs_level(sigma);
     return this.block.isosurface(abs_level, method);
   }
@@ -311,10 +310,10 @@ ElMap.prototype.unit = 'e/\u212B\u00B3';
 function parse_symop(symop) {
   const ops = symop.toLowerCase().replace(/\s+/g, '').split(',');
   if (ops.length !== 3) throw Error('Unexpected symop: ' + symop);
-  let mat = [];
+  const mat = [];
   for (let i = 0; i < 3; i++) {
     const terms = ops[i].split(/(?=[+-])/);
-    let row = [0, 0, 0, 0];
+    const row = [0, 0, 0, 0];
     for (let j = 0; j < terms.length; j++) {
       const term = terms[j];
       const sign = (term[0] === '-' ? -1 : 1);

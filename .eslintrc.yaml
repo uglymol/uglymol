@@ -31,3 +31,14 @@ rules:
   prefer-const: 0
   prefer-spread: 0
   no-multi-spaces: [2, {ignoreEOLComments: true }]
+
+overrides:
+  - files: ["**/*.ts"]
+    parser: '@typescript-eslint/parser'
+    parserOptions: {} #project: ["./tsconfig.json"]
+    extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended']
+    plugins: ['@typescript-eslint']
+    rules:
+      '@typescript-eslint/no-explicit-any': 0
+      '@typescript-eslint/no-this-alias': 0
+      prefer-spread: 0

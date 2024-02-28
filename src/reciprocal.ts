@@ -1,11 +1,44 @@
-// @flow
-import { ElMap } from './elmap.js';
-import { Viewer } from './viewer.js';
+import { ElMap } from './elmap';
+import { Viewer } from './viewer';
 import { addXyzCross, makeLineMaterial, makeLineSegments,
-         makeUniforms, fog_pars_fragment, fog_end_fragment } from './draw.js';
+         makeUniforms, fog_pars_fragment, fog_end_fragment } from './draw';
 import { Points, BufferAttribute, BufferGeometry,
-         ShaderMaterial } from './fromthree.js';
+         ShaderMaterial, Color } from './fromthree.js';
+import type { ViewerConfig } from './viewer';
 
+type Num3 = [number, number, number];
+
+type ColorScheme = {
+  bg: Color,
+  fg: Color,
+  map_den: Color,
+  center: Color,
+  lattices: Color[],
+  axes: Color[],
+};
+
+function to_col(num: number) { return new Color(num); }
+
+const ColorSchemes: Record<string, ColorScheme> = {
+  'solarized dark': {
+    bg: new Color(0x002b36),
+    fg: new Color(0xfdf6e3),
+    map_den: new Color(0xeee8d5),
+    center: new Color(0xfdf6e3),
+    lattices: [0xdc322f, 0x2aa198, 0x268bd2, 0x859900,
+               0xd33682, 0xb58900, 0x6c71c4, 0xcb4b16].map(to_col),
+    axes: [0xffaaaa, 0xaaffaa, 0xaaaaff].map(to_col),
+  },
+  'solarized light': {
+    bg: new Color(0xfdf6e3),
+    fg: new Color(0x002b36),
+    map_den: new Color(0x073642),
+    center: new Color(0x002b36),
+    lattices: [0xdc322f, 0x2aa198, 0x268bd2, 0x859900,
+               0xd33682, 0xb58900, 0x6c71c4, 0xcb4b16].map(to_col),
+    axes: [0xffaaaa, 0xaaffaa, 0xaaaaff].map(to_col),
+  },
+};
 
 // options handled by Viewer#select_next()
 const SPOT_SEL = ['all', 'unindexed', '#1']; //extended when needed
@@ -17,10 +50,9 @@ const SPOT_SHAPES = ['wheel', 'square'];
 // shift it so the box is centered at 0,0,0,
 // and the translational symmetry doesn't apply.
 export class ReciprocalSpaceMap extends ElMap {
-  /*::
-    box_size: [number, number, number]
-   */
-  constructor(buf /*:ArrayBuffer*/) {
+  box_size: Num3;
+
+  constructor(buf: ArrayBuffer) {
     super();
     this.box_size = [1, 1, 1];
     this.from_ccp4(buf, false);
@@ -32,7 +64,7 @@ export class ReciprocalSpaceMap extends ElMap {
     this.unit_cell = null;
   }
 
-  extract_block(radius/*:number*/, center/*:[number,number,number]*/) {
+  extract_block(radius: number, center: Num3) {
     const grid = this.grid;
     if (grid == null) return;
     const b = this.box_size;
@@ -62,9 +94,9 @@ export class ReciprocalSpaceMap extends ElMap {
       }
     }
 
-    const size = [hi_bounds[0] - lo_bounds[0] + 1,
-                  hi_bounds[1] - lo_bounds[1] + 1,
-                  hi_bounds[2] - lo_bounds[2] + 1];
+    const size: Num3 = [hi_bounds[0] - lo_bounds[0] + 1,
+                        hi_bounds[1] - lo_bounds[1] + 1,
+                        hi_bounds[2] - lo_bounds[2] + 1];
     this.block.set(points, values, size);
   }
 }
@@ -89,12 +121,14 @@ function max_val(arr) {
   return max;
 }
 
-function parse_csv(text) {
+type DataType = {pos: Float32Array, lattice_ids: number[]};
+
+function parse_csv(text): DataType {
   const lines = text.split('\n').filter(function (line) {
     return line.length > 0 && line[0] !== '#';
   });
-  let pos = new Float32Array(lines.length * 3);
-  let lattice_ids = [];
+  const pos = new Float32Array(lines.length * 3);
+  const lattice_ids = [];
   for (let i = 0; i < lines.length; i++) {
     const nums = lines[i].split(',').map(Number);
     for (let j = 0; j < 3; j++) {
@@ -111,7 +145,7 @@ function minus_ones(n) {
   return a;
 }
 
-function parse_json(text) {
+function parse_json(text): DataType {
   const d = JSON.parse(text);
   const n = d.rlp.length;
   let pos;
@@ -168,17 +202,26 @@ ${fog_end_fragment}
 }`;
 
 
+type ReciprocalViewerConfig = ViewerConfig & {
+    show_only: string,
+    show_axes: string,
+    spot_shape: string,
+    colors: ColorScheme,
+};
+
 export class ReciprocalViewer extends Viewer {
-  /*::
-  axes: Object | null
-  points: Points | null
-  max_dist: number
-  d_min: number
-  d_max_inv: number
-  data: Object
-  point_material: ShaderMaterial
-  */
-  constructor(options/*:{[key:string]: any}*/) {
+  axes: object | null;
+  points: Points | null;
+  max_dist: number;
+  d_min: number;
+  d_max_inv: number;
+  data?: DataType;
+  point_material: ShaderMaterial;
+  config: ReciprocalViewerConfig;
+  ColorSchemes: typeof ColorSchemes;
+
+  constructor(options: Record<string, any> = {}) {
+    options.color_scheme = 'solarized dark';
     super(options);
     this.default_camera_pos = [100, 0, 0];
     this.axes = null;
@@ -186,7 +229,6 @@ export class ReciprocalViewer extends Viewer {
     this.max_dist = -1;
     this.d_min = -1;
     this.d_max_inv = 0;
-    this.data = {};
     this.config.show_only = SPOT_SEL[0];
     this.config.show_axes = SHOW_AXES[0];
     this.config.spot_shape = SPOT_SHAPES[0];
@@ -212,7 +254,7 @@ export class ReciprocalViewer extends Viewer {
   }
 
   set_reciprocal_key_bindings() {
-    let kb = this.key_bindings;
+    const kb = this.key_bindings;
     // a
     kb[65] = function (evt) {
       this.select_next('axes', 'show_axes', SHOW_AXES, evt.shiftKey);
@@ -286,33 +328,33 @@ export class ReciprocalViewer extends Viewer {
     kb[221] = function () { this.change_map_radius(0.001); };
   }
 
-  file_drop_callback(file/*:File*/) {
-    let self = this;
+  file_drop_callback(file: File) {
+    const self = this;
     const reader = new FileReader();
     if (/\.(map|ccp4)$/.test(file.name)) {
-      reader.onloadend = function (evt/*:any*/) {
+      reader.onloadend = function (evt) {
         if (evt.target.readyState == 2) {
-          self.load_map_from_ab(evt.target.result);
+          self.load_map_from_ab(evt.target.result as ArrayBuffer);
         }
       };
       reader.readAsArrayBuffer(file);
     } else {
-      reader.onload = function (evt/*:any*/) {
-        self.load_from_string(evt.target.result, {});
+      reader.onload = function (evt) {
+        self.load_from_string(evt.target.result as string, {});
       };
       reader.readAsText(file);
     }
   }
 
-  load_data(url/*:string*/, options/*:Object*/ = {}) {
-    let self = this;
+  load_data(url: string, options: Record<string, any> = {}) {
+    const self = this;
     this.load_file(url, {binary: false, progress: true}, function (req) {
-      let ok = self.load_from_string(req.responseText, options);
+      const ok = self.load_from_string(req.responseText, options);
       if (ok && options.callback) options.callback();
     });
   }
 
-  load_from_string(text/*:string*/, options/*:Object*/) {
+  load_from_string(text: string, options: Record<string, any>) {
     if (text[0] === '{') {
       this.data = parse_json(text);
     } else if (text[0] === '#') {
@@ -339,11 +381,11 @@ export class ReciprocalViewer extends Viewer {
     return true;
   }
 
-  load_map_from_ab(buffer/*:ArrayBuffer*/) {
+  load_map_from_ab(buffer: ArrayBuffer) {
     if (this.map_bags.length > 0) {
       this.clear_el_objects(this.map_bags.pop());
     }
-    let map = new ReciprocalSpaceMap(buffer);
+    const map = new ReciprocalSpaceMap(buffer);
     if (map == null) return;
     const map_range = map.box_size[0] / 2;
     this.config.map_radius = Math.round(map_range / 2 * 100) / 100;
@@ -366,7 +408,7 @@ export class ReciprocalViewer extends Viewer {
     }
     if (this.config.show_axes === 'none') return;
     const axis_length = 1.2 * this.max_dist;
-    let vertices = [];
+    const vertices = [];
     addXyzCross(vertices, [0, 0, 0], axis_length);
     const ca = this.config.colors.axes;
     const colors = [ca[0], ca[0], ca[1], ca[1], ca[2], ca[2]];
@@ -383,15 +425,15 @@ export class ReciprocalViewer extends Viewer {
     this.scene.add(this.axes);
   }
 
-  set_points(data/*:Object*/) {
+  set_points(data?: DataType) {
     if (this.points != null) {
       this.remove_and_dispose(this.points);
       this.points = null;
     }
     if (data == null || data.lattice_ids == null || data.pos == null) return;
-    let color_arr = new Float32Array(3 * data.lattice_ids.length);
+    const color_arr = new Float32Array(3 * data.lattice_ids.length);
     this.colorize_by_id(color_arr, data.lattice_ids);
-    let geometry = new BufferGeometry();
+    const geometry = new BufferGeometry();
     geometry.setAttribute('position', new BufferAttribute(data.pos, 3));
     geometry.setAttribute('color', new BufferAttribute(color_arr, 3));
     const groups = new Float32Array(data.lattice_ids);
@@ -401,7 +443,7 @@ export class ReciprocalViewer extends Viewer {
     this.request_render();
   }
 
-  colorize_by_id(color_arr/*:Float32Array*/, group_id/*:number[]*/) {
+  colorize_by_id(color_arr: Float32Array, group_id: number[]) {
     const palette = this.config.colors.lattices;
     for (let i = 0; i < group_id.length; i++) {
       const c = palette[(group_id[i] + 1) % 4];
@@ -411,17 +453,17 @@ export class ReciprocalViewer extends Viewer {
     }
   }
 
-  mousewheel_action(delta/*:number*/) {
+  mousewheel_action(delta: number) {
     this.change_zoom_by_factor(1 + 0.0005 * delta);
   }
 
-  change_point_size(delta/*:number*/) {
-    let size = this.point_material.uniforms.size;
+  change_point_size(delta: number) {
+    const size = this.point_material.uniforms.size;
     size.value = Math.max(size.value + delta, 0.5);
     this.hud('point size: ' + size.value.toFixed(1));
   }
 
-  change_dmin(delta/*:number*/) {
+  change_dmin(delta: number) {
     this.d_min = Math.max(this.d_min + delta, 0.1);
     const dmax = this.d_max_inv > 0 ? 1 / this.d_max_inv : null;
     if (dmax !== null && this.d_min > dmax) this.d_min = dmax;
@@ -430,7 +472,7 @@ export class ReciprocalViewer extends Viewer {
     this.hud('res. limit: ' + low_res + ' - ' + this.d_min.toFixed(2) + 'Å');
   }
 
-  change_dmax(delta/*:number*/) {
+  change_dmax(delta: number) {
     let v = Math.min(this.d_max_inv + delta, 1 / this.d_min);
     if (v < 1e-6) v = 0;
     this.d_max_inv = v;
@@ -445,36 +487,13 @@ export class ReciprocalViewer extends Viewer {
 
   get_cell_box_func() {
     if (this.map_bags.length === 0) return null;
-    // $FlowFixMe: here the map is ReciprocalSpaceMap not ElMap
+    // here the map is ReciprocalSpaceMap not ElMap
     const a = this.map_bags[0].map.box_size;
-    return function (xyz/*:[number,number,number]*/) {
+    return function (xyz: Num3) {
       return [(xyz[0]-0.5) * a[0], (xyz[1]-0.5) * a[1], (xyz[2]-0.5) * a[2]];
     };
   }
 }
-
-ReciprocalViewer.prototype.ColorSchemes = [
-  {
-    name: 'solarized dark',
-    bg: 0x002b36,
-    fg: 0xfdf6e3,
-    map_den: 0xeee8d5,
-    center: 0xfdf6e3,
-    lattices: [0xdc322f, 0x2aa198, 0x268bd2, 0x859900,
-               0xd33682, 0xb58900, 0x6c71c4, 0xcb4b16],
-    axes: [0xffaaaa, 0xaaffaa, 0xaaaaff],
-  },
-  {
-    name: 'solarized light',
-    bg: 0xfdf6e3,
-    fg: 0x002b36,
-    map_den: 0x073642,
-    center: 0x002b36,
-    lattices: [0xdc322f, 0x2aa198, 0x268bd2, 0x859900,
-               0xd33682, 0xb58900, 0x6c71c4, 0xcb4b16],
-    axes: [0xffaaaa, 0xaaffaa, 0xaaaaff],
-  },
-];
 
 ReciprocalViewer.prototype.KEYBOARD_HELP = [
   '<b>keyboard:</b>',
@@ -500,3 +519,4 @@ ReciprocalViewer.prototype.KEYBOARD_HELP = [
 ReciprocalViewer.prototype.MOUSE_HELP =
     Viewer.prototype.MOUSE_HELP.split('\n').slice(0, -2).join('\n');
 
+ReciprocalViewer.prototype.ColorSchemes = ColorSchemes;

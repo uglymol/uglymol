@@ -1,8 +1,5 @@
-// @flow
-
 import { Vector3, Quaternion } from './fromthree.js';
-
-/*:: import type {OrthographicCamera} from './fromthree.js' */
+import type {OrthographicCamera} from './fromthree.js';
 
 // map 2d position to sphere with radius 1.
 function project_on_ball(x, y) {
@@ -25,25 +22,24 @@ const auto_speed = 1.0;
 
 // based on three.js/examples/js/controls/OrthographicTrackballControls.js
 export class Controls {
-  /*::
-    _camera: OrthographicCamera
-    _target: Vector3
-    _state: number
-    _rotate_start: Vector3
-    _rotate_end: Vector3
-    _zoom_start: [number, number]
-    _zoom_end: [number, number]
-    _pinch_start: number
-    _pinch_end: number
-    _pan_start: [number, number]
-    _pan_end: [number, number]
-    _panned: boolean
-    _rotating: number | boolean
-    _auto_stamp: number | null
-    _go_func:  ?Function
-    slab_width: [number, number, ?number];
-   */
-  constructor(camera /*:OrthographicCamera*/, target /*:Vector3*/) {
+  _camera: OrthographicCamera;
+  _target: Vector3;
+  _state: number;
+  _rotate_start: Vector3;
+  _rotate_end: Vector3;
+  _zoom_start: [number, number];
+  _zoom_end: [number, number];
+  _pinch_start: number;
+  _pinch_end: number;
+  _pan_start: [number, number];
+  _pan_end: [number, number];
+  _panned: boolean;
+  _rotating: number | boolean;
+  _auto_stamp: number | null;
+  _go_func: (() => void) | null;
+  slab_width: [number, number, number|null];
+
+  constructor(camera: OrthographicCamera, target: Vector3) {
     this._camera = camera;
     this._target = target;
     this._state = STATE.NONE;
@@ -64,8 +60,8 @@ export class Controls {
     this.slab_width = [2.5, 7.5, null];
   }
 
-  _rotate_camera(eye /*:Vector3*/) {
-    let quat = new Quaternion();
+  _rotate_camera(eye: Vector3) {
+    const quat = new Quaternion();
     quat.setFromUnitVectors(this._rotate_end, this._rotate_start);
     eye.applyQuaternion(quat);
     this._camera.up.applyQuaternion(quat);
@@ -73,7 +69,7 @@ export class Controls {
     this._rotate_start.copy(this._rotate_end);
   }
 
-  _zoom_camera(eye /*:Vector3*/) {
+  _zoom_camera(eye: Vector3) {
     const dx = this._zoom_end[0] - this._zoom_start[0];
     const dy = this._zoom_end[1] - this._zoom_start[1];
     if (this._state === STATE.ZOOM) {
@@ -81,7 +77,7 @@ export class Controls {
     } else if (this._state === STATE.SLAB) {
       this._target.addScaledVector(eye, -5.0 / eye.length() * dy);
     } else if (this._state === STATE.ROLL) {
-      let quat = new Quaternion();
+      const quat = new Quaternion();
       quat.setFromAxisAngle(eye, 0.05 * (dx - dy));
       this._camera.up.applyQuaternion(quat);
     }
@@ -90,12 +86,12 @@ export class Controls {
     return this._state === STATE.SLAB ? 10*dx : null;
   }
 
-  _pan_camera(eye /*:Vector3*/) {
+  _pan_camera(eye: Vector3) {
     let dx = this._pan_end[0] - this._pan_start[0];
     let dy = this._pan_end[1] - this._pan_start[1];
     dx *= 0.5 * (this._camera.right - this._camera.left) / this._camera.zoom;
     dy *= 0.5 * (this._camera.bottom - this._camera.top) / this._camera.zoom;
-    let pan = eye.clone().cross(this._camera.up).setLength(dx);
+    const pan = eye.clone().cross(this._camera.up).setLength(dx);
     pan.addScaledVector(this._camera.up, dy / this._camera.up.length());
     this._camera.position.add(pan);
     this._target.add(pan);
@@ -103,7 +99,7 @@ export class Controls {
     this._pan_start[1] = this._pan_end[1];
   }
 
-  _auto_rotate(eye /*:Vector3*/) {
+  _auto_rotate(eye: Vector3) {
     this._rotate_start.copy(eye).normalize();
     const now = Date.now();
     const elapsed = (this._auto_stamp !== null ? now - this._auto_stamp : 16.7);
@@ -119,7 +115,7 @@ export class Controls {
       .add(this._rotate_start);
   }
 
-  toggle_auto(param /*:number|boolean*/) {
+  toggle_auto(param: number|boolean) {
     if (this._state === STATE.AUTO_ROTATE &&
         typeof param === typeof this._rotating) {
       this._state = STATE.NONE;
@@ -136,7 +132,7 @@ export class Controls {
 
   update() {
     let changed = false;
-    let eye = this._camera.position.clone().sub(this._target);
+    const eye = this._camera.position.clone().sub(this._target);
     if (this._state === STATE.AUTO_ROTATE) {
       this._auto_rotate(eye);
     }
@@ -173,7 +169,7 @@ export class Controls {
     return changed;
   }
 
-  start(new_state /*:number*/, x /*:number*/, y /*:number*/, dist/*:?number*/) {
+  start(new_state: number, x: number, y: number, dist?: number) {
     if (this._state === STATE.NONE || this._state === STATE.AUTO_ROTATE) {
       this._state = new_state;
     }
@@ -201,7 +197,7 @@ export class Controls {
     }
   }
 
-  move(x /*:number*/, y /*:number*/, dist /*:?number*/) {
+  move(x: number, y: number, dist?: number) {
     switch (this._state) {
       case STATE.ROTATE: {
         const xyz = project_on_ball(x, y);
@@ -244,8 +240,7 @@ export class Controls {
   }
 
   // cam_up (if set) must be orthogonal to the view
-  go_to(targ /*:Vector3*/, cam_pos /*:?Vector3*/, cam_up /*:?Vector3*/,
-        steps /*:?number*/) {
+  go_to(targ: Vector3, cam_pos?: Vector3, cam_up?: Vector3, steps?: number) {
     if ((!targ || targ.distanceToSquared(this._target) < 0.001) &&
         (!cam_pos || cam_pos.distanceToSquared(this._camera.position) < 0.1) &&
         (!cam_up || cam_up.distanceToSquared(this._camera.up) < 0.1)) {
@@ -253,7 +248,7 @@ export class Controls {
     }
     this._state = STATE.GO;
     steps = (steps || 60) / auto_speed;
-    let alphas = [];
+    const alphas = [];
     let prev_pos = 0;
     for (let i = 1; i <= steps; ++i) {
       let pos = i / steps;

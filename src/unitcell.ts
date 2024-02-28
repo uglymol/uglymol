@@ -1,14 +1,13 @@
-// @flow
+type Num3 = [number, number, number];
 
 export class UnitCell {
-  /*::
-  parameters: number[]
-  orth: number[]
-  frac: number[]
-  */
+  parameters: number[];
+  orth: number[];
+  frac: number[];
+
   // eslint-disable-next-line max-params
-  constructor(a /*:number*/, b /*:number*/, c /*:number*/,
-              alpha /*:number*/, beta /*:number*/, gamma /*:number*/) {
+  constructor(a: number, b: number, c: number,
+              alpha: number, beta: number, gamma: number) {
     if (a <= 0 || b <= 0 || c <= 0 || alpha <= 0 || beta <= 0 || gamma <= 0) {
       throw Error('Zero or negative unit cell parameter(s).');
     }
@@ -55,18 +54,18 @@ export class UnitCell {
     ];
   }
 
-  fractionalize(xyz /*:[number,number,number]*/) {
+  fractionalize(xyz: Num3): Num3 {
     return multiply(xyz, this.frac);
   }
 
-  orthogonalize(xyz /*:[number,number,number]*/) {
+  orthogonalize(xyz: Num3): Num3 {
     return multiply(xyz, this.orth);
   }
 }
 
 // This function is only used with matrices frac and orth, which have 3 zeros.
 // We skip these elements, but it doesn't affect performance (on FF50 and V8).
-function multiply(xyz, mat) {
+function multiply(xyz, mat): Num3 {
   /* eslint-disable indent */
   return [mat[0] * xyz[0]  + mat[1] * xyz[1]  + mat[2] * xyz[2],
         /*mat[3] * xyz[0]*/+ mat[4] * xyz[1]  + mat[5] * xyz[2],

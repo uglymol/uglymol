@@ -17,8 +17,8 @@
   },
   "license": "MIT",
   "main": "uglymol.js",
-  "module": "src/all.js",
-  "jsnext:main": "src/all.js",
+  "module": "src/all.ts",
+  "jsnext:main": "src/all.ts",
   "files": [
     "uglymol.js",
     "uglymol.js.map",
@@ -30,12 +30,11 @@
     "bundle": "rollup -c",
     "coverage": "rollup -c --sourcemap && jest --testMatch='**/test/*.js' --coverage --collectCoverageFrom='uglymol.js'",
     "download-data": "node perf/util.js download-data",
-    "flow": "flow || exit 0",
     "lint": "eslint src test perf || exit 0",
     "prepublish": "npm run build",
     "serve": "serve -l 7890",
     "start": "npm run watch & npm run serve",
-    "test": "npm run lint && npm run flow && rollup -c && jest --testMatch='**/test/*.js'",
+    "test": "npm run lint && tsc --noEmit src/*.ts && rollup -c && jest --testMatch='**/test/*.js'",
     "uglify": "uglifyjs uglymol.js -o uglymol.min.js --compress --mangle",
     "version": "npm run build && git add -A uglymol.js",
     "watch": "rollup -c --watch"
@@ -46,12 +45,14 @@
   ],
   "devDependencies": {
     "@rollup/plugin-buble": "^1.0.3",
+    "@rollup/plugin-sucrase": "^5.0.2",
     "benchmark": "^2.1.0",
     "eslint": "^8.56.0",
-    "flow-bin": "^0.131.0",
     "jest": "^29.7.0",
     "rollup": "^4.12.0",
     "serve": "^14.2.1",
+    "typescript": "^5.3.3",
+    "typescript-eslint": "^7.0.2",
     "uglify-js": "^3.12.5"
   }
 }
