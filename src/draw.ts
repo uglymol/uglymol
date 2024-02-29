@@ -738,7 +738,7 @@ export
 function line_raycast(mesh: Mesh, options: LineRaycastOptions,
                       intersects: object[]) {
   const precisionSq = options.precision * options.precision;
-  inverseMatrix.getInverse(mesh.matrixWorld);
+  inverseMatrix.copy(mesh.matrixWorld).invert();
   ray.copy(options.ray).applyMatrix4(inverseMatrix);
   const vStart = new Vector3();
   const vEnd = new Vector3();
