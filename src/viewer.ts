@@ -208,7 +208,8 @@ function color_by(prop: string, atoms: Atom[], elem_colors, hue_shift: number) {
         return elem_colors[atom.element] || elem_colors.def;
       };
     } else {
-      const c_hsl = elem_colors['C'].getHSL();
+      const c_hsl = { h: 0, s: 0, l: 0 };
+      elem_colors['C'].getHSL(c_hsl);
       const c_col = new Color(0, 0, 0);
       c_col.setHSL(c_hsl.h + hue_shift, c_hsl.s, c_hsl.l);
       color_func = function (atom) {

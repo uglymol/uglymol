@@ -715,154 +715,146 @@ Matrix4.prototype = {
 * https://github.com/mrdoob/eventdispatcher.js/
 */
 
-function EventDispatcher() {}
+class EventDispatcher {
+  addEventListener(type, listener) {
+    if (this._listeners === undefined) this._listeners = {};
 
-Object.assign( EventDispatcher.prototype, {
+    const listeners = this._listeners;
 
-  addEventListener: function ( type, listener ) {
-    if ( this._listeners === undefined ) this._listeners = {};
-
-    let listeners = this._listeners;
-
-    if ( listeners[type] === undefined ) {
+    if (listeners[type] === undefined) {
       listeners[type] = [];
     }
 
-    if ( listeners[type].indexOf( listener ) === - 1 ) {
-      listeners[type].push( listener );
+    if (listeners[type].indexOf(listener) === -1) {
+      listeners[type].push(listener);
     }
-  },
+  }
 
-  removeEventListener: function ( type, listener ) {
-    if ( this._listeners === undefined ) return;
+  removeEventListener(type, listener) {
+    if (this._listeners === undefined) return;
 
-    let listeners = this._listeners;
-    let listenerArray = listeners[type];
+    const listeners = this._listeners;
+    const listenerArray = listeners[type];
 
-    if ( listenerArray !== undefined ) {
-      let index = listenerArray.indexOf( listener );
+    if (listenerArray !== undefined) {
+      const index = listenerArray.indexOf(listener);
 
-      if ( index !== - 1 ) {
-        listenerArray.splice( index, 1 );
+      if (index !== -1) {
+        listenerArray.splice(index, 1);
       }
     }
-  },
+  }
 
-  dispatchEvent: function ( event ) {
-    if ( this._listeners === undefined ) return;
+  dispatchEvent(event) {
+    if (this._listeners === undefined) return;
 
-    let listeners = this._listeners;
-    let listenerArray = listeners[event.type];
+    const listeners = this._listeners;
+    const listenerArray = listeners[event.type];
 
-    if ( listenerArray !== undefined ) {
+    if (listenerArray !== undefined) {
       event.target = this;
 
-      let array = [], i = 0;
-      let length = listenerArray.length;
+      // Make a copy, in case listeners are removed while iterating.
+      const array = listenerArray.slice(0);
 
-      for ( i = 0; i < length; i ++ ) {
-        array[i] = listenerArray[i];
+      for (let i = 0, l = array.length; i < l; i++) {
+        array[i].call(this, event);
       }
 
-      for ( i = 0; i < length; i ++ ) {
-        array[i].call( this, event );
-      }
+      event.target = null;
     }
-  },
-
-} );
-
-/**
-* @author mrdoob / http://mrdoob.com/
-* @author alteredq / http://alteredqualia.com/
-* @author szimek / https://github.com/szimek/
-*/
-
-let textureId = 0;
-
-function Texture( image ) {
-  Object.defineProperty( this, 'id', { value: textureId ++ } );
-
-  this.uuid = generateUUID();
-
-  this.name = '';
-
-  this.image = image;
-
-  this.version = 0;
+  }
 }
 
-Texture.prototype = {
-
-  constructor: Texture,
-
-  isTexture: true,
-
+let _sourceId = 0;
+class Source {
+  constructor(data = null) {
+    Object.defineProperty(this, 'id', { value: _sourceId++ });
+    this.uuid = generateUUID();
+    this.data = data;
+    this.dataReady = true;
+    this.version = 0;
+  }
   set needsUpdate( value ) {
-    if ( value === true ) this.version ++;
-  },
+    if (value === true) this.version++;
+  }
+}
 
-  dispose: function () {
-    this.dispatchEvent( { type: 'dispose' } );
-  },
-};
+let _textureId = 0;
+class Texture extends EventDispatcher {
+  constructor(image) {
+    super();
+    Object.defineProperty(this, 'id', { value: _textureId++ });
+    this.uuid = generateUUID();
+    this.name = '';
+    this.source = new Source(image);
+    this.version = 0;
+  }
 
-Object.assign( Texture.prototype, EventDispatcher.prototype );
+  get image() {
+    return this.source.data;
+  }
+
+  dispose() {
+    this.dispatchEvent({ type: 'dispose' });
+  }
+
+  set needsUpdate(value) {
+    if (value === true) {
+      this.version++;
+      this.source.needsUpdate = true;
+    }
+  }
+}
 
 
 /**
-* @author tschw
-*
-* Uniforms of a program.
-* Those form a tree structure with a special top-level container for the root,
-* which you get by calling 'new WebGLUniforms( gl, program, renderer )'.
-*
-*
-* Properties of inner nodes including the top-level container:
-*
-* .seq - array of nested uniforms
-* .map - nested uniforms by name
-*
-*
-* Methods of all nodes except the top-level container:
-*
-* .setValue( gl, value, [renderer] )
-*
-*     uploads a uniform value(s)
-*   the 'renderer' parameter is needed for sampler uniforms
-*
-*
-* Static methods of the top-level container (renderer factorizations):
-*
-* .upload( gl, seq, values, renderer )
-*
-*     sets uniforms in 'seq' to 'values[id].value'
-*
-* .seqWithValue( seq, values ) : filteredSeq
-*
-*     filters 'seq' entries with corresponding entry in values
-*
-*
-* Methods of the top-level container (renderer factorizations):
-*
-* .setValue( gl, name, value )
-*
-*     sets uniform with  name 'name' to 'value'
-*
-* .set( gl, obj, prop )
-*
-*     sets uniform from object and property with same name than uniform
-*
-* .setOptional( gl, obj, prop )
-*
-*     like .set for an optional property of the object
-*
-*/
-
-let emptyTexture = new Texture();
+ * Uniforms of a program.
+ * Those form a tree structure with a special top-level container for the root,
+ * which you get by calling 'new WebGLUniforms( gl, program )'.
+ *
+ *
+ * Properties of inner nodes including the top-level container:
+ *
+ * .seq - array of nested uniforms
+ * .map - nested uniforms by name
+ *
+ *
+ * Methods of all nodes except the top-level container:
+ *
+ * .setValue( gl, value, [textures] )
+ *
+ *              uploads a uniform value(s)
+ *      the 'textures' parameter is needed for sampler uniforms
+ *
+ *
+ * Static methods of the top-level container (textures factorizations):
+ *
+ * .upload( gl, seq, values, textures )
+ *
+ *              sets uniforms in 'seq' to 'values[id].value'
+ *
+ * .seqWithValue( seq, values ) : filteredSeq
+ *
+ *              filters 'seq' entries with corresponding entry in values
+ *
+ *
+ * Methods of the top-level container (textures factorizations):
+ *
+ * .setValue( gl, name, value, textures )
+ *
+ *              sets uniform with  name 'name' to 'value'
+ *
+ * .setOptional( gl, obj, prop )
+ *
+ *              like .set for an optional property of the object
+ *
+ */
+const emptyTexture = /*@__PURE__*/ new Texture();
 
 // --- Base for inner nodes (including the root) ---
 
+// TODO
 function UniformContainer() {
   this.seq = [];
   this.map = {};
@@ -886,7 +878,13 @@ function setValue2fv( gl, v ) {
 }
 
 function setValue3fv( gl, v ) {
-  if ( v.x !== undefined ) { gl.uniform3f( this.addr, v.x, v.y, v.z ); } else if ( v.r !== undefined ) { gl.uniform3f( this.addr, v.r, v.g, v.b ); } else { gl.uniform3fv( this.addr, v ); }
+  if ( v.x !== undefined ) {
+    gl.uniform3f( this.addr, v.x, v.y, v.z );
+  } else if ( v.r !== undefined ) {
+    gl.uniform3f( this.addr, v.r, v.g, v.b );
+  } else {
+    gl.uniform3fv( this.addr, v );
+  }
 }
 
 function setValue4fv( gl, v ) {
@@ -947,19 +945,22 @@ function getSingularSetter( type ) {
 
 // --- Uniform Classes ---
 
-function SingleUniform( id, activeInfo, addr ) {
-  this.id = id;
-  this.addr = addr;
-  this.setValue = getSingularSetter( activeInfo.type );
-
-  // this.path = activeInfo.name; // DEBUG
+class SingleUniform {
+  constructor(id, activeInfo, addr) {
+    this.id = id;
+    this.addr = addr;
+    //this.cache = [];
+    //this.type = activeInfo.type;
+    this.setValue = getSingularSetter(activeInfo.type);
+    // this.path = activeInfo.name; // DEBUG
+  }
 }
 
 // --- Top-level ---
 
 // Parser - builds up the property tree from the path strings
 
-let RePathPart = /([\w\d_]+)(\])?(\[|\.)?/g;
+const RePathPart = /(\w+)(\])?(\[|\.)?/g;
 
 // extracts
 //  - the identifier (member name or array index)
@@ -970,7 +971,7 @@ let RePathPart = /([\w\d_]+)(\])?(\[|\.)?/g;
 // allow straightforward parsing of the hierarchy that WebGL encodes
 // in the uniform names.
 
-function addUniform( container, uniformObject ) {
+function addUniform(container, uniformObject) {
   container.seq.push( uniformObject );
   container.map[uniformObject.id] = uniformObject;
 }
@@ -1051,133 +1052,133 @@ WebGLUniforms.seqWithValue = function ( seq, values ) {
 };
 
 
-/**
-* @author mrdoob / http://mrdoob.com/
-*/
-
-function Color( r, g, b ) {
-  if ( g === undefined && b === undefined ) {
-    // r is Color, hex or string
-    return this.set( r );
-  }
-
-  return this.setRGB( r, g, b );
+function hue2rgb(p, q, t) {
+  if (t < 0) t += 1;
+  if (t > 1) t -= 1;
+  if (t < 1 / 6) return p + (q - p) * 6 * t;
+  if (t < 1 / 2) return q;
+  if (t < 2 / 3) return p + (q - p) * 6 * (2 / 3 - t);
+  return p;
 }
 
-Color.prototype = {
+class Color {
+  constructor(r, g, b) {
+    this.isColor = true;
+    this.r = 1;
+    this.g = 1;
+    this.b = 1;
+    return this.set(r, g, b);
+  }
 
-  constructor: Color,
-
-  isColor: true,
-
-  r: 1, g: 1, b: 1,
-
-  set: function ( value ) {
-    if ( value && value.isColor ) {
-      this.copy( value );
-    } else if ( typeof value === 'number' ) {
-      this.setHex( value );
+  set(r, g, b) {
+    if (g === undefined && b === undefined) {
+      // r is THREE.Color, hex or string
+      const value = r;
+      if (value && value.isColor) {
+        this.copy(value);
+      } else if (typeof value === 'number') {
+        this.setHex(value);
+      }
+    } else {
+      this.setRGB(r, g, b);
     }
-
     return this;
-  },
+  }
 
-  setHex: function ( hex ) {
-    hex = Math.floor( hex );
-
-    this.r = ( hex >> 16 & 255 ) / 255;
-    this.g = ( hex >> 8 & 255 ) / 255;
-    this.b = ( hex & 255 ) / 255;
-
+  setHex(hex) {
+    hex = Math.floor(hex);
+    this.r = ((hex >> 16) & 255) / 255;
+    this.g = ((hex >> 8) & 255) / 255;
+    this.b = (hex & 255) / 255;
     return this;
-  },
+  }
 
-  setRGB: function ( r, g, b ) {
+  setRGB(r, g, b) {
     this.r = r;
     this.g = g;
     this.b = b;
-
     return this;
-  },
+  }
 
-  setHSL: function () {
-    function hue2rgb( p, q, t ) {
-      if ( t < 0 ) t += 1;
-      if ( t > 1 ) t -= 1;
-      if ( t < 1 / 6 ) return p + ( q - p ) * 6 * t;
-      if ( t < 1 / 2 ) return q;
-      if ( t < 2 / 3 ) return p + ( q - p ) * 6 * ( 2 / 3 - t );
-      return p;
-    }
-
-    return function setHSL( h, s, l ) {
-      // h,s,l ranges are in 0.0 - 1.0
-      h = euclideanModulo( h, 1 );
-      s = clamp( s, 0, 1 );
-      l = clamp( l, 0, 1 );
-
-      if ( s === 0 ) {
-        this.r = this.g = this.b = l;
-      } else {
-        let p = l <= 0.5 ? l * ( 1 + s ) : l + s - ( l * s );
-        let q = ( 2 * l ) - p;
-
-        this.r = hue2rgb( q, p, h + 1 / 3 );
-        this.g = hue2rgb( q, p, h );
-        this.b = hue2rgb( q, p, h - 1 / 3 );
-      }
-
-      return this;
-    };
-  }(),
-
-  getHSL: function () {
+  setHSL(h, s, l) {
     // h,s,l ranges are in 0.0 - 1.0
-    let hsl = { h: 0, s: 0, l: 0 };
+    h = euclideanModulo(h, 1);
+    s = clamp(s, 0, 1);
+    l = clamp(l, 0, 1);
+
+    if (s === 0) {
+      this.r = this.g = this.b = l;
+    } else {
+      const p = l <= 0.5 ? l * (1 + s) : l + s - l * s;
+      const q = 2 * l - p;
+
+      this.r = hue2rgb(q, p, h + 1 / 3);
+      this.g = hue2rgb(q, p, h);
+      this.b = hue2rgb(q, p, h - 1 / 3);
+    }
+    return this;
+  }
+
+  getHSL(target) {
+    // h,s,l ranges are in 0.0 - 1.0
+
     const r = this.r, g = this.g, b = this.b;
-    const max = Math.max( r, g, b );
-    const min = Math.min( r, g, b );
+
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+
     let hue, saturation;
-    const lightness = ( min + max ) / 2.0;
-    if ( min === max ) {
+    const lightness = (min + max) / 2.0;
+
+    if (min === max) {
       hue = 0;
       saturation = 0;
     } else {
       const delta = max - min;
-      saturation = lightness <= 0.5 ? delta / ( max + min ) : delta / ( 2 - max - min );
-      switch ( max ) {
-        case r: hue = ( g - b ) / delta + ( g < b ? 6 : 0 ); break;
-        case g: hue = ( b - r ) / delta + 2; break;
-        case b: hue = ( r - g ) / delta + 4; break;
+
+      saturation = lightness <= 0.5 ? delta / (max + min) : delta / (2 - max - min);
+
+      switch (max) {
+        case r:
+          hue = (g - b) / delta + (g < b ? 6 : 0);
+          break;
+        case g:
+          hue = (b - r) / delta + 2;
+          break;
+        case b:
+          hue = (r - g) / delta + 4;
+          break;
       }
+
       hue /= 6;
     }
-    hsl.h = hue;
-    hsl.s = saturation;
-    hsl.l = lightness;
-    return hsl;
-  },
+    target.h = hue;
+    target.s = saturation;
+    target.l = lightness;
 
-  clone: function () {
-    return new this.constructor( this.r, this.g, this.b );
-  },
+    return target;
+  }
 
-  copy: function ( color ) {
+  clone() {
+    return new this.constructor(this.r, this.g, this.b);
+  }
+
+  copy(color) {
     this.r = color.r;
     this.g = color.g;
     this.b = color.b;
 
     return this;
-  },
+  }
 
-  getHex: function () {
+  getHex() {
     return ( this.r * 255 ) << 16 ^ ( this.g * 255 ) << 8 ^ ( this.b * 255 ) << 0;
-  },
+  }
 
-  getHexString: function () {
-    return ( '000000' + this.getHex().toString( 16 ) ).slice( - 6 );
-  },
-};
+  getHexString() {
+    return ('000000' + this.getHex().toString(16)).slice(-6);
+  }
+}
 
 /**
 * @author mrdoob / http://mrdoob.com/
