@@ -1,14 +1,14 @@
 
 /* Dependencies between files (ES6 modules):
  *
- *      isosurface.ts <--,
- *                        \
- *                  v-- elmap.ts <-.
- *        unitcell.ts               \
- *                  ^-  model.ts <- viewer.ts
- * fromthree.js <--------------------' / /
- *         ^  ^----- draw.ts <--------' /
- *         '------ controls.ts <-------'
+ *    isosurface.ts <--.
+ *                      \
+ *                v-- elmap.ts <-.
+ *      unitcell.ts               \
+ *                ^-  model.ts <- viewer.ts
+ *     uthree/ <-------------------' / /
+ *       ^  ^----- draw.ts <--------' /
+ *       '------ controls.ts <-------'
  */
 
 // UnitCell class with methods to fractionalize/orthogonalize coords
@@ -26,7 +26,9 @@ export * from './elmap';
 // GRAPHICS
 
 // modified subset of THREE.js
-export * from './fromthree.js';
+// (exported, because Vector3, Color, etc can be useful in an app)
+export * from './uthree/main.js';
+//export * from './uthree/extras.js';
 
 // drawing primitives
 export * from './draw';

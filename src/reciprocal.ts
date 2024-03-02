@@ -3,7 +3,7 @@ import { Viewer } from './viewer';
 import { addXyzCross, makeLineMaterial, makeLineSegments,
          makeUniforms, fog_pars_fragment, fog_end_fragment } from './draw';
 import { Points, BufferAttribute, BufferGeometry,
-         ShaderMaterial, Color } from './fromthree.js';
+         ShaderMaterial, Color } from './uthree/main';
 import type { ViewerConfig } from './viewer';
 
 type Num3 = [number, number, number];

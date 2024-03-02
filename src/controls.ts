@@ -1,5 +1,5 @@
-import { Vector3, Quaternion } from './fromthree.js';
-import type {OrthographicCamera} from './fromthree.js';
+import { Vector3, Quaternion } from './uthree/main';
+import type {OrthographicCamera} from './uthree/main';
 
 // map 2d position to sphere with radius 1.
 function project_on_ball(x, y) {

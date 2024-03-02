@@ -1,7 +1,8 @@
 import { BufferAttribute, BufferGeometry, ShaderMaterial,
          Object3D, Mesh, Line, LineSegments, Points,
-         Color, Vector3, Matrix4, Ray, CatmullRomCurve3,
-         TriangleStripDrawMode, Texture } from './fromthree.js';
+         Color, Vector3, Matrix4, Ray,
+         TriangleStripDrawMode, Texture } from './uthree/main.js';
+import { CatmullRomCurve3 } from './uthree/extras.js';
 
 import type { Atom } from './model';
 type Num3 = [number, number, number];

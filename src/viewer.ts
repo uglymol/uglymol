@@ -1,5 +1,5 @@
 import { OrthographicCamera, Scene, AmbientLight, Color, Vector3,
-         Ray, WebGLRenderer, Fog } from './fromthree.js';
+         Ray, WebGLRenderer, Fog } from './uthree/main';
 import { makeLineMaterial, makeLineSegments, makeLine, makeRibbon,
          makeChickenWire, makeGrid, makeSticks, makeBalls, makeWheels, makeCube,
          makeRgbBox, makeLabel, addXyzCross } from './draw';
@@ -8,7 +8,7 @@ import { ElMap } from './elmap';
 import { modelsFromPDB } from './model';
 
 import type { Atom, Model } from './model';
-import type { Mesh } from './fromthree.js';
+import type { Mesh } from './uthree/main';
 import type { GridType } from './draw';
 
 type Num2 = [number, number];
