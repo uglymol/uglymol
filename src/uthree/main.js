@@ -7,6 +7,10 @@
 /* eslint-disable prefer-rest-params, no-invalid-this, no-useless-escape */
 /* eslint-disable new-cap, no-extend-native */
 
+import {
+  Quaternion, Vector3, Vector4, Matrix4, Color, Ray, generateUUID
+} from './math.js';
+
 // Polyfills
 
 if ( Object.assign === undefined ) {
@@ -33,688 +37,14 @@ if ( Object.assign === undefined ) {
   } )();
 }
 
+// constants.js
 let NoBlending = 0;
 let NormalBlending = 1;
 let TrianglesDrawMode = 0;
 let TriangleStripDrawMode = 1;
 let TriangleFanDrawMode = 2;
 
-const _lut = [
-  '00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '0a', '0b', '0c',
-  '0d', '0e', '0f', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19',
-  '1a', '1b', '1c', '1d', '1e', '1f', '20', '21', '22', '23', '24', '25', '26',
-  '27', '28', '29', '2a', '2b', '2c', '2d', '2e', '2f', '30', '31', '32', '33',
-  '34', '35', '36', '37', '38', '39', '3a', '3b', '3c', '3d', '3e', '3f', '40',
-  '41', '42', '43', '44', '45', '46', '47', '48', '49', '4a', '4b', '4c', '4d',
-  '4e', '4f', '50', '51', '52', '53', '54', '55', '56', '57', '58', '59', '5a',
-  '5b', '5c', '5d', '5e', '5f', '60', '61', '62', '63', '64', '65', '66', '67',
-  '68', '69', '6a', '6b', '6c', '6d', '6e', '6f', '70', '71', '72', '73', '74',
-  '75', '76', '77', '78', '79', '7a', '7b', '7c', '7d', '7e', '7f', '80', '81',
-  '82', '83', '84', '85', '86', '87', '88', '89', '8a', '8b', '8c', '8d', '8e',
-  '8f', '90', '91', '92', '93', '94', '95', '96', '97', '98', '99', '9a', '9b',
-  '9c', '9d', '9e', '9f', 'a0', 'a1', 'a2', 'a3', 'a4', 'a5', 'a6', 'a7', 'a8',
-  'a9', 'aa', 'ab', 'ac', 'ad', 'ae', 'af', 'b0', 'b1', 'b2', 'b3', 'b4', 'b5',
-  'b6', 'b7', 'b8', 'b9', 'ba', 'bb', 'bc', 'bd', 'be', 'bf', 'c0', 'c1', 'c2',
-  'c3', 'c4', 'c5', 'c6', 'c7', 'c8', 'c9', 'ca', 'cb', 'cc', 'cd', 'ce', 'cf',
-  'd0', 'd1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7', 'd8', 'd9', 'da', 'db', 'dc',
-  'dd', 'de', 'df', 'e0', 'e1', 'e2', 'e3', 'e4', 'e5', 'e6', 'e7', 'e8', 'e9',
-  'ea', 'eb', 'ec', 'ed', 'ee', 'ef', 'f0', 'f1', 'f2', 'f3', 'f4', 'f5', 'f6',
-  'f7', 'f8', 'f9', 'fa', 'fb', 'fc', 'fd', 'fe', 'ff'
-];
-
-// http://stackoverflow.com/questions/105034/how-to-create-a-guid-uuid-in-javascript/21963136#21963136
-function generateUUID() {
-  const d0 = (Math.random() * 0xffffffff) | 0;
-  const d1 = (Math.random() * 0xffffffff) | 0;
-  const d2 = (Math.random() * 0xffffffff) | 0;
-  const d3 = (Math.random() * 0xffffffff) | 0;
-  const uuid =
-    _lut[d0 & 0xff] + _lut[(d0 >> 8) & 0xff] +
-    _lut[(d0 >> 16) & 0xff] + _lut[(d0 >> 24) & 0xff] + '-' +
-    _lut[d1 & 0xff] + _lut[(d1 >> 8) & 0xff] + '-' +
-    _lut[((d1 >> 16) & 0x0f) | 0x40] + _lut[(d1 >> 24) & 0xff] + '-' +
-    _lut[(d2 & 0x3f) | 0x80] + _lut[(d2 >> 8) & 0xff] + '-' +
-    _lut[(d2 >> 16) & 0xff] + _lut[(d2 >> 24) & 0xff] + _lut[d3 & 0xff] +
-    _lut[(d3 >> 8) & 0xff] + _lut[(d3 >> 16) & 0xff] + _lut[(d3 >> 24) & 0xff];
-  // .toLowerCase() here flattens concatenated strings to save heap memory space.
-  return uuid.toLowerCase();
-}
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
-}
-
-// compute euclidean modulo of m % n
-// https://en.wikipedia.org/wiki/Modulo_operation
-function euclideanModulo(n, m) {
-  return ((n % m) + m) % m;
-}
-
-
-class Quaternion {
-  constructor(x = 0, y = 0, z = 0, w = 1) {
-    this._x = x;
-    this._y = y;
-    this._z = z;
-    this._w = w;
-  }
-
-  get x() {
-    return this._x;
-  }
-
-  get y() {
-    return this._y;
-  }
-
-  get z() {
-    return this._z;
-  }
-
-  get w() {
-    return this._w;
-  }
-
-  setFromAxisAngle(axis, angle) {
-    // http://www.euclideanspace.com/maths/geometry/rotations/conversions/angleToQuaternion/index.htm
-    // assumes axis is normalized
-    let halfAngle = angle / 2, s = Math.sin(halfAngle);
-
-    this._x = axis.x * s;
-    this._y = axis.y * s;
-    this._z = axis.z * s;
-    this._w = Math.cos(halfAngle);
-
-    return this;
-  }
-
-  setFromRotationMatrix(m) {
-    // http://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/index.htm
-    // assumes the upper 3x3 of m is a pure rotation matrix (i.e, unscaled)
-
-    const te = m.elements,
-
-      m11 = te[0], m12 = te[4], m13 = te[8],
-      m21 = te[1], m22 = te[5], m23 = te[9],
-      m31 = te[2], m32 = te[6], m33 = te[10],
-
-      trace = m11 + m22 + m33;
-
-    if (trace > 0) {
-      const s = 0.5 / Math.sqrt(trace + 1.0);
-
-      this._w = 0.25 / s;
-      this._x = (m32 - m23) * s;
-      this._y = (m13 - m31) * s;
-      this._z = (m21 - m12) * s;
-    } else if (m11 > m22 && m11 > m33) {
-      const s = 2.0 * Math.sqrt(1.0 + m11 - m22 - m33);
-
-      this._w = (m32 - m23) / s;
-      this._x = 0.25 * s;
-      this._y = (m12 + m21) / s;
-      this._z = (m13 + m31) / s;
-    } else if (m22 > m33) {
-      const s = 2.0 * Math.sqrt(1.0 + m22 - m11 - m33);
-
-      this._w = (m13 - m31) / s;
-      this._x = (m12 + m21) / s;
-      this._y = 0.25 * s;
-      this._z = (m23 + m32) / s;
-    } else {
-      const s = 2.0 * Math.sqrt(1.0 + m33 - m11 - m22);
-
-      this._w = (m21 - m12) / s;
-      this._x = (m13 + m31) / s;
-      this._y = (m23 + m32) / s;
-      this._z = 0.25 * s;
-    }
-
-    return this;
-  }
-
-  setFromUnitVectors(vFrom, vTo) {
-    // assumes direction vectors vFrom and vTo are normalized
-    let r = vFrom.dot(vTo) + 1;
-    if (r < Number.EPSILON) {
-      // vFrom and vTo point in opposite directions
-      r = 0;
-      if (Math.abs(vFrom.x) > Math.abs(vFrom.z)) {
-        this._x = -vFrom.y;
-        this._y = vFrom.x;
-        this._z = 0;
-        this._w = r;
-      } else {
-        this._x = 0;
-        this._y = -vFrom.z;
-        this._z = vFrom.y;
-        this._w = r;
-      }
-    } else {
-      // crossVectors( vFrom, vTo ); // inlined to avoid cyclic dependency on Vector3
-      this._x = vFrom.y * vTo.z - vFrom.z * vTo.y;
-      this._y = vFrom.z * vTo.x - vFrom.x * vTo.z;
-      this._z = vFrom.x * vTo.y - vFrom.y * vTo.x;
-      this._w = r;
-    }
-    return this.normalize();
-  }
-
-  length() {
-    return Math.sqrt(this._x * this._x + this._y * this._y +
-                     this._z * this._z + this._w * this._w);
-  }
-
-  normalize() {
-    let l = this.length();
-    if (l === 0) {
-      this._x = 0;
-      this._y = 0;
-      this._z = 0;
-      this._w = 1;
-    } else {
-      l = 1 / l;
-      this._x = this._x * l;
-      this._y = this._y * l;
-      this._z = this._z * l;
-      this._w = this._w * l;
-    }
-    return this;
-  }
-}
-
-
-class Vector3 {
-  constructor(x = 0, y = 0, z = 0) {
-    Vector3.prototype.isVector3 = true;
-    this.x = x;
-    this.y = y;
-    this.z = z;
-  }
-
-  set(x, y, z) {
-    if (z === undefined) z = this.z; // sprite.scale.set(x,y)
-    this.x = x;
-    this.y = y;
-    this.z = z;
-    return this;
-  }
-
-  clone() {
-    return new this.constructor(this.x, this.y, this.z);
-  }
-
-  copy(v) {
-    this.x = v.x;
-    this.y = v.y;
-    this.z = v.z;
-    return this;
-  }
-
-  add(v) {
-    this.x += v.x;
-    this.y += v.y;
-    this.z += v.z;
-    return this;
-  }
-
-  addVectors(a, b) {
-    this.x = a.x + b.x;
-    this.y = a.y + b.y;
-    this.z = a.z + b.z;
-    return this;
-  }
-
-  addScaledVector(v, s) {
-    this.x += v.x * s;
-    this.y += v.y * s;
-    this.z += v.z * s;
-    return this;
-  }
-
-  sub(v) {
-    this.x -= v.x;
-    this.y -= v.y;
-    this.z -= v.z;
-    return this;
-  }
-
-  subVectors(a, b) {
-    this.x = a.x - b.x;
-    this.y = a.y - b.y;
-    this.z = a.z - b.z;
-    return this;
-  }
-
-  multiplyScalar(scalar) {
-    this.x *= scalar;
-    this.y *= scalar;
-    this.z *= scalar;
-    return this;
-  }
-
-  applyMatrix4(m) {
-    const x = this.x, y = this.y, z = this.z;
-    const e = m.elements;
-    const w = 1 / (e[3] * x + e[7] * y + e[11] * z + e[15]);
-    this.x = (e[0] * x + e[4] * y + e[8] * z + e[12]) * w;
-    this.y = (e[1] * x + e[5] * y + e[9] * z + e[13]) * w;
-    this.z = (e[2] * x + e[6] * y + e[10] * z + e[14]) * w;
-    return this;
-  }
-
-  applyQuaternion(q) {
-    // quaternion q is assumed to have unit length
-    const vx = this.x, vy = this.y, vz = this.z;
-    const qx = q.x, qy = q.y, qz = q.z, qw = q.w;
-    // t = 2 * cross( q.xyz, v );
-    const tx = 2 * (qy * vz - qz * vy);
-    const ty = 2 * (qz * vx - qx * vz);
-    const tz = 2 * (qx * vy - qy * vx);
-    // v + q.w * t + cross( q.xyz, t );
-    this.x = vx + qw * tx + qy * tz - qz * ty;
-    this.y = vy + qw * ty + qz * tx - qx * tz;
-    this.z = vz + qw * tz + qx * ty - qy * tx;
-    return this;
-  }
-
-  unproject(camera) {
-    return this.applyMatrix4(camera.projectionMatrixInverse).applyMatrix4(camera.matrixWorld);
-  }
-
-  transformDirection(m) {
-    // input: THREE.Matrix4 affine matrix
-    // vector interpreted as a direction
-
-    const x = this.x, y = this.y, z = this.z;
-    const e = m.elements;
-
-    this.x = e[0] * x + e[4] * y + e[8] * z;
-    this.y = e[1] * x + e[5] * y + e[9] * z;
-    this.z = e[2] * x + e[6] * y + e[10] * z;
-
-    return this.normalize();
-  }
-
-  divideScalar(scalar) {
-    return this.multiplyScalar(1 / scalar);
-  }
-
-  dot(v) {
-    return this.x * v.x + this.y * v.y + this.z * v.z;
-  }
-
-  lengthSq() {
-    return this.x * this.x + this.y * this.y + this.z * this.z;
-  }
-
-  length() {
-    return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
-  }
-
-  normalize() {
-    return this.divideScalar(this.length() || 1);
-  }
-
-  setLength(length) {
-    return this.normalize().multiplyScalar(length);
-  }
-
-  lerp(v, alpha) {
-    this.x += (v.x - this.x) * alpha;
-    this.y += (v.y - this.y) * alpha;
-    this.z += (v.z - this.z) * alpha;
-    return this;
-  }
-
-  cross(v) {
-    return this.crossVectors(this, v);
-  }
-
-  crossVectors(a, b) {
-    const ax = a.x, ay = a.y, az = a.z;
-    const bx = b.x, by = b.y, bz = b.z;
-    this.x = ay * bz - az * by;
-    this.y = az * bx - ax * bz;
-    this.z = ax * by - ay * bx;
-    return this;
-  }
-
-  projectOnVector(v) {
-    const denominator = v.lengthSq();
-    if (denominator === 0) return this.set(0, 0, 0);
-    const scalar = v.dot(this) / denominator;
-    return this.copy(v).multiplyScalar(scalar);
-  }
-
-  projectOnPlane(planeNormal) {
-    _vector.copy(this).projectOnVector(planeNormal);
-    return this.sub(_vector);
-  }
-
-  distanceTo(v) {
-    return Math.sqrt(this.distanceToSquared(v));
-  }
-
-  distanceToSquared(v) {
-    const dx = this.x - v.x, dy = this.y - v.y, dz = this.z - v.z;
-    return dx * dx + dy * dy + dz * dz;
-  }
-
-  setFromMatrixPosition(m) {
-    const e = m.elements;
-    this.x = e[12];
-    this.y = e[13];
-    this.z = e[14];
-    return this;
-  }
-
-  setFromMatrixColumn(m, index) {
-    return this.fromArray(m.elements, index * 4);
-  }
-
-  equals(v) {
-    return v.x === this.x && v.y === this.y && v.z === this.z;
-  }
-
-  fromArray(array, offset = 0) {
-    this.x = array[offset];
-    this.y = array[offset + 1];
-    this.z = array[offset + 2];
-    return this;
-  }
-}
-const _vector = /*@__PURE__*/ new Vector3();
-
-
-class Vector4 {
-  constructor(x = 0, y = 0, z = 0, w = 1) {
-    this.x = x;
-    this.y = y;
-    this.z = z;
-    this.w = w;
-  }
-
-  set(x, y, z, w) {
-    this.x = x;
-    this.y = y;
-    this.z = z;
-    this.w = w;
-    return this;
-  }
-
-  copy(v) {
-    this.x = v.x;
-    this.y = v.y;
-    this.z = v.z;
-    this.w = v.w !== undefined ? v.w : 1;
-    return this;
-  }
-
-  multiplyScalar(scalar) {
-    this.x *= scalar;
-    this.y *= scalar;
-    this.z *= scalar;
-    this.w *= scalar;
-    return this;
-  }
-
-  equals(v) {
-    return v.x === this.x && v.y === this.y && v.z === this.z && v.w === this.w;
-  }
-}
-
-
-/**
-* @author mrdoob / http://mrdoob.com/
-* @author supereggbert / http://www.paulbrunt.co.uk/
-* @author philogb / http://blog.thejit.org/
-* @author jordi_ros / http://plattsoft.com
-* @author D1plo1d / http://github.com/D1plo1d
-* @author alteredq / http://alteredqualia.com/
-* @author mikael emtinger / http://gomo.se/
-* @author timknip / http://www.floorplanner.com/
-* @author bhouston / http://clara.io
-* @author WestLangley / http://github.com/WestLangley
-*/
-
-function Matrix4() {
-  this.elements = new Float32Array( [
-    1, 0, 0, 0,
-    0, 1, 0, 0,
-    0, 0, 1, 0,
-    0, 0, 0, 1,
-  ] );
-}
-
-Matrix4.prototype = {
-
-  constructor: Matrix4,
-
-  isMatrix4: true,
-
-
-  copy: function ( m ) {
-    this.elements.set( m.elements );
-
-    return this;
-  },
-
-  makeRotationFromQuaternion: function ( q ) {
-    let te = this.elements;
-
-    let x = q.x, y = q.y, z = q.z, w = q.w;
-    let x2 = x + x, y2 = y + y, z2 = z + z;
-    let xx = x * x2, xy = x * y2, xz = x * z2;
-    let yy = y * y2, yz = y * z2, zz = z * z2;
-    let wx = w * x2, wy = w * y2, wz = w * z2;
-
-    te[0] = 1 - ( yy + zz );
-    te[4] = xy - wz;
-    te[8] = xz + wy;
-
-    te[1] = xy + wz;
-    te[5] = 1 - ( xx + zz );
-    te[9] = yz - wx;
-
-    te[2] = xz - wy;
-    te[6] = yz + wx;
-    te[10] = 1 - ( xx + yy );
-
-    // last column
-    te[3] = 0;
-    te[7] = 0;
-    te[11] = 0;
-
-    // bottom row
-    te[12] = 0;
-    te[13] = 0;
-    te[14] = 0;
-    te[15] = 1;
-
-    return this;
-  },
-
-  lookAt: function () {
-    let x, y, z;
-
-    return function lookAt( eye, target, up ) {
-      if ( x === undefined ) {
-        x = new Vector3();
-        y = new Vector3();
-        z = new Vector3();
-      }
-
-      let te = this.elements;
-
-      z.subVectors( eye, target ).normalize();
-
-      if ( z.lengthSq() === 0 ) {
-        z.z = 1;
-      }
-
-      x.crossVectors( up, z ).normalize();
-
-      if ( x.lengthSq() === 0 ) {
-        z.z += 0.0001;
-        x.crossVectors( up, z ).normalize();
-      }
-
-      y.crossVectors( z, x );
-
-
-      te[0] = x.x; te[4] = y.x; te[8] = z.x;
-      te[1] = x.y; te[5] = y.y; te[9] = z.y;
-      te[2] = x.z; te[6] = y.z; te[10] = z.z;
-
-      return this;
-    };
-  }(),
-
-  multiplyMatrices: function ( a, b ) {
-    let ae = a.elements;
-    let be = b.elements;
-    let te = this.elements;
-
-    let a11 = ae[0], a12 = ae[4], a13 = ae[8], a14 = ae[12];
-    let a21 = ae[1], a22 = ae[5], a23 = ae[9], a24 = ae[13];
-    let a31 = ae[2], a32 = ae[6], a33 = ae[10], a34 = ae[14];
-    let a41 = ae[3], a42 = ae[7], a43 = ae[11], a44 = ae[15];
-
-    let b11 = be[0], b12 = be[4], b13 = be[8], b14 = be[12];
-    let b21 = be[1], b22 = be[5], b23 = be[9], b24 = be[13];
-    let b31 = be[2], b32 = be[6], b33 = be[10], b34 = be[14];
-    let b41 = be[3], b42 = be[7], b43 = be[11], b44 = be[15];
-
-    te[0] = a11 * b11 + a12 * b21 + a13 * b31 + a14 * b41;
-    te[4] = a11 * b12 + a12 * b22 + a13 * b32 + a14 * b42;
-    te[8] = a11 * b13 + a12 * b23 + a13 * b33 + a14 * b43;
-    te[12] = a11 * b14 + a12 * b24 + a13 * b34 + a14 * b44;
-
-    te[1] = a21 * b11 + a22 * b21 + a23 * b31 + a24 * b41;
-    te[5] = a21 * b12 + a22 * b22 + a23 * b32 + a24 * b42;
-    te[9] = a21 * b13 + a22 * b23 + a23 * b33 + a24 * b43;
-    te[13] = a21 * b14 + a22 * b24 + a23 * b34 + a24 * b44;
-
-    te[2] = a31 * b11 + a32 * b21 + a33 * b31 + a34 * b41;
-    te[6] = a31 * b12 + a32 * b22 + a33 * b32 + a34 * b42;
-    te[10] = a31 * b13 + a32 * b23 + a33 * b33 + a34 * b43;
-    te[14] = a31 * b14 + a32 * b24 + a33 * b34 + a34 * b44;
-
-    te[3] = a41 * b11 + a42 * b21 + a43 * b31 + a44 * b41;
-    te[7] = a41 * b12 + a42 * b22 + a43 * b32 + a44 * b42;
-    te[11] = a41 * b13 + a42 * b23 + a43 * b33 + a44 * b43;
-    te[15] = a41 * b14 + a42 * b24 + a43 * b34 + a44 * b44;
-
-    return this;
-  },
-
-  setPosition: function ( v ) {
-    let te = this.elements;
-
-    te[12] = v.x;
-    te[13] = v.y;
-    te[14] = v.z;
-
-    return this;
-  },
-
-  invert: function () {
-    // based on http://www.euclideanspace.com/maths/algebra/matrix/functions/inverse/fourD/index.htm
-    const te = this.elements,
-
-      n11 = te[0], n21 = te[1], n31 = te[2], n41 = te[3],
-      n12 = te[4], n22 = te[5], n32 = te[6], n42 = te[7],
-      n13 = te[8], n23 = te[9], n33 = te[10], n43 = te[11],
-      n14 = te[12], n24 = te[13], n34 = te[14], n44 = te[15],
-
-      t11 = n23 * n34 * n42 - n24 * n33 * n42 + n24 * n32 * n43 - n22 * n34 * n43 - n23 * n32 * n44 + n22 * n33 * n44,
-      t12 = n14 * n33 * n42 - n13 * n34 * n42 - n14 * n32 * n43 + n12 * n34 * n43 + n13 * n32 * n44 - n12 * n33 * n44,
-      t13 = n13 * n24 * n42 - n14 * n23 * n42 + n14 * n22 * n43 - n12 * n24 * n43 - n13 * n22 * n44 + n12 * n23 * n44,
-      t14 = n14 * n23 * n32 - n13 * n24 * n32 - n14 * n22 * n33 + n12 * n24 * n33 + n13 * n22 * n34 - n12 * n23 * n34;
-
-    const det = n11 * t11 + n21 * t12 + n31 * t13 + n41 * t14;
-
-    if (det === 0) return this.set(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-
-    const detInv = 1 / det;
-
-    te[0] = t11 * detInv;
-    te[1] = ( n24 * n33 * n41 - n23 * n34 * n41 - n24 * n31 * n43 + n21 * n34 * n43 + n23 * n31 * n44 - n21 * n33 * n44 ) * detInv;
-    te[2] = ( n22 * n34 * n41 - n24 * n32 * n41 + n24 * n31 * n42 - n21 * n34 * n42 - n22 * n31 * n44 + n21 * n32 * n44 ) * detInv;
-    te[3] = ( n23 * n32 * n41 - n22 * n33 * n41 - n23 * n31 * n42 + n21 * n33 * n42 + n22 * n31 * n43 - n21 * n32 * n43 ) * detInv;
-
-    te[4] = t12 * detInv;
-    te[5] = ( n13 * n34 * n41 - n14 * n33 * n41 + n14 * n31 * n43 - n11 * n34 * n43 - n13 * n31 * n44 + n11 * n33 * n44 ) * detInv;
-    te[6] = ( n14 * n32 * n41 - n12 * n34 * n41 - n14 * n31 * n42 + n11 * n34 * n42 + n12 * n31 * n44 - n11 * n32 * n44 ) * detInv;
-    te[7] = ( n12 * n33 * n41 - n13 * n32 * n41 + n13 * n31 * n42 - n11 * n33 * n42 - n12 * n31 * n43 + n11 * n32 * n43 ) * detInv;
-
-    te[8] = t13 * detInv;
-    te[9] = ( n14 * n23 * n41 - n13 * n24 * n41 - n14 * n21 * n43 + n11 * n24 * n43 + n13 * n21 * n44 - n11 * n23 * n44 ) * detInv;
-    te[10] = ( n12 * n24 * n41 - n14 * n22 * n41 + n14 * n21 * n42 - n11 * n24 * n42 - n12 * n21 * n44 + n11 * n22 * n44 ) * detInv;
-    te[11] = ( n13 * n22 * n41 - n12 * n23 * n41 - n13 * n21 * n42 + n11 * n23 * n42 + n12 * n21 * n43 - n11 * n22 * n43 ) * detInv;
-
-    te[12] = t14 * detInv;
-    te[13] = ( n13 * n24 * n31 - n14 * n23 * n31 + n14 * n21 * n33 - n11 * n24 * n33 - n13 * n21 * n34 + n11 * n23 * n34 ) * detInv;
-    te[14] = ( n14 * n22 * n31 - n12 * n24 * n31 - n14 * n21 * n32 + n11 * n24 * n32 + n12 * n21 * n34 - n11 * n22 * n34 ) * detInv;
-    te[15] = ( n12 * n23 * n31 - n13 * n22 * n31 + n13 * n21 * n32 - n11 * n23 * n32 - n12 * n21 * n33 + n11 * n22 * n33 ) * detInv;
-
-    return this;
-  },
-
-  scale: function ( v ) {
-    let te = this.elements;
-    let x = v.x, y = v.y, z = v.z;
-
-    te[0] *= x; te[4] *= y; te[8] *= z;
-    te[1] *= x; te[5] *= y; te[9] *= z;
-    te[2] *= x; te[6] *= y; te[10] *= z;
-    te[3] *= x; te[7] *= y; te[11] *= z;
-
-    return this;
-  },
-
-  getMaxScaleOnAxis: function () {
-    let te = this.elements;
-
-    let scaleXSq = te[0] * te[0] + te[1] * te[1] + te[2] * te[2];
-    let scaleYSq = te[4] * te[4] + te[5] * te[5] + te[6] * te[6];
-    let scaleZSq = te[8] * te[8] + te[9] * te[9] + te[10] * te[10];
-
-    return Math.sqrt( Math.max( scaleXSq, scaleYSq, scaleZSq ) );
-  },
-
-  compose: function ( position, quaternion, scale ) {
-    this.makeRotationFromQuaternion( quaternion );
-    this.scale( scale );
-    this.setPosition( position );
-
-    return this;
-  },
-
-  makeOrthographic: function ( left, right, top, bottom, near, far ) {
-    let te = this.elements;
-    let w = 1.0 / ( right - left );
-    let h = 1.0 / ( top - bottom );
-    let p = 1.0 / ( far - near );
-
-    let x = ( right + left ) * w;
-    let y = ( top + bottom ) * h;
-    let z = ( far + near ) * p;
-
-    te[0] = 2 * w; te[4] = 0; te[8] = 0; te[12] = - x;
-    te[1] = 0; te[5] = 2 * h; te[9] = 0; te[13] = - y;
-    te[2] = 0; te[6] = 0; te[10] = - 2 * p; te[14] = - z;
-    te[3] = 0; te[7] = 0; te[11] = 0; te[15] = 1;
-
-    return this;
-  },
-};
-
-/**
-* https://github.com/mrdoob/eventdispatcher.js/
-*/
-
+// core/EventDispatcher.js
 class EventDispatcher {
   addEventListener(type, listener) {
     if (this._listeners === undefined) this._listeners = {};
@@ -766,6 +96,7 @@ class EventDispatcher {
   }
 }
 
+// textures/Source.js
 let _sourceId = 0;
 class Source {
   constructor(data = null) {
@@ -780,6 +111,7 @@ class Source {
   }
 }
 
+// textures/Texture.js
 let _textureId = 0;
 class Texture extends EventDispatcher {
   constructor(image) {
@@ -795,6 +127,10 @@ class Texture extends EventDispatcher {
     return this.source.data;
   }
 
+  set image(value) {
+    this.source.data = value;
+  }
+
   dispose() {
     this.dispatchEvent({ type: 'dispose' });
   }
@@ -808,6 +144,7 @@ class Texture extends EventDispatcher {
 }
 
 
+// renderers/webgl/WebGLUniforms.js
 /**
  * Uniforms of a program.
  * Those form a tree structure with a special top-level container for the root,
@@ -852,12 +189,28 @@ class Texture extends EventDispatcher {
  */
 const emptyTexture = /*@__PURE__*/ new Texture();
 
-// --- Base for inner nodes (including the root) ---
+// --- Utilities ---
 
-// TODO
-function UniformContainer() {
-  this.seq = [];
-  this.map = {};
+// Float32Array caches used for uploading Matrix uniforms
+
+const mat4array = new Float32Array(16);
+const mat3array = new Float32Array(9);
+const mat2array = new Float32Array(4);
+
+function arraysEqual(a, b) {
+  if (a.length !== b.length) return false;
+
+  for (let i = 0, l = a.length; i < l; i++) {
+    if (a[i] !== b[i]) return false;
+  }
+
+  return true;
+}
+
+function copyArray(a, b) {
+  for (let i = 0, l = b.length; i < l; i++) {
+    a[i] = b[i];
+  }
 }
 
 // --- Setters ---
@@ -866,82 +219,284 @@ function UniformContainer() {
 // and this way their names minify.
 
 // Single scalar
-
-function setValue1f( gl, v ) { gl.uniform1f( this.addr, v ); }
-function setValue1i( gl, v ) { gl.uniform1i( this.addr, v ); }
-
-// Single float vector (from flat array or VectorN)
-
-function setValue2fv( gl, v ) {
-  if ( v.x === undefined ) gl.uniform2fv( this.addr, v );
-  else gl.uniform2f( this.addr, v.x, v.y );
+function setValueV1f(gl, v) {
+  const cache = this.cache;
+  if (cache[0] === v) return;
+  gl.uniform1f(this.addr, v);
+  cache[0] = v;
 }
 
-function setValue3fv( gl, v ) {
-  if ( v.x !== undefined ) {
-    gl.uniform3f( this.addr, v.x, v.y, v.z );
-  } else if ( v.r !== undefined ) {
-    gl.uniform3f( this.addr, v.r, v.g, v.b );
+// Single float vector (from flat array or THREE.VectorN)
+
+function setValueV2f(gl, v) {
+  const cache = this.cache;
+  if (v.x !== undefined) {
+    if (cache[0] !== v.x || cache[1] !== v.y) {
+      gl.uniform2f(this.addr, v.x, v.y);
+      cache[0] = v.x;
+      cache[1] = v.y;
+    }
   } else {
-    gl.uniform3fv( this.addr, v );
+    if (arraysEqual(cache, v)) return;
+    gl.uniform2fv(this.addr, v);
+    copyArray(cache, v);
   }
 }
 
-function setValue4fv( gl, v ) {
-  if ( v.x === undefined ) gl.uniform4fv( this.addr, v );
-  else gl.uniform4f( this.addr, v.x, v.y, v.z, v.w );
+function setValueV3f(gl, v) {
+  const cache = this.cache;
+
+  if (v.x !== undefined) {
+    if (cache[0] !== v.x || cache[1] !== v.y || cache[2] !== v.z) {
+      gl.uniform3f(this.addr, v.x, v.y, v.z);
+      cache[0] = v.x;
+      cache[1] = v.y;
+      cache[2] = v.z;
+    }
+  } else if (v.r !== undefined) {
+    if (cache[0] !== v.r || cache[1] !== v.g || cache[2] !== v.b) {
+      gl.uniform3f(this.addr, v.r, v.g, v.b);
+      cache[0] = v.r;
+      cache[1] = v.g;
+      cache[2] = v.b;
+    }
+  } else {
+    if (arraysEqual(cache, v)) return;
+    gl.uniform3fv(this.addr, v);
+    copyArray(cache, v);
+  }
 }
 
-// Single matrix (from flat array or MatrixN)
-
-function setValue2fm( gl, v ) {
-  gl.uniformMatrix2fv( this.addr, false, v.elements || v );
+function setValueV4f(gl, v) {
+  const cache = this.cache;
+  if (v.x !== undefined) {
+    if (cache[0] !== v.x || cache[1] !== v.y || cache[2] !== v.z || cache[3] !== v.w) {
+      gl.uniform4f(this.addr, v.x, v.y, v.z, v.w);
+      cache[0] = v.x;
+      cache[1] = v.y;
+      cache[2] = v.z;
+      cache[3] = v.w;
+    }
+  } else {
+    if (arraysEqual(cache, v)) return;
+    gl.uniform4fv(this.addr, v);
+    copyArray(cache, v);
+  }
 }
 
-function setValue3fm( gl, v ) {
-  gl.uniformMatrix3fv( this.addr, false, v.elements || v );
+// Single matrix (from flat array or THREE.MatrixN)
+
+function setValueM2(gl, v) {
+  const cache = this.cache;
+  const elements = v.elements;
+
+  if (elements === undefined) {
+    if (arraysEqual(cache, v)) return;
+    gl.uniformMatrix2fv(this.addr, false, v);
+    copyArray(cache, v);
+  } else {
+    if (arraysEqual(cache, elements)) return;
+    mat2array.set(elements);
+    gl.uniformMatrix2fv(this.addr, false, mat2array);
+    copyArray(cache, elements);
+  }
 }
 
-function setValue4fm( gl, v ) {
-  gl.uniformMatrix4fv( this.addr, false, v.elements || v );
+function setValueM3(gl, v) {
+  const cache = this.cache;
+  const elements = v.elements;
+  if (elements === undefined) {
+    if (arraysEqual(cache, v)) return;
+    gl.uniformMatrix3fv(this.addr, false, v);
+    copyArray(cache, v);
+  } else {
+    if (arraysEqual(cache, elements)) return;
+    mat3array.set(elements);
+    gl.uniformMatrix3fv(this.addr, false, mat3array);
+    copyArray(cache, elements);
+  }
+}
+
+function setValueM4(gl, v) {
+  const cache = this.cache;
+  const elements = v.elements;
+  if (elements === undefined) {
+    if (arraysEqual(cache, v)) return;
+    gl.uniformMatrix4fv(this.addr, false, v);
+    copyArray(cache, v);
+  } else {
+    if (arraysEqual(cache, elements)) return;
+    mat4array.set(elements);
+    gl.uniformMatrix4fv(this.addr, false, mat4array);
+    copyArray(cache, elements);
+  }
+}
+
+// Single integer / boolean
+
+function setValueV1i(gl, v) {
+  const cache = this.cache;
+  if (cache[0] === v) return;
+  gl.uniform1i(this.addr, v);
+  cache[0] = v;
+}
+
+// Single integer / boolean vector (from flat array or THREE.VectorN)
+
+function setValueV2i(gl, v) {
+  const cache = this.cache;
+  if (v.x !== undefined) {
+    if (cache[0] !== v.x || cache[1] !== v.y) {
+      gl.uniform2i(this.addr, v.x, v.y);
+      cache[0] = v.x;
+      cache[1] = v.y;
+    }
+  } else {
+    if (arraysEqual(cache, v)) return;
+    gl.uniform2iv(this.addr, v);
+    copyArray(cache, v);
+  }
+}
+
+function setValueV3i(gl, v) {
+  const cache = this.cache;
+  if (v.x !== undefined) {
+    if (cache[0] !== v.x || cache[1] !== v.y || cache[2] !== v.z) {
+      gl.uniform3i(this.addr, v.x, v.y, v.z);
+      cache[0] = v.x;
+      cache[1] = v.y;
+      cache[2] = v.z;
+    }
+  } else {
+    if (arraysEqual(cache, v)) return;
+    gl.uniform3iv(this.addr, v);
+    copyArray(cache, v);
+  }
+}
+
+function setValueV4i(gl, v) {
+  const cache = this.cache;
+  if (v.x !== undefined) {
+    if (cache[0] !== v.x || cache[1] !== v.y || cache[2] !== v.z || cache[3] !== v.w) {
+      gl.uniform4i(this.addr, v.x, v.y, v.z, v.w);
+      cache[0] = v.x;
+      cache[1] = v.y;
+      cache[2] = v.z;
+      cache[3] = v.w;
+    }
+  } else {
+    if (arraysEqual(cache, v)) return;
+    gl.uniform4iv(this.addr, v);
+    copyArray(cache, v);
+  }
+}
+
+// Single unsigned integer
+function setValueV1ui(gl, v) {
+  const cache = this.cache;
+
+  if (cache[0] === v) return;
+
+  gl.uniform1ui(this.addr, v);
+
+  cache[0] = v;
+}
+
+// Single unsigned integer vector (from flat array or THREE.VectorN)
+
+function setValueV2ui(gl, v) {
+  const cache = this.cache;
+  if (v.x !== undefined) {
+    if (cache[0] !== v.x || cache[1] !== v.y) {
+      gl.uniform2ui(this.addr, v.x, v.y);
+
+      cache[0] = v.x;
+      cache[1] = v.y;
+    }
+  } else {
+    if (arraysEqual(cache, v)) return;
+    gl.uniform2uiv(this.addr, v);
+    copyArray(cache, v);
+  }
+}
+
+function setValueV3ui(gl, v) {
+  const cache = this.cache;
+  if (v.x !== undefined) {
+    if (cache[0] !== v.x || cache[1] !== v.y || cache[2] !== v.z) {
+      gl.uniform3ui(this.addr, v.x, v.y, v.z);
+      cache[0] = v.x;
+      cache[1] = v.y;
+      cache[2] = v.z;
+    }
+  } else {
+    if (arraysEqual(cache, v)) return;
+    gl.uniform3uiv(this.addr, v);
+    copyArray(cache, v);
+  }
+}
+
+function setValueV4ui(gl, v) {
+  const cache = this.cache;
+  if (v.x !== undefined) {
+    if (cache[0] !== v.x || cache[1] !== v.y || cache[2] !== v.z || cache[3] !== v.w) {
+      gl.uniform4ui(this.addr, v.x, v.y, v.z, v.w);
+
+      cache[0] = v.x;
+      cache[1] = v.y;
+      cache[2] = v.z;
+      cache[3] = v.w;
+    }
+  } else {
+    if (arraysEqual(cache, v)) return;
+    gl.uniform4uiv(this.addr, v);
+    copyArray(cache, v);
+  }
 }
 
 // Single texture (2D / Cube)
 
-function setValueT1( gl, v, renderer ) {
-  let unit = renderer.allocTextureUnit();
-  gl.uniform1i( this.addr, unit );
-  renderer.setTexture2D( v || emptyTexture, unit );
+function setValueT1(gl, v, textures) {
+  const cache = this.cache;
+  const unit = textures.allocateTextureUnit();
+
+  if (cache[0] !== unit) {
+    gl.uniform1i(this.addr, unit);
+    cache[0] = unit;
+  }
+  const emptyTexture2D = emptyTexture;
+  textures.setTexture2D(v || emptyTexture2D, unit);
 }
-
-// Integer / Boolean vectors or arrays thereof (always flat arrays)
-
-function setValue2iv( gl, v ) { gl.uniform2iv( this.addr, v ); }
-function setValue3iv( gl, v ) { gl.uniform3iv( this.addr, v ); }
-function setValue4iv( gl, v ) { gl.uniform4iv( this.addr, v ); }
 
 // Helper to pick the right setter for the singular case
+function getSingularSetter(type) {
+  switch (type) {
+    case 0x1406: return setValueV1f; // FLOAT
+    case 0x8b50: return setValueV2f; // _VEC2
+    case 0x8b51: return setValueV3f; // _VEC3
+    case 0x8b52: return setValueV4f; // _VEC4
 
-function getSingularSetter( type ) {
-  switch ( type ) {
-    case 0x1406: return setValue1f; // FLOAT
-    case 0x8b50: return setValue2fv; // _VEC2
-    case 0x8b51: return setValue3fv; // _VEC3
-    case 0x8b52: return setValue4fv; // _VEC4
+    case 0x8b5a: return setValueM2; // _MAT2
+    case 0x8b5b: return setValueM3; // _MAT3
+    case 0x8b5c: return setValueM4; // _MAT4
 
-    case 0x8b5a: return setValue2fm; // _MAT2
-    case 0x8b5b: return setValue3fm; // _MAT3
-    case 0x8b5c: return setValue4fm; // _MAT4
+    case 0x1404: case 0x8b56: return setValueV1i; // INT, BOOL
+    case 0x8b53: case 0x8b57: return setValueV2i; // _VEC2
+    case 0x8b54: case 0x8b58: return setValueV3i; // _VEC3
+    case 0x8b55: case 0x8b59: return setValueV4i; // _VEC4
 
-    case 0x8b5e: return setValueT1; // SAMPLER_2D
+    case 0x1405: return setValueV1ui; // UINT
+    case 0x8dc6: return setValueV2ui; // _VEC2
+    case 0x8dc7: return setValueV3ui; // _VEC3
+    case 0x8dc8: return setValueV4ui; // _VEC4
 
-    case 0x1404: case 0x8b56: return setValue1i; // INT, BOOL
-    case 0x8b53: case 0x8b57: return setValue2iv; // _VEC2
-    case 0x8b54: case 0x8b58: return setValue3iv; // _VEC3
-    case 0x8b55: case 0x8b59: return setValue4iv; // _VEC4
+    case 0x8b5e: // SAMPLER_2D
+    case 0x8d66: // SAMPLER_EXTERNAL_OES
+    case 0x8dca: // INT_SAMPLER_2D
+    case 0x8dd2: // UNSIGNED_INT_SAMPLER_2D
+      return setValueT1;
   }
 }
-
 
 // --- Uniform Classes ---
 
@@ -949,12 +504,28 @@ class SingleUniform {
   constructor(id, activeInfo, addr) {
     this.id = id;
     this.addr = addr;
-    //this.cache = [];
-    //this.type = activeInfo.type;
+    this.cache = [];
+    this.type = activeInfo.type;
     this.setValue = getSingularSetter(activeInfo.type);
     // this.path = activeInfo.name; // DEBUG
   }
 }
+
+class StructuredUniform {
+  constructor(id) {
+    this.id = id;
+    this.seq = [];
+    this.map = {};
+  }
+  setValue(gl, value, textures) {
+    const seq = this.seq;
+    for (let i = 0, n = seq.length; i !== n; ++i) {
+      const u = seq[i];
+      u.setValue(gl, value[u.id], textures);
+    }
+  }
+}
+
 
 // --- Top-level ---
 
@@ -972,213 +543,86 @@ const RePathPart = /(\w+)(\])?(\[|\.)?/g;
 // in the uniform names.
 
 function addUniform(container, uniformObject) {
-  container.seq.push( uniformObject );
+  container.seq.push(uniformObject);
   container.map[uniformObject.id] = uniformObject;
 }
 
-function parseUniform( activeInfo, addr, container ) {
-  let path = activeInfo.name;
-
+function parseUniform(activeInfo, addr, container) {
+  const path = activeInfo.name,
+    pathLength = path.length;
   // reset RegExp object, because of the early exit of a previous run
   RePathPart.lastIndex = 0;
-
-  for (; ;) {
-    let match = RePathPart.exec( path ),
-      id = match[1],
-      idIsIndex = match[2] === ']',
+  while (true) {  // eslint-disable-line no-constant-condition
+    const match = RePathPart.exec(path),
+      matchEnd = RePathPart.lastIndex;
+    let id = match[1];
+    const idIsIndex = match[2] === ']',
       subscript = match[3];
-
-    if ( idIsIndex ) id = id | 0; // convert to integer
-
-    if ( subscript === undefined ) {
-      addUniform( container, new SingleUniform( id, activeInfo, addr ) );
+    if (idIsIndex) id = id | 0; // convert to integer
+    if (subscript === undefined || (subscript === '[' && matchEnd + 2 === pathLength)) {
+      // bare name or "pure" bottom-level array "[0]" suffix
+      if (subscript !== undefined) throw new TypeError('PureArrayUniform?');
+      addUniform(container, new SingleUniform(id, activeInfo, addr));
       break;
+    } else {
+      // step into inner node / create it in case it doesn't exist
+      const map = container.map;
+      let next = map[id];
+      if (next === undefined) {
+        next = new StructuredUniform(id);
+        addUniform(container, next);
+      }
+      container = next;
     }
   }
 }
 
 // Root Container
 
-function WebGLUniforms( gl, program, renderer ) {
-  UniformContainer.call( this );
+class WebGLUniforms {
+  constructor(gl, program) {
+    this.seq = [];
+    this.map = {};
+    const n = gl.getProgramParameter(program, gl.ACTIVE_UNIFORMS);
 
-  this.renderer = renderer;
-
-  let n = gl.getProgramParameter( program, gl.ACTIVE_UNIFORMS );
-
-  for ( let i = 0; i !== n; ++ i ) {
-    let info = gl.getActiveUniform( program, i ),
-      path = info.name,
-      addr = gl.getUniformLocation( program, path );
-
-    parseUniform( info, addr, this );
-  }
-}
-
-WebGLUniforms.prototype.setValue = function ( gl, name, value ) {
-  let u = this.map[name];
-  if ( u !== undefined ) u.setValue( gl, value, this.renderer );
-};
-
-WebGLUniforms.prototype.set = function ( gl, object, name ) {
-  let u = this.map[name];
-  if ( u !== undefined ) u.setValue( gl, object[name], this.renderer );
-};
-
-// Static interface
-
-WebGLUniforms.upload = function ( gl, seq, values, renderer ) {
-  for ( let i = 0, n = seq.length; i !== n; ++ i ) {
-    let u = seq[i],
-      v = values[u.id];
-
-    if ( v.needsUpdate !== false ) {
-      // note: always updating when .needsUpdate is undefined
-
-      u.setValue( gl, v.value, renderer );
+    for (let i = 0; i < n; ++i) {
+      const info = gl.getActiveUniform(program, i),
+        addr = gl.getUniformLocation(program, info.name);
+      parseUniform(info, addr, this);
     }
   }
-};
 
-WebGLUniforms.seqWithValue = function ( seq, values ) {
-  let r = [];
-
-  for ( let i = 0, n = seq.length; i !== n; ++ i ) {
-    let u = seq[i];
-    if ( u.id in values ) r.push( u );
+  setValue(gl, name, value, textures) {
+    const u = this.map[name];
+    if (u !== undefined) u.setValue(gl, value, textures);
   }
 
-  return r;
-};
-
-
-function hue2rgb(p, q, t) {
-  if (t < 0) t += 1;
-  if (t > 1) t -= 1;
-  if (t < 1 / 6) return p + (q - p) * 6 * t;
-  if (t < 1 / 2) return q;
-  if (t < 2 / 3) return p + (q - p) * 6 * (2 / 3 - t);
-  return p;
-}
-
-class Color {
-  constructor(r, g, b) {
-    this.isColor = true;
-    this.r = 1;
-    this.g = 1;
-    this.b = 1;
-    return this.set(r, g, b);
+  setOptional(gl, object, name) {
+    const v = object[name];
+    if (v !== undefined) this.setValue(gl, name, v);
   }
 
-  set(r, g, b) {
-    if (g === undefined && b === undefined) {
-      // r is THREE.Color, hex or string
-      const value = r;
-      if (value && value.isColor) {
-        this.copy(value);
-      } else if (typeof value === 'number') {
-        this.setHex(value);
+  static upload(gl, seq, values, textures) {
+    for (let i = 0, n = seq.length; i !== n; ++i) {
+      const u = seq[i],
+        v = values[u.id];
+      if (v.needsUpdate !== false) {
+        // note: always updating when .needsUpdate is undefined
+        u.setValue(gl, v.value, textures);
       }
-    } else {
-      this.setRGB(r, g, b);
     }
-    return this;
   }
 
-  setHex(hex) {
-    hex = Math.floor(hex);
-    this.r = ((hex >> 16) & 255) / 255;
-    this.g = ((hex >> 8) & 255) / 255;
-    this.b = (hex & 255) / 255;
-    return this;
-  }
-
-  setRGB(r, g, b) {
-    this.r = r;
-    this.g = g;
-    this.b = b;
-    return this;
-  }
-
-  setHSL(h, s, l) {
-    // h,s,l ranges are in 0.0 - 1.0
-    h = euclideanModulo(h, 1);
-    s = clamp(s, 0, 1);
-    l = clamp(l, 0, 1);
-
-    if (s === 0) {
-      this.r = this.g = this.b = l;
-    } else {
-      const p = l <= 0.5 ? l * (1 + s) : l + s - l * s;
-      const q = 2 * l - p;
-
-      this.r = hue2rgb(q, p, h + 1 / 3);
-      this.g = hue2rgb(q, p, h);
-      this.b = hue2rgb(q, p, h - 1 / 3);
+  static seqWithValue(seq, values) {
+    const r = [];
+    for (let i = 0, n = seq.length; i !== n; ++i) {
+      const u = seq[i];
+      if (u.id in values) r.push(u);
     }
-    return this;
-  }
-
-  getHSL(target) {
-    // h,s,l ranges are in 0.0 - 1.0
-
-    const r = this.r, g = this.g, b = this.b;
-
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-
-    let hue, saturation;
-    const lightness = (min + max) / 2.0;
-
-    if (min === max) {
-      hue = 0;
-      saturation = 0;
-    } else {
-      const delta = max - min;
-
-      saturation = lightness <= 0.5 ? delta / (max + min) : delta / (2 - max - min);
-
-      switch (max) {
-        case r:
-          hue = (g - b) / delta + (g < b ? 6 : 0);
-          break;
-        case g:
-          hue = (b - r) / delta + 2;
-          break;
-        case b:
-          hue = (r - g) / delta + 4;
-          break;
-      }
-
-      hue /= 6;
-    }
-    target.h = hue;
-    target.s = saturation;
-    target.l = lightness;
-
-    return target;
-  }
-
-  clone() {
-    return new this.constructor(this.r, this.g, this.b);
-  }
-
-  copy(color) {
-    this.r = color.r;
-    this.g = color.g;
-    this.b = color.b;
-
-    return this;
-  }
-
-  getHex() {
-    return ( this.r * 255 ) << 16 ^ ( this.g * 255 ) << 8 ^ ( this.b * 255 ) << 0;
-  }
-
-  getHexString() {
-    return ('000000' + this.getHex().toString(16)).slice(-6);
+    return r;
   }
 }
+
 
 /**
 * @author mrdoob / http://mrdoob.com/
@@ -1283,148 +727,6 @@ ShaderMaterial.prototype.constructor = ShaderMaterial;
 
 ShaderMaterial.prototype.isShaderMaterial = true;
 
-
-/**
-* @author bhouston / http://clara.io
-*/
-
-function Ray( origin, direction ) {
-  this.origin = ( origin !== undefined ) ? origin : new Vector3();
-  this.direction = ( direction !== undefined ) ? direction : new Vector3();
-}
-
-Ray.prototype = {
-
-  constructor: Ray,
-
-  copy: function ( ray ) {
-    this.origin.copy( ray.origin );
-    this.direction.copy( ray.direction );
-
-    return this;
-  },
-
-  distanceSqToPoint: function () {
-    let v1 = new Vector3();
-
-    return function distanceSqToPoint( point ) {
-      let directionDistance = v1.subVectors( point, this.origin ).dot( this.direction );
-      // point behind the ray
-      if ( directionDistance < 0 ) {
-        return this.origin.distanceToSquared( point );
-      }
-      v1.copy( this.direction ).multiplyScalar( directionDistance ).add( this.origin );
-      return v1.distanceToSquared( point );
-    };
-  }(),
-
-  distanceSqToSegment: function () {
-    let segCenter = new Vector3();
-    let segDir = new Vector3();
-    let diff = new Vector3();
-
-    return function distanceSqToSegment( v0, v1, optionalPointOnRay, optionalPointOnSegment ) {
-      // from http://www.geometrictools.com/GTEngine/Include/Mathematics/GteDistRaySegment.h
-      // It returns the min distance between the ray and the segment
-      // defined by v0 and v1
-      // It can also set two optional targets :
-      // - The closest point on the ray
-      // - The closest point on the segment
-
-      segCenter.copy( v0 ).add( v1 ).multiplyScalar( 0.5 );
-      segDir.copy( v1 ).sub( v0 ).normalize();
-      diff.copy( this.origin ).sub( segCenter );
-
-      let segExtent = v0.distanceTo( v1 ) * 0.5;
-      let a01 = - this.direction.dot( segDir );
-      let b0 = diff.dot( this.direction );
-      let b1 = - diff.dot( segDir );
-      let c = diff.lengthSq();
-      let det = Math.abs( 1 - a01 * a01 );
-      let s0, s1, sqrDist, extDet;
-
-      if ( det > 0 ) {
-        // The ray and segment are not parallel.
-
-        s0 = a01 * b1 - b0;
-        s1 = a01 * b0 - b1;
-        extDet = segExtent * det;
-
-        if ( s0 >= 0 ) {
-          if ( s1 >= - extDet ) {
-            if ( s1 <= extDet ) {
-              // region 0
-              // Minimum at interior points of ray and segment.
-
-              let invDet = 1 / det;
-              s0 *= invDet;
-              s1 *= invDet;
-              sqrDist = s0 * ( s0 + a01 * s1 + 2 * b0 ) + s1 * ( a01 * s0 + s1 + 2 * b1 ) + c;
-            } else {
-              // region 1
-
-              s1 = segExtent;
-              s0 = Math.max( 0, - ( a01 * s1 + b0 ) );
-              sqrDist = - s0 * s0 + s1 * ( s1 + 2 * b1 ) + c;
-            }
-          } else {
-            // region 5
-
-            s1 = - segExtent;
-            s0 = Math.max( 0, - ( a01 * s1 + b0 ) );
-            sqrDist = - s0 * s0 + s1 * ( s1 + 2 * b1 ) + c;
-          }
-        } else {
-          if ( s1 <= - extDet ) {
-            // region 4
-
-            s0 = Math.max( 0, - ( - a01 * segExtent + b0 ) );
-            s1 = ( s0 > 0 ) ? - segExtent : Math.min( Math.max( - segExtent, - b1 ), segExtent );
-            sqrDist = - s0 * s0 + s1 * ( s1 + 2 * b1 ) + c;
-          } else if ( s1 <= extDet ) {
-            // region 3
-
-            s0 = 0;
-            s1 = Math.min( Math.max( - segExtent, - b1 ), segExtent );
-            sqrDist = s1 * ( s1 + 2 * b1 ) + c;
-          } else {
-            // region 2
-
-            s0 = Math.max( 0, - ( a01 * segExtent + b0 ) );
-            s1 = ( s0 > 0 ) ? segExtent : Math.min( Math.max( - segExtent, - b1 ), segExtent );
-            sqrDist = - s0 * s0 + s1 * ( s1 + 2 * b1 ) + c;
-          }
-        }
-      } else {
-        // Ray and segment are parallel.
-
-        s1 = ( a01 > 0 ) ? - segExtent : segExtent;
-        s0 = Math.max( 0, - ( a01 * s1 + b0 ) );
-        sqrDist = - s0 * s0 + s1 * ( s1 + 2 * b1 ) + c;
-      }
-
-      if ( optionalPointOnRay ) {
-        optionalPointOnRay.copy( this.direction ).multiplyScalar( s0 ).add( this.origin );
-      }
-
-      if ( optionalPointOnSegment ) {
-        optionalPointOnSegment.copy( segDir ).multiplyScalar( s1 ).add( segCenter );
-      }
-
-      return sqrDist;
-    };
-  }(),
-
-  applyMatrix4: function ( matrix4 ) {
-    this.direction.add( this.origin ).applyMatrix4( matrix4 );
-    this.origin.applyMatrix4( matrix4 );
-    this.direction.sub( this.origin );
-    this.direction.normalize();
-
-    return this;
-  },
-
-};
 
 /**
 * @author mrdoob / http://mrdoob.com/
@@ -3438,7 +2740,7 @@ function WebGLRenderer( parameters ) {
     }
 
     if ( refreshProgram || camera !== _currentCamera ) {
-      p_uniforms.set( _gl, camera, 'projectionMatrix' );
+      p_uniforms.setValue(_gl, 'projectionMatrix', camera.projectionMatrix);
 
       if ( camera !== _currentCamera ) {
         _currentCamera = camera;
@@ -3474,7 +2776,7 @@ function WebGLRenderer( parameters ) {
 
     // common matrices
 
-    p_uniforms.set( _gl, object, 'modelViewMatrix' );
+    p_uniforms.setValue(_gl, 'modelViewMatrix', object.modelViewMatrix);
     p_uniforms.setValue( _gl, 'modelMatrix', object.matrixWorld );
 
     return program;
@@ -3494,13 +2796,13 @@ function WebGLRenderer( parameters ) {
 
   // Textures
 
-  function allocTextureUnit() {
+  function allocateTextureUnit() {
     let textureUnit = _usedTextureUnits;
     _usedTextureUnits += 1;
     return textureUnit;
   }
 
-  this.allocTextureUnit = allocTextureUnit;
+  this.allocateTextureUnit = allocateTextureUnit;
 
   // this.setTexture2D = setTexture2D;
   this.setTexture2D = ( function () {
