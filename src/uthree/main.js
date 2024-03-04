@@ -624,118 +624,103 @@ class WebGLUniforms {
 }
 
 
-/**
-* @author mrdoob / http://mrdoob.com/
-* @author alteredq / http://alteredqualia.com/
-*/
 
-let materialId = 0;
+// materials/Material.js
+let _materialId = 0;
 
-function Material() {
-  Object.defineProperty( this, 'id', { value: materialId ++ } );
+class Material extends EventDispatcher {
+  constructor() {
+    super();
+    this.isMaterial = true;
+    Object.defineProperty(this, 'id', { value: _materialId++ });
+    this.uuid = generateUUID();
+    this.name = '';
+    this.type = 'Material';
 
-  this.uuid = generateUUID();
+    this.opacity = 1;
+    this.transparent = false;
 
-  this.name = '';
-  this.type = 'Material';
+    this.depthTest = true;
+    this.depthWrite = true;
 
-  this.fog = true;
+    this.precision = null; // override the renderer's default precision for this material
 
-  this.opacity = 1;
-  this.transparent = false;
+    this.premultipliedAlpha = false;
 
-  this.depthTest = true;
-  this.depthWrite = true;
+    this.visible = true;
 
-  this.precision = null; // override the renderer's default precision for this material
+    //TODO
+    //this.version = 0;
+    this._needsUpdate = true;
+  }
 
-  this.premultipliedAlpha = false;
+  setValues(values) {
+    if (values === undefined) return;
 
-  this.visible = true;
+    for (const key in values) {
+      const newValue = values[key];
+      if (newValue === undefined) {
+        console.warn(`THREE.Material: parameter '${key}' has value of undefined.`);
+        continue;
+      }
+      const currentValue = this[key];
+      if (currentValue === undefined) {
+        console.warn(`THREE.Material: '${key}' is not a property of THREE.${this.type}.`);
+        continue;
+      }
+      if (currentValue && currentValue.isColor) {
+        currentValue.set(newValue);
+      } else if (currentValue && currentValue.isVector3 && newValue && newValue.isVector3) {
+        currentValue.copy(newValue);
+      } else {
+        this[key] = newValue;
+      }
+    }
+  }
 
-  this._needsUpdate = true;
-}
+  dispose() {
+    this.dispatchEvent({ type: 'dispose' });
+  }
 
-Material.prototype = {
-
-  constructor: Material,
-
-  isMaterial: true,
-
+  //TODO
+  //set needsUpdate(value) {
+  //  if (value === true) this.version++;
+  //}
+  //old:
   get needsUpdate() {
     return this._needsUpdate;
-  },
-
-  set needsUpdate( value ) {
+  }
+  set needsUpdate(value) {
     if ( value === true ) this.update();
     this._needsUpdate = value;
-  },
-
-  setValues: function ( values ) {
-    for ( let key in values ) {
-      let newValue = values[key];
-      this[key] = newValue;
-    }
-  },
-
-  update: function () {
+  }
+  update() {
     this.dispatchEvent( { type: 'update' } );
-  },
-
-  dispose: function () {
-    this.dispatchEvent( { type: 'dispose' } );
-  },
-
-};
-
-Object.assign( Material.prototype, EventDispatcher.prototype );
-
-/**
-* @author alteredq / http://alteredqualia.com/
-*
-* parameters = {
-*  uniforms: { "parameter1": { value: 1.0 }, "parameter2": { value2: 2 } },
-*
-*  fragmentShader: <string>,
-*  vertexShader: <string>,
-* }
-*/
-
-function ShaderMaterial( parameters ) {
-  Material.call( this );
-
-  this.type = 'ShaderMaterial';
-
-  this.uniforms = {};
-
-  this.vertexShader = '';
-  this.fragmentShader = '';
-
-  this.linewidth = 1;
-
-  this.fog = false; // set to use scene fog
-
-  this.extensions = {
-    fragDepth: false, // set to use fragment depth values
-  };
-
-  this.setValues( parameters );
+  }
 }
 
-ShaderMaterial.prototype = Object.create( Material.prototype );
-ShaderMaterial.prototype.constructor = ShaderMaterial;
+// materials/ShaderMaterial.js
+class ShaderMaterial extends Material {
+  constructor(parameters) {
+    super();
+    this.isShaderMaterial = true;
+    this.type = 'ShaderMaterial';
+    this.uniforms = {};
+    this.vertexShader = '';
+    this.fragmentShader = '';
+    this.linewidth = 1;
+    this.fog = false; // set to use scene fog
 
-ShaderMaterial.prototype.isShaderMaterial = true;
+    this.extensions = {
+      fragDepth: false, // set to use fragment depth values
+    };
+
+    this.setValues(parameters);
+  }
+}
 
 
-/**
-* @author mrdoob / http://mrdoob.com/
-* @author mikael emtinger / http://gomo.se/
-* @author alteredq / http://alteredqualia.com/
-* @author WestLangley / http://github.com/WestLangley
-* @author elephantatwork / www.elephantatwork.ch
-*/
-
+// core/Object3D.js
 let object3DId = 0;
 
 function Object3D() {
