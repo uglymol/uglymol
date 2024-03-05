@@ -879,83 +879,73 @@ Object3D.DEFAULT_MATRIX_AUTO_UPDATE = true;
 
 
 
-/**
-* @author mrdoob / http://mrdoob.com/
-*/
+// core/BufferAttribute.js
+class BufferAttribute {
+  constructor(array, itemSize, normalized = false) {
+    if (Array.isArray(array)) {
+      throw new TypeError('BufferAttribute: array should be a Typed Array.');
+    }
+    this.isBufferAttribute = true;
 
-function BufferAttribute( array, itemSize, normalized ) {
-  if ( Array.isArray( array ) ) {
-    throw new TypeError( 'BufferAttribute: array should be a Typed Array.' );
+    this.array = array;
+    this.itemSize = itemSize;
+    this.count = array !== undefined ? array.length / itemSize : 0;
+    this.normalized = normalized;
+
+    // FIXME: new variables
+    //this.usage = StaticDrawUsage;
+    //this._updateRange = { offset: 0, count: -1 };
+    //this.updateRanges = [];
+    //this.gpuType = FloatType;
+    // FIXME: old variables
+    this.dynamic = false;
+    this.updateRange = { offset: 0, count: - 1 };
+    this.uuid = generateUUID();
+
+    this.version = 0
   }
 
-  this.uuid = generateUUID();
-
-  this.array = array;
-  this.itemSize = itemSize;
-  this.count = array !== undefined ? array.length / itemSize : 0;
-  this.normalized = normalized === true;
-
-  this.dynamic = false;
-  this.updateRange = { offset: 0, count: - 1 };
-
-  this.onUploadCallback = function () {};
-
-  this.version = 0;
+  onUploadCallback() {}
 }
 
-BufferAttribute.prototype = {
-  constructor: BufferAttribute,
-  isBufferAttribute: true,
-};
 
+// core/BufferGeometry.js
+let _id = 0;
 
-let count = 0;
-function GeometryIdCount() { return count++; }
+class BufferGeometry extends EventDispatcher {
+  constructor() {
+    super();
+    this.isBufferGeometry = true;
+    Object.defineProperty(this, 'id', { value: _id++ });
+    this.uuid = generateUUID();
+    this.name = '';
+    this.type = 'BufferGeometry';
+    this.index = null;
+    this.attributes = {};
+    this.groups = [];
+    this.boundingBox = null;
+    this.boundingSphere = null;
+    this.drawRange = { start: 0, count: Infinity };
+  }
 
-/**
-* @author alteredq / http://alteredqualia.com/
-* @author mrdoob / http://mrdoob.com/
-*/
+  getIndex() {
+    return this.index;
+  }
 
-function BufferGeometry() {
-  Object.defineProperty( this, 'id', { value: GeometryIdCount() } );
-
-  this.uuid = generateUUID();
-
-  this.name = '';
-  this.type = 'BufferGeometry';
-
-  this.index = null;
-  this.attributes = {};
-
-  this.groups = [];
-
-  this.boundingBox = null;
-  this.boundingSphere = null;
-
-  this.drawRange = { start: 0, count: Infinity };
-}
-
-Object.assign( BufferGeometry.prototype, EventDispatcher.prototype, {
-
-  isBufferGeometry: true,
-
-  setIndex: function ( index ) {
+  setIndex(index) {
     this.index = index;
-  },
+  }
 
-  setAttribute: function ( name, attribute ) {
+  setAttribute(name, attribute) {
     this.attributes[name] = attribute;
     return this;
-  },
+  }
 
-  dispose: function () {
-    this.dispatchEvent( { type: 'dispose' } );
-  },
+  dispose() {
+    this.dispatchEvent({ type: 'dispose' });
+  }
+}
 
-} );
-
-BufferGeometry.MaxIndex = 65535;
 
 /**
 * @author mrdoob / http://mrdoob.com/
@@ -2165,9 +2155,7 @@ function WebGLRenderer( parameters ) {
 
   let extensions = new WebGLExtensions( _gl );
   extensions.get( 'WEBGL_depth_texture' );
-  if ( extensions.get( 'OES_element_index_uint' ) ) {
-    BufferGeometry.MaxIndex = 4294967296;
-  }
+  extensions.get( 'OES_element_index_uint' );
 
   let capabilities = new WebGLCapabilities( _gl, extensions, parameters );
 
