@@ -965,81 +965,67 @@ class Mesh extends Object3D {
 }
 
 
-/**
-* @author mrdoob / http://mrdoob.com/
-* @author mikael emtinger / http://gomo.se/
-* @author WestLangley / http://github.com/WestLangley
-*/
+// cameras/Camera.js
+class Camera extends Object3D {
+  constructor() {
+    super();
+    this.isCamera = true;
+    this.type = 'Camera';
+    this.matrixWorldInverse = new Matrix4();
+    this.projectionMatrix = new Matrix4();
+    this.projectionMatrixInverse = new Matrix4();
+    //this.coordinateSystem = WebGLCoordinateSystem;
+  }
 
-function Camera() {
-  Object3D.call( this );
+  // FIXME
+  //updateMatrixWorld(force) {
+  //  super.updateMatrixWorld(force);
+  //  this.matrixWorldInverse.copy(this.matrixWorld).invert();
+  //}
 
-  this.type = 'Camera';
+  //updateWorldMatrix(updateParents, updateChildren) {
+  //  super.updateWorldMatrix(updateParents, updateChildren);
+  //  this.matrixWorldInverse.copy(this.matrixWorld).invert();
+  //}
 
-  this.matrixWorldInverse = new Matrix4();
-  this.projectionMatrix = new Matrix4();
-  this.projectionMatrixInverse = new Matrix4();
+  clone() {
+    return new this.constructor().copy(this);
+  }
 }
 
-Camera.prototype = Object.create( Object3D.prototype );
-Camera.prototype.constructor = Camera;
+// cameras/OrthographicCamera.js
+class OrthographicCamera extends Camera {
+  constructor(left = -1, right = 1, top = 1, bottom = -1, near = 0.1, far = 2000) {
+    super();
+    this.type = 'OrthographicCamera';
+    this.zoom = 1;
+    //this.view = null;
+    this.left = left;
+    this.right = right;
+    this.top = top;
+    this.bottom = bottom;
+    this.near = near;
+    this.far = far;
+    this.updateProjectionMatrix();
+  }
 
-Camera.prototype.isCamera = true;
-
-Camera.prototype.lookAt = function () {
-// This routine does not support cameras with rotated and/or translated parent(s)
-
-let m1 = new Matrix4();
-
-return function lookAt( vector ) {
-  m1.lookAt( this.position, vector, this.up );
-
-  this.quaternion.setFromRotationMatrix( m1 );
-};
-}();
-
-/**
-* @author alteredq / http://alteredqualia.com/
-* @author arose / http://github.com/arose
-*/
-
-function OrthographicCamera( left, right, top, bottom, near, far ) {
-  Camera.call( this );
-
-  this.type = 'OrthographicCamera';
-
-  this.zoom = 1;
-
-  this.left = left;
-  this.right = right;
-  this.top = top;
-  this.bottom = bottom;
-
-  this.near = ( near !== undefined ) ? near : 0.1;
-  this.far = ( far !== undefined ) ? far : 2000;
-
-  this.updateProjectionMatrix();
-}
-
-OrthographicCamera.prototype = Object.assign( Object.create( Camera.prototype ), {
-
-  constructor: OrthographicCamera,
-
-  updateProjectionMatrix: function () {
-    let dx = ( this.right - this.left ) / ( 2 * this.zoom );
-    let dy = ( this.top - this.bottom ) / ( 2 * this.zoom );
-    let cx = ( this.right + this.left ) / 2;
-    let cy = ( this.top + this.bottom ) / 2;
+  updateProjectionMatrix() {
+    const dx = (this.right - this.left) / (2 * this.zoom);
+    const dy = (this.top - this.bottom) / (2 * this.zoom);
+    const cx = (this.right + this.left) / 2;
+    const cy = (this.top + this.bottom) / 2;
 
     let left = cx - dx;
     let right = cx + dx;
     let top = cy + dy;
     let bottom = cy - dy;
 
-    this.projectionMatrix.makeOrthographic( left, right, top, bottom, this.near, this.far );
-    this.projectionMatrixInverse.copy( this.projectionMatrix ).invert();
-  },
-} );
+    this.projectionMatrix.makeOrthographic(left, right, top, bottom, this.near, this.far);
+    this.projectionMatrixInverse.copy(this.projectionMatrix).invert();
+  }
+}
+
+
 
 /**
 * @author mrdoob / http://mrdoob.com/

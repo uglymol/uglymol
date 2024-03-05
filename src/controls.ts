@@ -1,5 +1,5 @@
-import { Vector3, Quaternion } from './uthree/main';
-import type {OrthographicCamera} from './uthree/main';
+import { Vector3, Quaternion, Matrix4 } from './uthree/main';
+import type { OrthographicCamera } from './uthree/main';
 
 // map 2d position to sphere with radius 1.
 function project_on_ball(x, y) {
@@ -14,6 +14,9 @@ function project_on_ball(x, y) {
   }
   return [x, y, z];  // guaranteed to be normalized
 }
+
+// object used in computations (to avoid creating and deleting it)
+const _m1 = new Matrix4();
 
 export const STATE = { NONE: -1, ROTATE: 0, PAN: 1, ZOOM: 2, PAN_ZOOM: 3,
                        SLAB: 4, ROLL: 5, AUTO_ROTATE: 6, GO: 7 };
@@ -165,7 +168,9 @@ export class Controls {
       this._go_func();
       changed = true;
     }
-    this._camera.lookAt(this._target);
+    //this._camera.lookAt(this._target);
+    _m1.lookAt(this._camera.position, this._target, this._camera.up);
+    this._camera.quaternion.setFromRotationMatrix(_m1);
     return changed;
   }
 
