@@ -947,30 +947,22 @@ class BufferGeometry extends EventDispatcher {
 }
 
 
-/**
-* @author mrdoob / http://mrdoob.com/
-* @author alteredq / http://alteredqualia.com/
-* @author mikael emtinger / http://gomo.se/
-* @author jonobr1 / http://jonobr1.com/
-*/
+// objects/Mesh.js
+class Mesh extends Object3D {
+  constructor(geometry, material) {
+    super();
 
-function Mesh( geometry, material ) {
-  Object3D.call( this );
+    this.isMesh = true;
 
-  this.type = 'Mesh';
+    this.type = 'Mesh';
 
-  this.geometry = geometry !== undefined ? geometry : new BufferGeometry();
-  this.material = material;
-
-  this.drawMode = TrianglesDrawMode;
+    if (!geometry) throw new TypeError('Mesh: geometry not set');
+    this.geometry = geometry;
+    this.material = material;
+    // FIXME drawMode was removed in THREE in PR 18041
+    this.drawMode = TrianglesDrawMode;
+  }
 }
-
-Mesh.prototype = Object.assign( Object.create( Object3D.prototype ), {
-
-  constructor: Mesh,
-
-  isMesh: true,
-} );
 
 
 /**
