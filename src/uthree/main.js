@@ -721,136 +721,162 @@ class ShaderMaterial extends Material {
 
 
 // core/Object3D.js
-let object3DId = 0;
+let _object3DId = 0;
 
-function Object3D() {
-  Object.defineProperty( this, 'id', { value: object3DId ++ } );
+const _addedEvent = { type: 'added' };
+const _removedEvent = { type: 'removed' };
 
-  this.uuid = generateUUID();
+class Object3D extends EventDispatcher {
+  constructor() {
+    super();
 
-  this.name = '';
-  this.type = 'Object3D';
+    this.isObject3D = true;
 
-  this.parent = null;
-  this.children = [];
+    Object.defineProperty(this, 'id', { value: _object3DId++ });
 
-  this.up = Object3D.DefaultUp.clone();
+    this.uuid = generateUUID();
 
-  let position = new Vector3();
-  let quaternion = new Quaternion();
-  let scale = new Vector3( 1, 1, 1 );
+    this.name = '';
+    this.type = 'Object3D';
 
+    this.parent = null;
+    this.children = [];
 
-  Object.defineProperties( this, {
-    position: {
-      enumerable: true,
-      value: position,
-    },
-    quaternion: {
-      enumerable: true,
-      value: quaternion,
-    },
-    scale: {
-      enumerable: true,
-      value: scale,
-    },
-    modelViewMatrix: {
-      value: new Matrix4(),
-    },
-  } );
+    this.up = Object3D.DEFAULT_UP.clone();
 
-  this.matrix = new Matrix4();
-  this.matrixWorld = new Matrix4();
+    const position = new Vector3();
+    //const rotation = new Euler();
+    const quaternion = new Quaternion();
+    const scale = new Vector3(1, 1, 1);
 
-  this.matrixAutoUpdate = Object3D.DefaultMatrixAutoUpdate;
-  this.matrixWorldNeedsUpdate = false;
+    //function onRotationChange() {
+    //  quaternion.setFromEuler(rotation, false);
+    //}
+    //function onQuaternionChange() {
+    //  rotation.setFromQuaternion(quaternion, undefined, false);
+    //}
+    //rotation._onChange(onRotationChange);
+    //quaternion._onChange(onQuaternionChange);
 
-  this.visible = true;
+    Object.defineProperties(this, {
+      position: {
+        configurable: true,
+        enumerable: true,
+        value: position,
+      },
+      //rotation: {
+      //  configurable: true,
+      //  enumerable: true,
+      //  value: rotation,
+      //},
+      quaternion: {
+        configurable: true,
+        enumerable: true,
+        value: quaternion,
+      },
+      scale: {
+        configurable: true,
+        enumerable: true,
+        value: scale,
+      },
+      modelViewMatrix: {
+        value: new Matrix4(),
+      },
+      //normalMatrix: {
+      //  value: new Matrix3(),
+      //},
+    });
 
-  this.frustumCulled = true;
-  this.renderOrder = 0;
+    this.matrix = new Matrix4();
+    this.matrixWorld = new Matrix4();
 
-  this.userData = {};
-}
+    this.matrixAutoUpdate = Object3D.DEFAULT_MATRIX_AUTO_UPDATE;
 
-Object3D.DefaultUp = new Vector3( 0, 1, 0 );
-Object3D.DefaultMatrixAutoUpdate = true;
+    //this.matrixWorldAutoUpdate = Object3D.DEFAULT_MATRIX_WORLD_AUTO_UPDATE; // checked by the renderer
+    this.matrixWorldNeedsUpdate = false;
 
-Object.assign( Object3D.prototype, EventDispatcher.prototype, {
+    //this.layers = new Layers();
+    this.visible = true;
 
-  isObject3D: true,
+    //this.castShadow = false;
+    //this.receiveShadow = false;
 
-  add: function ( object ) {
-    if ( arguments.length > 1 ) {
-      for ( let i = 0; i < arguments.length; i ++ ) {
-        this.add( arguments[i] );
+    this.frustumCulled = true;
+    this.renderOrder = 0;
+
+    //this.animations = [];
+
+    this.userData = {};
+  }
+
+  add(object) {
+    if (arguments.length > 1) {
+      for (let i = 0; i < arguments.length; i++) {
+        this.add(arguments[i]);
       }
+      return this;
+    }
+    if (object && object.isObject3D) {
+      if (object.parent !== null) {
+        object.parent.remove(object);
+      }
+      object.parent = this;
+      this.children.push(object);
+      object.dispatchEvent(_addedEvent);
+    }
+    return this;
+  }
 
+  remove(object) {
+    if (arguments.length > 1) {
+      for (let i = 0; i < arguments.length; i++) {
+        this.remove(arguments[i]);
+      }
       return this;
     }
 
-    if ( ( object && object.isObject3D ) ) {
-      if ( object.parent !== null ) {
-        object.parent.remove( object );
-      }
-
-      object.parent = this;
-      object.dispatchEvent( { type: 'added' } );
-
-      this.children.push( object );
-    }
-
-    return this;
-  },
-
-  remove: function ( object ) {
-    if ( arguments.length > 1 ) {
-      for ( let i = 0; i < arguments.length; i ++ ) {
-        this.remove( arguments[i] );
-      }
-    }
-
-    let index = this.children.indexOf( object );
-
-    if ( index !== - 1 ) {
+    const index = this.children.indexOf(object);
+    if (index !== -1) {
       object.parent = null;
-
-      object.dispatchEvent( { type: 'removed' } );
-
-      this.children.splice( index, 1 );
+      this.children.splice(index, 1);
+      object.dispatchEvent(_removedEvent);
     }
-  },
+    return this;
+  }
 
-  updateMatrix: function () {
-    this.matrix.compose( this.position, this.quaternion, this.scale );
-
+  updateMatrix() {
+    this.matrix.compose(this.position, this.quaternion, this.scale);
     this.matrixWorldNeedsUpdate = true;
-  },
+  }
 
-  updateMatrixWorld: function ( force ) {
-    if ( this.matrixAutoUpdate === true ) this.updateMatrix();
+  updateMatrixWorld(force) {
+    if (this.matrixAutoUpdate) this.updateMatrix();
 
-    if ( this.matrixWorldNeedsUpdate === true || force === true ) {
-      if ( this.parent === null ) {
-        this.matrixWorld.copy( this.matrix );
+    if (this.matrixWorldNeedsUpdate || force) {
+      if (this.parent === null) {
+        this.matrixWorld.copy(this.matrix);
       } else {
-        this.matrixWorld.multiplyMatrices( this.parent.matrixWorld, this.matrix );
+        this.matrixWorld.multiplyMatrices(this.parent.matrixWorld, this.matrix);
       }
-
       this.matrixWorldNeedsUpdate = false;
-
       force = true;
     }
 
     // update children
-
-    let children = this.children;
-
-    for ( let i = 0, l = children.length; i < l; i ++ ) {
-      children[i].updateMatrixWorld( force );
+    const children = this.children;
+    for (let i = 0, l = children.length; i < l; i++) {
+      const child = children[i];
+      //if (child.matrixWorldAutoUpdate === true || force === true) {
+      child.updateMatrixWorld(force);
+      //}
     }
-  },
-} );
+  }
+}
+
+Object3D.DEFAULT_UP = /*@__PURE__*/ new Vector3(0, 1, 0);
+Object3D.DEFAULT_MATRIX_AUTO_UPDATE = true;
+//Object3D.DEFAULT_MATRIX_WORLD_AUTO_UPDATE = true;
+
 
 
 /**
