@@ -792,7 +792,7 @@ class Object3D extends EventDispatcher {
 
     this.matrixAutoUpdate = Object3D.DEFAULT_MATRIX_AUTO_UPDATE;
 
-    //this.matrixWorldAutoUpdate = Object3D.DEFAULT_MATRIX_WORLD_AUTO_UPDATE; // checked by the renderer
+    this.matrixWorldAutoUpdate = Object3D.DEFAULT_MATRIX_WORLD_AUTO_UPDATE; // checked by the renderer
     this.matrixWorldNeedsUpdate = false;
 
     //this.layers = new Layers();
@@ -875,7 +875,7 @@ class Object3D extends EventDispatcher {
 
 Object3D.DEFAULT_UP = /*@__PURE__*/ new Vector3(0, 1, 0);
 Object3D.DEFAULT_MATRIX_AUTO_UPDATE = true;
-//Object3D.DEFAULT_MATRIX_WORLD_AUTO_UPDATE = true;
+Object3D.DEFAULT_MATRIX_WORLD_AUTO_UPDATE = true;
 
 
 
@@ -1027,10 +1027,8 @@ class OrthographicCamera extends Camera {
 
 
 
-/**
-* @author mrdoob / http://mrdoob.com/
-*/
-
+// renderers/webgl/WebGLIndexedBufferRenderer.js
+// FIXME: not updated
 function WebGLIndexedBufferRenderer( gl, extensions, infoRender ) {
   let mode;
 
@@ -1069,10 +1067,9 @@ function WebGLIndexedBufferRenderer( gl, extensions, infoRender ) {
   };
 }
 
-/**
-* @author mrdoob / http://mrdoob.com/
-*/
 
+// renderers/webgl/WebGLBufferRenderer.js
+// FIXME: not updated
 function WebGLBufferRenderer( gl, extensions, infoRender ) {
   let mode;
 
@@ -1095,11 +1092,9 @@ function WebGLBufferRenderer( gl, extensions, infoRender ) {
   };
 }
 
-/**
-* @author mrdoob / http://mrdoob.com/
-*/
 
-
+// renderers/webgl/WebGLShader.js
+// FIXME: not updated
 function WebGLShader( gl, type, string ) {
   let shader = gl.createShader( type );
 
@@ -1121,10 +1116,9 @@ function WebGLShader( gl, type, string ) {
   return shader;
 }
 
-/**
-* @author mrdoob / http://mrdoob.com/
-*/
 
+// renderers/webgl/WebGLProgram.js
+// FIXME: not updated
 let programIdCount = 0;
 
 function generateExtensions( extensions, parameters, rendererExtensions ) {
@@ -1271,9 +1265,6 @@ function WebGLProgram( renderer, code, material, parameters ) {
   return this;
 }
 
-/**
-* @author mrdoob / http://mrdoob.com/
-*/
 
 function WebGLPrograms( renderer, capabilities ) {
   let programs = [];
@@ -1357,10 +1348,9 @@ function WebGLPrograms( renderer, capabilities ) {
   this.programs = programs;
 }
 
-/**
-* @author mrdoob / http://mrdoob.com/
-*/
 
+// renderers/webgl/WebGLGeometries.js
+// FIXME: not updated
 function WebGLGeometries( gl, properties ) {
   let geometries = {};
 
@@ -1431,10 +1421,9 @@ function WebGLGeometries( gl, properties ) {
   };
 }
 
-/**
-* @author mrdoob / http://mrdoob.com/
-*/
 
+// renderers/webgl/WebGLObjects.js
+// FIXME: not updated
 function WebGLObjects( gl, properties, info ) {
   let geometries = new WebGLGeometries( gl, properties, info );
 
@@ -1545,10 +1534,9 @@ function WebGLObjects( gl, properties, info ) {
   };
 }
 
-/**
-* @author mrdoob / http://mrdoob.com/
-*/
 
+// renderers/webgl/WebGLTextures.js
+// FIXME: not updated
 function WebGLTextures( _gl, extensions, state, properties ) {
   function onTextureDispose( event ) {
     let texture = event.target;
@@ -1634,10 +1622,9 @@ function WebGLTextures( _gl, extensions, state, properties ) {
   this.setTexture2D = setTexture2D;
 }
 
-/**
-* @author fordacious / fordacious.github.io
-*/
 
+// renderers/webgl/WebGLProperties.js
+// FIXME: not updated
 function WebGLProperties() {
   let properties = {};
 
@@ -1662,10 +1649,9 @@ function WebGLProperties() {
   };
 }
 
-/**
-* @author mrdoob / http://mrdoob.com/
-*/
 
+// renderers/webgl/WebGLState.js
+// FIXME: not updated
 function WebGLState( gl ) {
   function ColorBuffer() {
     let color = new Vector4();
@@ -1929,10 +1915,9 @@ function WebGLState( gl ) {
   };
 }
 
-/**
-* @author mrdoob / http://mrdoob.com/
-*/
 
+// renderers/webgl/WebGLCapabilities.js
+// FIXME: not updated
 function WebGLCapabilities( gl, extensions, parameters ) {
   function getMaxPrecision( precision ) {
     if ( precision === 'highp' ) {
@@ -1971,10 +1956,9 @@ function WebGLCapabilities( gl, extensions, parameters ) {
   };
 }
 
-/**
-* @author mrdoob / http://mrdoob.com/
-*/
 
+// renderers/webgl/WebGLExtensions.js
+// FIXME: not updated
 function WebGLExtensions( gl ) {
   let extensions = {};
 
@@ -2007,14 +1991,9 @@ function WebGLExtensions( gl ) {
   };
 }
 
-/**
-* @author supereggbert / http://www.paulbrunt.co.uk/
-* @author mrdoob / http://mrdoob.com/
-* @author alteredq / http://alteredqualia.com/
-* @author szimek / https://github.com/szimek/
-* @author tschw
-*/
 
+// renderers/WebGLRenderer.js
+// FIXME: not updated
 function WebGLRenderer( parameters ) {
   parameters = parameters || {};
 
@@ -2477,7 +2456,7 @@ function WebGLRenderer( parameters ) {
 
     // update scene graph
 
-    if ( scene.autoUpdate === true ) scene.updateMatrixWorld();
+    if ( scene.matrixWorldAutoUpdate === true ) scene.updateMatrixWorld();
 
     // update camera matrices and frustum
 
@@ -2830,104 +2809,62 @@ function WebGLRenderer( parameters ) {
   };
 }
 
-/**
-* @author mrdoob / http://mrdoob.com/
-* @author alteredq / http://alteredqualia.com/
-*/
-
-function Fog( color, near, far ) {
-  this.name = '';
-
-  this.color = new Color( color );
-
-  this.near = ( near !== undefined ) ? near : 1;
-  this.far = ( far !== undefined ) ? far : 1000;
+// scenes/Fog.js
+class Fog {
+  constructor(color, near = 1, far = 1000) {
+    this.isFog = true;
+    this.name = '';
+    this.color = new Color(color);
+    this.near = near;
+    this.far = far;
+  }
 }
 
-Fog.prototype.isFog = true;
 
-
-/**
-* @author mrdoob / http://mrdoob.com/
-*/
-
-function Scene() {
-  Object3D.call( this );
-
-  this.type = 'Scene';
-
-  this.fog = null;
-
-  this.autoUpdate = true; // checked by the renderer
+// scenes/Scene.js
+class Scene extends Object3D {
+  constructor() {
+    super();
+    this.type = 'Scene';
+    this.fog = null;
+  }
 }
 
-Scene.prototype = Object.create( Object3D.prototype );
 
-Scene.prototype.constructor = Scene;
-
-
-/**
-* @author mrdoob / http://mrdoob.com/
-*/
-
-function Line( geometry, material ) {
-  Object3D.call( this );
-
-  this.type = 'Line';
-
-  this.geometry = geometry !== undefined ? geometry : new BufferGeometry();
-  this.material = material;
+// objects/Line.js
+class Line extends Object3D {
+  constructor(geometry, material) {
+    super();
+    this.isLine = true;
+    this.type = 'Line';
+    this.geometry = geometry;
+    this.material = material;
+  }
 }
 
-Line.prototype = Object.assign( Object.create( Object3D.prototype ), {
 
-  constructor: Line,
-
-  isLine: true,
-
-} );
-
-/**
-* @author mrdoob / http://mrdoob.com/
-*/
-
-function LineSegments( geometry, material ) {
-  Line.call( this, geometry, material );
-
-  this.type = 'LineSegments';
+// objects/LineSegments.js
+class LineSegments extends Line {
+  constructor(geometry, material) {
+    super(geometry, material);
+    this.isLineSegments = true;
+    this.type = 'LineSegments';
+  }
 }
 
-LineSegments.prototype = Object.assign( Object.create( Line.prototype ), {
 
-  constructor: LineSegments,
-
-  isLineSegments: true,
-
-} );
-
-
-/**
-* @author alteredq / http://alteredqualia.com/
-*/
-
-function Points( geometry, material ) {
-  Object3D.call( this );
-
-  this.type = 'Points';
-
-  this.geometry = geometry !== undefined ? geometry : new BufferGeometry();
-  this.material = material;
+// objects/Points.js
+class Points extends Object3D {
+  constructor(geometry, material) {
+    super();
+    this.isPoints = true;
+    this.type = 'Points';
+    this.geometry = geometry;
+    this.material = material;
+  }
 }
 
-Points.prototype = Object.assign( Object.create( Object3D.prototype ), {
-
-  constructor: Points,
-
-  isPoints: true,
-
-} );
-
-// kept for compatibility with THREE
+// kept for compatibility with THREE (lights/AmbientLight.js)
 function AmbientLight() {}
 
 
