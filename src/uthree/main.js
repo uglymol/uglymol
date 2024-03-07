@@ -1537,7 +1537,7 @@ function WebGLObjects( gl, properties, info ) {
 
 // renderers/webgl/WebGLTextures.js
 // FIXME: not updated
-function WebGLTextures( _gl, extensions, state, properties ) {
+function WebGLTextures( _gl, extensions, state, properties, capabilities ) {
   function onTextureDispose( event ) {
     let texture = event.target;
 
@@ -1561,6 +1561,21 @@ function WebGLTextures( _gl, extensions, state, properties ) {
     properties.delete( texture );
   }
 
+  let textureUnits = 0;
+
+  function resetTextureUnits() {
+    textureUnits = 0;
+  }
+
+  function allocateTextureUnit() {
+    const textureUnit = textureUnits;
+    if (textureUnit >= capabilities.maxTextures) {
+      console.warn('WebGLTextures: Trying to use ' + textureUnit +
+                   ' texture units while this GPU supports only ' + capabilities.maxTextures);
+    }
+    textureUnits += 1;
+    return textureUnit;
+  }
 
   function setTexture2D( texture, slot ) {
     let textureProperties = properties.get( texture );
@@ -1620,6 +1635,8 @@ function WebGLTextures( _gl, extensions, state, properties ) {
   }
 
   this.setTexture2D = setTexture2D;
+  this.resetTextureUnits = resetTextureUnits;
+  this.allocateTextureUnit = allocateTextureUnit;
 }
 
 
@@ -2036,10 +2053,6 @@ function WebGLRenderer( parameters ) {
     _currentCamera = null,
 
     _currentViewport = new Vector4(),
-
-    //
-
-    _usedTextureUnits = 0,
 
     //
 
@@ -2657,7 +2670,7 @@ function WebGLRenderer( parameters ) {
   }
 
   function setProgram( camera, fog, material, object ) {
-    _usedTextureUnits = 0;
+    textures.resetTextureUnits()
 
     let materialProperties = properties.get( material );
 
@@ -2726,7 +2739,7 @@ function WebGLRenderer( parameters ) {
       // refresh single material specific uniforms
 
       WebGLUniforms.upload(
-        _gl, materialProperties.uniformsList, m_uniforms, _this );
+        _gl, materialProperties.uniformsList, m_uniforms, textures );
     }
 
 
@@ -2748,36 +2761,6 @@ function WebGLRenderer( parameters ) {
       uniforms.fogFar.value = fog.far;
     }
   }
-
-
-  // Textures
-
-  function allocateTextureUnit() {
-    let textureUnit = _usedTextureUnits;
-    _usedTextureUnits += 1;
-    return textureUnit;
-  }
-
-  this.allocateTextureUnit = allocateTextureUnit;
-
-  // this.setTexture2D = setTexture2D;
-  this.setTexture2D = ( function () {
-    let warned = false;
-
-    // backwards compatibility: peel texture.texture
-    return function setTexture2D( texture, slot ) {
-      if ( texture && texture.isWebGLRenderTarget ) {
-        if ( ! warned ) {
-          console.warn( 'WebGLRenderer.setTexture2D: don\'t use render targets as textures. Use their .texture property instead.' );
-          warned = true;
-        }
-
-        texture = texture.texture;
-      }
-
-      textures.setTexture2D( texture, slot );
-    };
-  }() );
 
   this.setRenderTarget = function ( renderTarget ) {
     _currentRenderTarget = renderTarget;
