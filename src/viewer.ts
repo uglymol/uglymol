@@ -2,14 +2,14 @@ import { OrthographicCamera, Scene, AmbientLight, Color, Vector3,
          Ray, WebGLRenderer, Fog } from './uthree/main';
 import { makeLineMaterial, makeLineSegments, makeLine, makeRibbon,
          makeChickenWire, makeGrid, makeSticks, makeBalls, makeWheels, makeCube,
-         makeRgbBox, makeLabel, addXyzCross } from './draw';
+         makeRgbBox, Label, addXyzCross } from './draw';
 import { STATE, Controls } from './controls';
 import { ElMap } from './elmap';
 import { modelsFromPDB } from './model';
 
 import type { Atom, Model } from './model';
-import type { Mesh } from './uthree/main';
-import type { GridType } from './draw';
+import type { LineSegments } from './uthree/main';
+import type { OrCameraType } from './controls';
 
 type Num2 = [number, number];
 type Num3 = [number, number, number];
@@ -160,7 +160,7 @@ function rainbow_value(v: number, vmin: number, vmax: number) {
   return c;
 }
 
-function color_by(prop: string, atoms: Atom[], elem_colors, hue_shift: number) {
+function color_by(prop: string, atoms: Atom[], elem_colors, hue_shift: number): Color[] {
   let color_func;
   const last_atom = atoms[atoms.length-1];
   if (prop === 'index') {
@@ -285,7 +285,7 @@ class ModelBag {
     const visible_atoms = this.get_visible_atoms();
     const colors = color_by(this.conf.color_prop, visible_atoms,
                             this.conf.colors, this.hue_shift);
-    const vertex_arr: Vector3[] = [];
+    const vertex_arr: Num3[] = [];
     const color_arr = [];
     const sphere_arr = [];
     const sphere_color_arr = [];
@@ -437,10 +437,10 @@ export class Viewer {
   decor: {
       cell_box: object | null,
       selection: object | null,
-      zoom_grid: GridType,
+      zoom_grid: LineSegments,
       mark: object | null
   };
-  labels: {[index:string]: {o: Mesh, bag: ModelBag}};
+  labels: {[index:string]: {o: Label, bag: ModelBag}};
   //nav: object | null;
   xhr_headers: Record<string, string>;
   config: ViewerConfig;
@@ -453,7 +453,7 @@ export class Viewer {
   light: AmbientLight;
   default_camera_pos: Num3;
   target: Vector3;
-  camera: OrthographicCamera;
+  camera: OrCameraType;
   controls: Controls;
   tied_viewer: Viewer | null;
   renderer: WebGLRenderer;
@@ -530,7 +530,7 @@ export class Viewer {
       this.tied_viewer.tied_viewer = this; // not GC friendly
     } else {
       this.target = new Vector3(0, 0, 0);
-      this.camera = new OrthographicCamera();
+      this.camera = new OrthographicCamera() as OrCameraType;
       this.camera.position.fromArray(this.default_camera_pos);
       this.controls = new Controls(this.camera, this.target);
     }
@@ -614,7 +614,7 @@ export class Viewer {
     this.request_render();
   }
 
-  pick_atom(coords: Num2, camera: OrthographicCamera) {
+  pick_atom(coords: Num2, camera: OrCameraType) {
     let pick = null;
     for (const bag of this.model_bags) {
       if (!bag.visible) continue;
@@ -667,7 +667,7 @@ export class Viewer {
   set_colors() {
     const scheme = ColorSchemes[this.config.color_scheme];
     if (!scheme) throw Error('Unknown color scheme.');
-    this.decor.zoom_grid.color_value.set(scheme.fg);
+    this.decor.zoom_grid.material.uniforms.ucolor.value.set(scheme.fg);
     this.config.colors = scheme;
     this.redraw_all();
   }
@@ -815,20 +815,19 @@ export class Viewer {
       if (pick.atom == null) return; // silly flow
       const atom_style = pick.atom.is_ligand ? 'ligand_style' : 'render_style';
       const balls = pick.bag && pick.bag.conf[atom_style] === 'ball&stick';
-      const label = makeLabel(text, {
+      const label = new Label(text, {
         pos: pick.atom.xyz,
         font: this.config.label_font,
         color: '#' + this.config.colors.fg.getHexString(),
         win_size: this.window_size,
         z_shift: balls ? this.config.ball_size + 0.1 : 0.2,
       });
-      if (!label) return;
-      if (pick.bag == null) return;
+      if (pick.bag == null || label.mesh == null) return;
       this.labels[uid] = { o: label, bag: pick.bag };
-      this.scene.add(label);
+      this.scene.add(label.mesh);
     } else {
       if (!is_shown) return;
-      this.remove_and_dispose(this.labels[uid].o);
+      this.remove_and_dispose(this.labels[uid].o.mesh);
       delete this.labels[uid];
     }
   }
@@ -836,7 +835,7 @@ export class Viewer {
   redraw_labels() {
     for (const uid in this.labels) { // eslint-disable-line guard-for-in
       const text = uid;
-      this.labels[uid].o.remake(text, {
+      this.labels[uid].o.redraw(text, {
         font: this.config.label_font,
         color: '#' + this.config.colors.fg.getHexString(),
       });

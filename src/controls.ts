@@ -1,6 +1,15 @@
 import { Vector3, Quaternion, Matrix4 } from './uthree/main';
 import type { OrthographicCamera } from './uthree/main';
 
+// Properties defined with Object.defineProperties() in JS are not understood
+// by TypeScript; add them here.
+export type OrCameraType = OrthographicCamera & {
+  position: Vector3;
+  quaternion: Quaternion;
+  scale: Vector3;
+  modelViewMatrix: Matrix4;
+};
+
 // map 2d position to sphere with radius 1.
 function project_on_ball(x, y) {
   let z = 0;
@@ -25,7 +34,7 @@ const auto_speed = 1.0;
 
 // based on three.js/examples/js/controls/OrthographicTrackballControls.js
 export class Controls {
-  _camera: OrthographicCamera;
+  _camera: OrCameraType;
   _target: Vector3;
   _state: number;
   _rotate_start: Vector3;
@@ -42,7 +51,7 @@ export class Controls {
   _go_func: (() => void) | null;
   slab_width: [number, number, number|null];
 
-  constructor(camera: OrthographicCamera, target: Vector3) {
+  constructor(camera: OrCameraType, target: Vector3) {
     this._camera = camera;
     this._target = target;
     this._state = STATE.NONE;

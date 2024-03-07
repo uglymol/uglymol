@@ -93,7 +93,7 @@ export function makeLines(pos: Float32Array, color: Color, linewidth: number) {
 }
 
 interface CubeOptions {
-  color: number;
+  color: Color;
   linewidth: number;
 }
 
@@ -375,9 +375,7 @@ void main() {
   gl_FragColor = vcolor;
 }`;
 
-export type GridType = LineSegments & { color_value: Color};
-
-export function makeGrid(): GridType {
+export function makeGrid(): LineSegments {
   const N = 50;
   const pos = [];
   for (let i = -N; i <= N; i++) {
@@ -400,7 +398,6 @@ export function makeGrid(): GridType {
   material.transparent = true;
   const obj = new LineSegments(geom, material);
   obj.frustumCulled = false;  // otherwise the renderer could skip it
-  obj.color_value = material.uniforms.ucolor.value; // shortcut
   return obj;
 }
 
@@ -765,23 +762,6 @@ function line_raycast(mesh: Mesh, options: LineRaycastOptions,
   }
 }
 
-function makeCanvasWithText(text, options) {
-  if (typeof document === 'undefined') return;  // for testing on node
-  const canvas = document.createElement('canvas');
-  // Canvas size should be 2^N.
-  canvas.width = 256;  // arbitrary limit, to keep it simple
-  canvas.height = 16;  // font size
-  const context = canvas.getContext('2d');
-  if (!context) return null;
-  context.font = (options.font || 'bold 14px') + ' sans-serif';
-  //context.fillStyle = 'green';
-  //context.fillRect(0, 0, canvas.width, canvas.height);
-  context.textBaseline = 'bottom';
-  if (options.color) context.fillStyle = options.color;
-  context.fillText(text, 0, canvas.height);
-  return canvas;
-}
-
 const label_vert = `
 attribute vec2 uvs;
 uniform vec2 canvas_size;
@@ -805,41 +785,59 @@ void main() {
 ${fog_end_fragment}
 }`;
 
+export class Label {
+  texture: Texture;
+  mesh: Mesh;
 
-export function makeLabel(text: string, options: Record<string, any>) {
-  const canvas = makeCanvasWithText(text, options);
-  if (!canvas) return;
-  const texture = new Texture(canvas);
-  texture.needsUpdate = true;
+  constructor(text: string, options: Record<string, any>) {
+    this.texture = new Texture();
+    const canvas_size = this.redraw(text, options);
+    if (canvas_size === undefined) return;
 
-  // Rectangle geometry.
-  const geometry = new BufferGeometry();
-  const pos = options.pos;
-  const position = new Float32Array([].concat(pos, pos, pos, pos));
-  const uvs = new Float32Array([0, 1, 1, 1, 0, 0, 1, 0]);
-  const indices = new Uint16Array([0, 2, 1, 2, 3, 1]);
-  geometry.setIndex(new BufferAttribute(indices, 1));
-  geometry.setAttribute('position', new BufferAttribute(position, 3));
-  geometry.setAttribute('uvs', new BufferAttribute(uvs, 2));
+    // Rectangle geometry.
+    const geometry = new BufferGeometry();
+    const pos = options.pos;
+    const position = new Float32Array([].concat(pos, pos, pos, pos));
+    const uvs = new Float32Array([0, 1, 1, 1, 0, 0, 1, 0]);
+    const indices = new Uint16Array([0, 2, 1, 2, 3, 1]);
+    geometry.setIndex(new BufferAttribute(indices, 1));
+    geometry.setAttribute('position', new BufferAttribute(position, 3));
+    geometry.setAttribute('uvs', new BufferAttribute(uvs, 2));
 
-  const material = new ShaderMaterial({
-    uniforms: makeUniforms({map: texture,
-                            canvas_size: [canvas.width, canvas.height],
-                            win_size: options.win_size,
-                            z_shift: options.z_shift}),
-    vertexShader: label_vert,
-    fragmentShader: label_frag,
-    fog: true,
-    type: 'um_label',
-  });
-  material.transparent = true;
-  const mesh = new Mesh(geometry, material);
-  mesh.remake = function (text, options) {
-    texture.image = makeCanvasWithText(text, options);
-    texture.needsUpdate = true;
-  };
-  return mesh;
+    const material = new ShaderMaterial({
+      uniforms: makeUniforms({map: this.texture,
+                              canvas_size: canvas_size,
+                              win_size: options.win_size,
+                              z_shift: options.z_shift}),
+      vertexShader: label_vert,
+      fragmentShader: label_frag,
+      fog: true,
+      type: 'um_label',
+    });
+    material.transparent = true;
+    this.mesh = new Mesh(geometry, material);
+  }
+
+  redraw(text: string, options: Record<string, any>) {
+    if (typeof document === 'undefined') return;  // for testing on node
+    const canvas = document.createElement('canvas');
+    // Canvas size should be 2^N.
+    canvas.width = 256;  // arbitrary limit, to keep it simple
+    canvas.height = 16;  // font size
+    const context = canvas.getContext('2d');
+    if (!context) return null;
+    context.font = (options.font || 'bold 14px') + ' sans-serif';
+    //context.fillStyle = 'green';
+    //context.fillRect(0, 0, canvas.width, canvas.height);
+    context.textBaseline = 'bottom';
+    if (options.color) context.fillStyle = options.color;
+    context.fillText(text, 0, canvas.height);
+    this.texture.image = canvas;
+    this.texture.needsUpdate = true;
+    return [canvas.width, canvas.height];
+  }
 }
+
 
 // Add vertices of a 3d cross (representation of an unbonded atom)
 export
