@@ -160,11 +160,12 @@ function rainbow_value(v: number, vmin: number, vmax: number) {
   return c;
 }
 
-function color_by(prop: string, atoms: Atom[], elem_colors, hue_shift: number): Color[] {
+function color_by(prop: string, atoms: Atom[], elem_colors: ColorScheme,
+                  hue_shift: number): Color[] {
   let color_func;
   const last_atom = atoms[atoms.length-1];
   if (prop === 'index') {
-    color_func = function (atom) {
+    color_func = function (atom: Atom) {
       return rainbow_value(atom.i_seq, 0, last_atom.i_seq);
     };
   } else if (prop === 'B-factor') {
@@ -176,7 +177,7 @@ function color_by(prop: string, atoms: Atom[], elem_colors, hue_shift: number): 
       if (v < vmin) vmin = v;
     }
     //console.log('B-factors in [' + vmin + ', ' + vmax + ']');
-    color_func = function (atom) {
+    color_func = function (atom: Atom) {
       return rainbow_value(atom.b, vmin, vmax);
     };
   } else if (prop === 'pLDDT') {
@@ -187,7 +188,7 @@ function color_by(prop: string, atoms: Atom[], elem_colors, hue_shift: number): 
       new Color(0xffdb13), // yellow
       new Color(0xff7d45)  // orange
     ];
-    color_func = function (atom) {
+    color_func = function (atom: Atom) {
       let i = 0;
       while (i < 3 && atom.b < steps[i]) {
         ++i;
@@ -195,16 +196,16 @@ function color_by(prop: string, atoms: Atom[], elem_colors, hue_shift: number): 
       return colors[i];
     };
   } else if (prop === 'occupancy') {
-    color_func = function (atom) {
+    color_func = function (atom: Atom) {
       return rainbow_value(atom.occ, 0, 1);
     };
   } else if (prop === 'chain') {
-    color_func = function (atom) {
+    color_func = function (atom: Atom) {
       return rainbow_value(atom.chain_index, 0, last_atom.chain_index);
     };
   } else { // element
     if (hue_shift === 0) {
-      color_func = function (atom) {
+      color_func = function (atom: Atom) {
         return elem_colors[atom.element] || elem_colors.def;
       };
     } else {
@@ -212,7 +213,7 @@ function color_by(prop: string, atoms: Atom[], elem_colors, hue_shift: number): 
       elem_colors['C'].getHSL(c_hsl);
       const c_col = new Color(0, 0, 0);
       c_col.setHSL(c_hsl.h + hue_shift, c_hsl.s, c_hsl.l);
-      color_func = function (atom) {
+      color_func = function (atom: Atom) {
         const el = atom.element;
         return el === 'C' ? c_col : (elem_colors[el] || elem_colors.def);
       };
@@ -221,7 +222,7 @@ function color_by(prop: string, atoms: Atom[], elem_colors, hue_shift: number): 
   return atoms.map(color_func);
 }
 
-function scale_by_height(value, size) { // for scaling bond_line
+function scale_by_height(value: number, size: Num2) { // for scaling bond_line
   return value * size[1] / 700;
 }
 
@@ -448,7 +449,7 @@ export class Viewer {
   window_offset: Num2;
   last_ctr: Vector3;
   selected: {bag: ModelBag | null, atom: Atom | null};
-  dbl_click_callback: (object) => void;
+  dbl_click_callback: (arg: object) => void;
   scene: Scene;
   light: AmbientLight;
   default_camera_pos: Num3;
@@ -465,9 +466,9 @@ export class Viewer {
   MOUSE_HELP: string;
   KEYBOARD_HELP: string;
   ABOUT_HELP: string;
-  mousemove: (MouseEvent) => void;
-  mouseup: (MouseEvent) => void;
-  key_bindings: Array<((string) => void) | false | undefined>;
+  mousemove: (arg: MouseEvent) => void;
+  mouseup: (arg: MouseEvent) => void;
+  key_bindings: Array<((evt: KeyboardEvent) => void) | false | undefined>;
   ColorSchemes: typeof ColorSchemes;
 
   constructor(options: Record<string, any>) {
@@ -536,13 +537,18 @@ export class Viewer {
     }
     this.set_common_key_bindings();
     if (this.constructor === Viewer) this.set_real_space_key_bindings();
-    if (typeof document === 'undefined') return;  // for testing on node
 
     function get_elem(name) {
-      if (options[name] === null) return null;
+      if (options[name] === null || typeof document === 'undefined') return null;
       return document.getElementById(options[name] || name);
     }
     this.hud_el = get_elem('hud');
+    this.container = get_elem('viewer');
+    this.help_el = get_elem('help');
+    if (this.hud_el) {
+      if (this.hud_el.innerHTML === '') this.hud_el.innerHTML = INIT_HUD_TEXT;
+      this.initial_hud_html = this.hud_el.innerHTML;
+    }
 
     try {
       this.renderer = new WebGLRenderer({antialias: true});
@@ -550,13 +556,6 @@ export class Viewer {
       this.hud('No WebGL in your browser?', 'ERR');
       this.renderer = null;
       return;
-    }
-
-    this.container = get_elem('viewer');
-    this.help_el = get_elem('help');
-    if (this.hud_el) {
-      if (this.hud_el.innerHTML === '') this.hud_el.innerHTML = INIT_HUD_TEXT;
-      this.initial_hud_html = this.hud_el.innerHTML;
     }
 
     if (this.container == null) return; // can be null in headless tests
@@ -812,7 +811,6 @@ export class Viewer {
     if (show === undefined) show = !is_shown;
     if (show) {
       if (is_shown) return;
-      if (pick.atom == null) return; // silly flow
       const atom_style = pick.atom.is_ligand ? 'ligand_style' : 'render_style';
       const balls = pick.bag && pick.bag.conf[atom_style] === 'ball&stick';
       const label = new Label(text, {
@@ -1104,18 +1102,18 @@ export class Viewer {
   set_common_key_bindings() {
     const kb = new Array(256);
     // b
-    kb[66] = function (evt) {
+    kb[66] = function (this: Viewer, evt: KeyboardEvent) {
       const schemes = Object.keys(this.ColorSchemes);
       this.select_next('color scheme', 'color_scheme', schemes, evt.shiftKey);
       this.set_colors();
     };
     // c
-    kb[67] = function (evt) {
+    kb[67] = function (this: Viewer, evt: KeyboardEvent) {
       this.select_next('coloring by', 'color_prop', COLOR_PROPS, evt.shiftKey);
       this.redraw_models();
     };
     // e
-    kb[69] = function toggle_fog() {
+    kb[69] = function (this: Viewer) {
       const fog = this.scene.fog;
       const has_fog = (fog.far === 1);
       fog.far = (has_fog ? 1e9 : 1);
@@ -1125,30 +1123,30 @@ export class Viewer {
     // h
     kb[72] = this.toggle_help;
     // i
-    kb[73] = function (evt) {
+    kb[73] = function (this: Viewer, evt: KeyboardEvent) {
       this.hud('toggled spinning');
       this.controls.toggle_auto(evt.shiftKey);
     };
     // k
-    kb[75] = function () {
+    kb[75] = function (this: Viewer) {
       this.hud('toggled rocking');
       this.controls.toggle_auto(0.0);
     };
     // m
-    kb[77] = function (evt) {
+    kb[77] = function (this: Viewer, evt: KeyboardEvent) {
       this.change_zoom_by_factor(evt.shiftKey ? 1.2 : 1.03);
     };
     // n
-    kb[78] = function (evt) {
+    kb[78] = function (this: Viewer, evt: KeyboardEvent) {
       this.change_zoom_by_factor(1 / (evt.shiftKey ? 1.2 : 1.03));
     };
     // q
-    kb[81] = function (evt) {
+    kb[81] = function (this: Viewer, evt: KeyboardEvent) {
       this.select_next('label font', 'label_font', LABEL_FONTS, evt.shiftKey);
       this.redraw_labels();
     };
     // r
-    kb[82] = function (evt) {
+    kb[82] = function (this: Viewer, evt: KeyboardEvent) {
       if (evt.shiftKey) {
         this.hud('redraw!');
         this.redraw_all();
@@ -1158,24 +1156,24 @@ export class Viewer {
       }
     };
     // w
-    kb[87] = function (evt) {
+    kb[87] = function (this: Viewer, evt: KeyboardEvent) {
       this.select_next('map style', 'map_style', MAP_STYLES, evt.shiftKey);
       this.redraw_maps(true);
     };
     // add, equals/firefox, equal sign
-    kb[107] = kb[61] = kb[187] = function (evt) {
+    kb[107] = kb[61] = kb[187] = function (this: Viewer, evt: KeyboardEvent) {
       this.change_isolevel_by(evt.shiftKey ? 1 : 0, 0.1);
     };
     // subtract, minus/firefox, dash
-    kb[109] = kb[173] = kb[189] = function (evt) {
+    kb[109] = kb[173] = kb[189] = function (this: Viewer, evt: KeyboardEvent) {
       this.change_isolevel_by(evt.shiftKey ? 1 : 0, -0.1);
     };
     // [
-    kb[219] = function () { this.change_map_radius(-2); };
+    kb[219] = function (this: Viewer) { this.change_map_radius(-2); };
     // ]
-    kb[221] = function () { this.change_map_radius(2); };
+    kb[221] = function (this: Viewer) { this.change_map_radius(2); };
     // \ (backslash)
-    kb[220] = function (evt) {
+    kb[220] = function (this: Viewer, evt: KeyboardEvent) {
       this.select_next('bond lines', 'line_style', LINE_STYLES, evt.shiftKey);
       this.redraw_models();
     };
@@ -1190,60 +1188,68 @@ export class Viewer {
   set_real_space_key_bindings() {
     const kb = this.key_bindings;
     // Home
-    kb[36] = function (evt) {
+    kb[36] = function (this: Viewer, evt: KeyboardEvent) {
       evt.shiftKey ? this.change_map_line(0.1) : this.change_bond_line(0.2);
     };
     // End
-    kb[35] = function (evt) {
+    kb[35] = function (this: Viewer, evt: KeyboardEvent) {
       evt.shiftKey ? this.change_map_line(-0.1) : this.change_bond_line(-0.2);
     };
     // Space
-    kb[32] = function (evt) { this.center_next_residue(evt.shiftKey); };
+    kb[32] = function (this: Viewer, evt: KeyboardEvent) {
+      this.center_next_residue(evt.shiftKey);
+    };
     // d
-    kb[68] = function () { this.change_slab_width_by(-0.1); };
+    kb[68] = function (this: Viewer) {
+      this.change_slab_width_by(-0.1);
+    };
     // f
-    kb[70] = function (evt) {
+    kb[70] = function (this: Viewer, evt: KeyboardEvent) {
       evt.shiftKey ? this.toggle_full_screen() : this.change_slab_width_by(0.1);
     };
     // l
-    kb[76] = function (evt) {
-      this.select_next('ligands as', 'ligand_style', LIGAND_STYLES,
-                       evt.shiftKey);
+    kb[76] = function (this: Viewer, evt: KeyboardEvent) {
+      this.select_next('ligands as', 'ligand_style', LIGAND_STYLES, evt.shiftKey);
       this.redraw_models();
     };
     // p
-    kb[80] = function (evt) {
+    kb[80] = function (this: Viewer, evt: KeyboardEvent) {
       evt.shiftKey ? this.permalink() : this.go_to_nearest_Ca();
     };
     // s
-    kb[83] = function (evt) {
-      this.select_next('rendering as', 'render_style', RENDER_STYLES,
-                       evt.shiftKey);
+    kb[83] = function (this: Viewer, evt: KeyboardEvent) {
+      this.select_next('rendering as', 'render_style', RENDER_STYLES, evt.shiftKey);
       this.redraw_models();
     };
     // t
-    kb[84] = function (evt) {
+    kb[84] = function (this: Viewer, evt: KeyboardEvent) {
       this.select_next('waters as', 'water_style', WATER_STYLES, evt.shiftKey);
       this.redraw_models();
     };
     // u
-    kb[85] = function () {
+    kb[85] = function (this: Viewer) {
       this.hud('toggled unit cell box');
       this.toggle_cell_box();
     };
     // v
-    kb[86] = function () { this.toggle_inactive_models(); };
+    kb[86] = function (this: Viewer) {
+      this.toggle_inactive_models();
+    };
     // y
-    kb[89] = function () {
+    kb[89] = function (this: Viewer) {
       this.config.hydrogens = !this.config.hydrogens;
       this.hud((this.config.hydrogens ? 'show' : 'hide') +
                ' hydrogens (if any)');
       this.redraw_models();
     };
     // comma
-    kb[188] = function (evt) { if (evt.shiftKey) this.shift_clip(1); };
+    kb[188] = function (this: Viewer, evt: KeyboardEvent) {
+      if (evt.shiftKey) this.shift_clip(1);
+    };
     // period
-    kb[190] = function (evt) { if (evt.shiftKey) this.shift_clip(-1); };
+    kb[190] = function (this: Viewer, evt: KeyboardEvent) {
+      if (evt.shiftKey) this.shift_clip(-1);
+    };
   }
 
   mousedown(event: MouseEvent) {
@@ -1417,7 +1423,7 @@ export class Viewer {
     this.controls.go_to(new Vector3(xyz[0], xyz[1], xyz[2]),
                         null, null, options.steps);
     this.toggle_label(this.selected, false);
-    this.selected = {bag: pick.bag, atom: pick.atom}; // not ...=pick b/c flow
+    this.selected = pick;
     this.toggle_label(this.selected, true);
   }
 
@@ -1479,7 +1485,7 @@ export class Viewer {
   }
 
   load_file(url: string, options: Record<string, any>,
-            callback: (XMLHttpRequest) => void ) {
+            callback: (arg: XMLHttpRequest) => void ) {
     if (this.renderer === null) return;  // no WebGL detected
     const req = new XMLHttpRequest();
     req.open('GET', url, true);
@@ -1525,17 +1531,18 @@ export class Viewer {
     }
   }
 
-  set_dropzone(zone: HTMLElement, callback: (File) => void) {
+  set_dropzone(zone: HTMLElement, callback: (arg: File) => void) {
     const self = this;
     zone.addEventListener('dragover', function (e: DragEvent) {
       e.stopPropagation();
       e.preventDefault();
-      e.dataTransfer.dropEffect = 'copy';
+      if (e.dataTransfer != null) e.dataTransfer.dropEffect = 'copy';
       self.hud('ready for file drop...');
     });
     zone.addEventListener('drop', function (e: DragEvent) {
       e.stopPropagation();
       e.preventDefault();
+      if (e.dataTransfer == null) return;
       const names = [];
       for (let i = 0; i < e.dataTransfer.files.length; i++) {
         const file = e.dataTransfer.files.item(i);
@@ -1565,7 +1572,7 @@ export class Viewer {
     } else if (/\.(map|ccp4|mrc|dsn6|omap)$/.test(file.name)) {
       const map_format = /\.(dsn6|omap)$/.test(file.name) ? 'dsn6' : 'ccp4';
       reader.onloadend = function (evt) {
-        if (evt.target.readyState == 2) {
+        if (evt.target != null && evt.target.readyState == 2) {
           self.load_map_from_buffer(evt.target.result as ArrayBuffer,
                                     {format: map_format});
           if (self.model_bags.length === 0 && self.map_bags.length === 1) {
@@ -1580,7 +1587,7 @@ export class Viewer {
     }
   }
 
-  set_view(options) {
+  set_view(options?: Record<string, any>) {
     const frag = parse_url_fragment();
     if (frag.zoom) this.camera.zoom = frag.zoom;
     this.recenter(frag.xyz || (options && options.center), frag.eye, 1);

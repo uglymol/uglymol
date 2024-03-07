@@ -7,18 +7,19 @@ import { CatmullRomCurve3 } from './uthree/extras.js';
 import type { Atom } from './model';
 type Num3 = [number, number, number];
 
-const CUBE_EDGES = [[0, 0, 0], [1, 0, 0],
-                    [0, 0, 0], [0, 1, 0],
-                    [0, 0, 0], [0, 0, 1],
-                    [1, 0, 0], [1, 1, 0],
-                    [1, 0, 0], [1, 0, 1],
-                    [0, 1, 0], [1, 1, 0],
-                    [0, 1, 0], [0, 1, 1],
-                    [0, 0, 1], [1, 0, 1],
-                    [0, 0, 1], [0, 1, 1],
-                    [1, 0, 1], [1, 1, 1],
-                    [1, 1, 0], [1, 1, 1],
-                    [0, 1, 1], [1, 1, 1]];
+const CUBE_EDGES: Num3[] =
+  [[0, 0, 0], [1, 0, 0],
+   [0, 0, 0], [0, 1, 0],
+   [0, 0, 0], [0, 0, 1],
+   [1, 0, 0], [1, 1, 0],
+   [1, 0, 0], [1, 0, 1],
+   [0, 1, 0], [1, 1, 0],
+   [0, 1, 0], [0, 1, 1],
+   [0, 0, 1], [1, 0, 1],
+   [0, 0, 1], [0, 1, 1],
+   [1, 0, 1], [1, 1, 1],
+   [1, 1, 0], [1, 1, 1],
+   [0, 1, 1], [1, 1, 1]];
 
 function makeColorAttribute(colors: Color[]) {
   const col = new Float32Array(colors.length * 3);
@@ -126,7 +127,7 @@ export function makeMultiColorLines(pos: Float32Array,
 }
 
 // A cube with 3 edges (for x, y, z axes) colored in red, green and blue.
-export function makeRgbBox(transform_func: (Num3) => Num3, color: Color) {
+export function makeRgbBox(transform_func: (arg:Num3) => Num3, color: Color) {
   const pos = new Float32Array(CUBE_EDGES.length * 3);
   for (let i = 0; i < CUBE_EDGES.length; i++) {
     const coor = transform_func(CUBE_EDGES[i]);
@@ -171,7 +172,7 @@ function double_color(color_arr: Color[]) {
 }
 
 // draw quads as 2 triangles: 4 attributes / quad, 6 indices / quad
-function make_quad_index_buffer(len) {
+function make_quad_index_buffer(len: number) {
   const index = (4*len < 65536 ? new Uint16Array(6*len)
                                : new Uint32Array(6*len));
   const vert_order = [0, 1, 2, 0, 2, 3];
@@ -231,7 +232,7 @@ void main() {
   gl_Position.xy += side * linewidth * normal / win_size;
 }`;
 
-function interpolate_vertices(segment, smooth): Vector3[] {
+function interpolate_vertices(segment: Atom[], smooth: number): Vector3[] {
   const vertices = [];
   for (let i = 0; i < segment.length; i++) {
     const xyz = segment[i].xyz;
@@ -242,7 +243,7 @@ function interpolate_vertices(segment, smooth): Vector3[] {
   return curve.getPoints((segment.length - 1) * smooth);
 }
 
-function interpolate_colors(colors, smooth) {
+function interpolate_colors(colors: Color[], smooth: number) {
   if (!smooth || smooth < 2) return colors;
   const ret = [];
   for (let i = 0; i < colors.length - 1; i++) {
@@ -256,7 +257,7 @@ function interpolate_colors(colors, smooth) {
 }
 
 // a simplistic linear interpolation, no need to SLERP
-function interpolate_directions(dirs, smooth) {
+function interpolate_directions(dirs: Num3[], smooth: number) {
   smooth = smooth || 1;
   const ret = [];
   let i;
@@ -274,7 +275,7 @@ function interpolate_directions(dirs, smooth) {
 }
 
 export function makeUniforms(params: Record<string, any>) {
-  const uniforms = {
+  const uniforms: Record<string, {value: any}> = {
     fogNear: { value: null },  // will be updated in setProgram()
     fogFar: { value: null },
     fogColor: { value: null },
@@ -446,7 +447,7 @@ export function makeLine(material: ShaderMaterial,
 
   const mesh = new Mesh(geometry, material);
   mesh.drawMode = TriangleStripDrawMode;
-  mesh.userData.bond_lines = true;
+  //mesh.userData.bond_lines = true;
   return mesh;
 }
 
@@ -480,7 +481,7 @@ export function makeLineSegments(material: ShaderMaterial,
   geometry.setIndex(make_quad_index_buffer(len/2));
 
   const mesh = new Mesh(geometry, material);
-  mesh.userData.bond_lines = true;
+  //mesh.userData.bond_lines = true;
   return mesh;
 }
 
@@ -662,7 +663,7 @@ function makeSticks(vertex_arr: Num3[], color_arr: Color[], radius: number) {
   geometry.setIndex(make_quad_index_buffer(len/2));
 
   const mesh = new Mesh(geometry, material);
-  mesh.userData.bond_lines = true;
+  //mesh.userData.bond_lines = true;
   return mesh;
 }
 
@@ -787,7 +788,7 @@ ${fog_end_fragment}
 
 export class Label {
   texture: Texture;
-  mesh: Mesh;
+  mesh?: Mesh;
 
   constructor(text: string, options: Record<string, any>) {
     this.texture = new Texture();

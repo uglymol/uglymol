@@ -3,7 +3,7 @@ import { Block } from './isosurface';
 
 type Num3 = [number, number, number];
 
-function modulo(a, b) {
+function modulo(a: number, b: number) {
   const reminder = a % b;
   return reminder >= 0 ? reminder : reminder + b;
 }
@@ -52,7 +52,7 @@ export class GridArray {
   }
 }
 
-function calculate_stddev(a, offset) {
+function calculate_stddev(a: Float32Array|Int8Array, offset: number) {
   let sum = 0;
   let sq_sum = 0;
   const alen = a.length;
@@ -307,7 +307,7 @@ export class ElMap {
 ElMap.prototype.unit = 'e/\u212B\u00B3';
 
 // symop -> matrix ([x,y,z] = matrix * [x,y,z,1])
-function parse_symop(symop) {
+function parse_symop(symop: string) {
   const ops = symop.toLowerCase().replace(/\s+/g, '').split(',');
   if (ops.length !== 3) throw Error('Unexpected symop: ' + symop);
   const mat = [];
@@ -319,7 +319,7 @@ function parse_symop(symop) {
       const sign = (term[0] === '-' ? -1 : 1);
       let m = terms[j].match(/^[+-]?([xyz])$/);
       if (m) {
-        const pos = {x: 0, y: 1, z: 2}[m[1]];
+        const pos = {x: 0, y: 1, z: 2}[m[1]] as number;
         row[pos] = sign;
       } else {
         m = terms[j].match(/^[+-]?(\d)\/(\d)$/);

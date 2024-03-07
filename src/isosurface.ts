@@ -603,7 +603,7 @@ const edgeIndex = [[0,1], [1,2], [2,3], [3,0], [4,5], [5,6],
 // edge directions: [x, y, -x, -y, x, y, -x, -y, z, z, z, z]
 
 // return offsets relative to vertex [0,0,0]
-function calculateVertOffsets(dims) {
+function calculateVertOffsets(dims: Num3) {
   const vert_offsets = [];
   for (let i = 0; i < 8; ++i) {
     const v = cubeVerts[i];
@@ -613,7 +613,8 @@ function calculateVertOffsets(dims) {
 }
 
 
-function marchingCubes(dims, values, points, isolevel, method) {
+function marchingCubes(dims: Num3, values, points,
+                       isolevel: number, method: string) {
   const snap = (method === 'snapped MC');
   const seg_table = (method === 'squarish' ? segTable2 : segTable);
   const vlist = new Array(12);

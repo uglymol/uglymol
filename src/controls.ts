@@ -11,7 +11,7 @@ export type OrCameraType = OrthographicCamera & {
 };
 
 // map 2d position to sphere with radius 1.
-function project_on_ball(x, y) {
+function project_on_ball(x: number, y: number) {
   let z = 0;
   const length_sq = x * x + y * y;
   if (length_sq < 1) {  // in ellipse
@@ -262,7 +262,7 @@ export class Controls {
     }
     this._state = STATE.GO;
     steps = (steps || 60) / auto_speed;
-    const alphas = [];
+    const alphas: number[] = [];
     let prev_pos = 0;
     for (let i = 1; i <= steps; ++i) {
       let pos = i / steps;

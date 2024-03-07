@@ -65,7 +65,7 @@ export class UnitCell {
 
 // This function is only used with matrices frac and orth, which have 3 zeros.
 // We skip these elements, but it doesn't affect performance (on FF50 and V8).
-function multiply(xyz, mat): Num3 {
+function multiply(xyz: Num3, mat: number[]): Num3 {
   /* eslint-disable indent */
   return [mat[0] * xyz[0]  + mat[1] * xyz[1]  + mat[2] * xyz[2],
         /*mat[3] * xyz[0]*/+ mat[4] * xyz[1]  + mat[5] * xyz[2],

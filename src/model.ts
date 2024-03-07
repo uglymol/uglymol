@@ -31,7 +31,7 @@ export class Model {
   has_hydrogens: boolean;
   lower_bound: Num3;
   upper_bound: Num3;
-  residue_map: {[id:string]: Atom[]} | null;
+  residue_map: Record<string, Atom[]> | null;
   cubes: Cubicles | null;
 
   constructor() {
@@ -128,7 +128,7 @@ export class Model {
 
   extract_trace() {
     const segments = [];
-    let current_segment = [];
+    let current_segment: Atom[] = [];
     let last_atom = null;
     for (let i = 0; i < this.atoms.length; i++) {
       const atom = this.atoms[i];
@@ -161,7 +161,7 @@ export class Model {
 
   get_residues() {
     if (this.residue_map != null) return this.residue_map;
-    const residues = {};
+    const residues: Record<string, Atom[]> = {};
     for (let i = 0; i < this.atoms.length; i++) {
       const atom = this.atoms[i];
       const resid = atom.resid();
@@ -342,7 +342,7 @@ class Atom {
     return Math.sqrt(this.distance_sq(other));
   }
 
-  midpoint(other: Atom) {
+  midpoint(other: Atom): Num3 {
     return [(this.xyz[0] + other.xyz[0]) / 2,
             (this.xyz[1] + other.xyz[1]) / 2,
             (this.xyz[2] + other.xyz[2]) / 2];
