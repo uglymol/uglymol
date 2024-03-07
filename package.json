@@ -43,6 +43,12 @@
     "src/wasm/*",
     "src/three/*"
   ],
+  "prettier": {
+    "trailingComma": "es5",
+    "tabWidth": 2,
+    "semi": true,
+    "singleQuote": true
+  },
   "devDependencies": {
     "@rollup/plugin-buble": "^1.0.3",
     "@rollup/plugin-sucrase": "^5.0.2",
@@ -52,7 +58,7 @@
     "rollup": "^4.12.0",
     "serve": "^14.2.1",
     "typescript": "^5.3.3",
-    "typescript-eslint": "^7.0.2",
+    "typescript-eslint": "^7.1.0",
     "uglify-js": "^3.12.5"
   }
 }
