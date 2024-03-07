@@ -987,10 +987,6 @@ class Camera extends Object3D {
   //  super.updateWorldMatrix(updateParents, updateChildren);
   //  this.matrixWorldInverse.copy(this.matrixWorld).invert();
   //}
-
-  clone() {
-    return new this.constructor().copy(this);
-  }
 }
 
 // cameras/OrthographicCamera.js
@@ -1227,8 +1223,7 @@ function WebGLProgram( renderer, code, material, parameters ) {
 
   this.getUniforms = function () {
     if ( cachedUniforms === undefined ) {
-      cachedUniforms =
-      new WebGLUniforms( gl, program, renderer );
+      cachedUniforms = new WebGLUniforms( gl, program );
     }
 
     return cachedUniforms;
@@ -1745,8 +1740,12 @@ function WebGLState( gl ) {
 
   let currentLineWidth = null;
 
-  let version = parseFloat( /^WebGL\ ([0-9])/.exec( gl.getParameter( gl.VERSION ) )[1] );
-  let lineWidthAvailable = parseFloat( version ) >= 1.0;
+  const glVersion = gl.getParameter(gl.VERSION);
+  let lineWidthAvailable = false;
+  if ( glVersion.indexOf( 'WebGL' ) !== - 1 ) {
+    let version = parseFloat( /^WebGL\ (\d)/.exec( glVersion )[1] );
+    lineWidthAvailable = ( version >= 1.0 );
+  }
 
   let currentTextureSlot = null;
   let currentBoundTextures = {};
@@ -2047,7 +2046,6 @@ function WebGLRenderer( parameters ) {
 
     _currentProgram = null,
     _currentRenderTarget = null,
-    _currentFramebuffer = null,
     _currentMaterialId = - 1,
     _currentGeometryProgram = '',
     _currentCamera = null,
@@ -2129,9 +2127,9 @@ function WebGLRenderer( parameters ) {
 
   let capabilities = new WebGLCapabilities( _gl, extensions, parameters );
 
-  let state = new WebGLState( _gl, extensions );
+  let state = new WebGLState( _gl );
   let properties = new WebGLProperties();
-  let textures = new WebGLTextures( _gl, extensions, state, properties, capabilities, this.info );
+  let textures = new WebGLTextures( _gl, extensions, state, properties, capabilities );
   let objects = new WebGLObjects( _gl, properties, this.info );
   let programCache = new WebGLPrograms( this, capabilities );
 
@@ -2499,11 +2497,7 @@ function WebGLRenderer( parameters ) {
     _infoRender.faces = 0;
     _infoRender.points = 0;
 
-    if ( renderTarget === undefined ) {
-      renderTarget = null;
-    }
-
-    this.setRenderTarget( renderTarget );
+    this.setRenderTarget( );
 
     state.buffers.color.setClear( _clearColor.r, _clearColor.g, _clearColor.b, _clearAlpha, _premultipliedAlpha );
 
@@ -2519,12 +2513,6 @@ function WebGLRenderer( parameters ) {
     // transparent pass (back-to-front order)
 
     renderObjects( transparentObjects, scene, camera );
-
-    // Generate mipmap if we're using any kind of mipmap filtering
-
-    if ( renderTarget ) {
-      textures.updateRenderTargetMipmap( renderTarget );
-    }
 
     // Ensure depth buffer writing is enabled so it can be cleared on next render
 
@@ -2755,39 +2743,15 @@ function WebGLRenderer( parameters ) {
 
   function refreshUniformsFog( uniforms, fog ) {
     uniforms.fogColor.value = fog.color;
-
     if ( fog.isFog ) {
       uniforms.fogNear.value = fog.near;
       uniforms.fogFar.value = fog.far;
     }
   }
 
-  this.setRenderTarget = function ( renderTarget ) {
-    _currentRenderTarget = renderTarget;
-
-    if ( renderTarget && properties.get( renderTarget ).__webglFramebuffer === undefined ) {
-      textures.setupRenderTarget( renderTarget );
-    }
-
-    let framebuffer;
-
-    if ( renderTarget ) {
-      let renderTargetProperties = properties.get( renderTarget );
-
-      framebuffer = renderTargetProperties.__webglFramebuffer;
-
-      _currentViewport.copy( renderTarget.viewport );
-    } else {
-      framebuffer = null;
-
-      _currentViewport.copy( _viewport ).multiplyScalar( _pixelRatio );
-    }
-
-    if ( _currentFramebuffer !== framebuffer ) {
-      _gl.bindFramebuffer( _gl.FRAMEBUFFER, framebuffer );
-      _currentFramebuffer = framebuffer;
-    }
-
+  this.setRenderTarget = function ( ) {
+    _currentRenderTarget = null;
+    _currentViewport.copy( _viewport ).multiplyScalar( _pixelRatio );
     state.viewport( _currentViewport );
   };
 }
@@ -2848,7 +2812,9 @@ class Points extends Object3D {
 }
 
 // kept for compatibility with THREE (lights/AmbientLight.js)
-function AmbientLight() {}
+class AmbientLight {
+  constructor(color) {} // eslint-disable-line no-unused-vars
+}
 
 
 export {
