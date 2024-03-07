@@ -7,11 +7,6 @@ class Curve {
     this.arcLengthDivisions = 200;
   }
 
-  getPoint(/* t, optionalTarget */) {
-    console.warn('THREE.Curve: .getPoint() not implemented.');
-    return null;
-  }
-
   getPoints(divisions = 5) {
     const points = [];
     for (let d = 0; d <= divisions; d++) {
