@@ -1,6 +1,6 @@
 import { OrthographicCamera, Scene, AmbientLight, Color, Vector3,
          Ray, WebGLRenderer, Fog } from './uthree/main';
-import { makeLineMaterial, makeLineSegments, makeLine, makeRibbon,
+import { makeLineMaterial, makeLineSegments, makeRibbon,
          makeChickenWire, makeGrid, makeSticks, makeBalls, makeWheels, makeCube,
          makeRgbBox, Label, addXyzCross } from './draw';
 import { STATE, Controls } from './controls';
@@ -347,20 +347,26 @@ class ModelBag {
     const visible_atoms = [].concat.apply([], segments);
     const colors = color_by(this.conf.color_prop, visible_atoms,
                             this.conf.colors, this.hue_shift);
-    const material = makeLineMaterial({
-      linewidth: scale_by_height(this.conf.bond_line, this.win_size),
-      win_size: this.win_size,
-    });
+    const vertex_arr: Num3[] = [];
+    const color_arr = [];
     let k = 0;
     for (const seg of segments) {
-      const color_slice = colors.slice(k, k + seg.length);
-      k += seg.length;
-      const pos = [];
-      for (const atom of seg) {
-        pos.push(atom.xyz);
+      for (let i = 1; i < seg.length; ++i) {
+        vertex_arr.push(seg[i-1].xyz, seg[i].xyz);
+        color_arr.push(colors[k+i-1], colors[k+i]);
       }
-      const line = makeLine(material, pos, color_slice);
-      this.objects.push(line);
+      k += seg.length;
+    }
+    const linewidth = scale_by_height(this.conf.bond_line, this.win_size);
+    const material = makeLineMaterial({
+      linewidth: linewidth,
+      win_size: this.win_size,
+      segments: true,
+    });
+    this.objects.push(makeLineSegments(material, vertex_arr, color_arr));
+    if (this.conf.line_style !== 'simplistic') {
+      // wheels (discs) as round caps
+      this.objects.push(makeWheels(visible_atoms, colors, linewidth));
     }
     this.atom_array = visible_atoms;
   }
