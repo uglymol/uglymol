@@ -419,7 +419,6 @@ export class ReciprocalViewer extends Viewer {
     const material = makeLineMaterial({
       win_size: this.window_size,
       linewidth: 3,
-      segments: true,
     });
     this.axes = makeLineSegments(material, vertices, colors);
     this.scene.add(this.axes);

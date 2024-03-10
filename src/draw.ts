@@ -184,36 +184,6 @@ function make_quad_index_buffer(len: number) {
 }
 
 
-const wide_line_vert = [
-  'attribute vec3 color;',
-  'attribute vec3 previous;',
-  'attribute vec3 next;',
-  'attribute float side;',
-  'uniform vec2 win_size;',
-  'uniform float linewidth;',
-  'varying vec3 vcolor;',
-
-  'void main() {',
-  '  vcolor = color;',
-  '  mat4 mat = projectionMatrix * modelViewMatrix;',
-  '  vec2 dir1 = (mat * vec4(next - position, 0.0)).xy * win_size;',
-  '  float len = length(dir1);',
-  '  if (len > 0.0) dir1 /= len;',
-  '  vec2 dir2 = (mat * vec4(position - previous, 0.0)).xy * win_size;',
-  '  len = length(dir2);',
-  '  dir2 = len > 0.0 ? dir2 / len : dir1;',
-  '  vec2 tang = normalize(dir1 + dir2);',
-  '  vec2 normal = vec2(-tang.y, tang.x);',
-  // Now we have more or less a miter join. Bavel join could be more
-  // appropriate, but it'd require one more triangle and more complex shader.
-  // max() is a trade-off between too-long miters and too-thin lines.
-  // The outer vertex should not go too far, the inner is not a problem.
-  '  float outer = side * dot(dir2, normal);',
-  '  float angle_factor = max(dot(tang, dir2), outer > 0.0 ? 0.5 : 0.1);',
-  '  gl_Position = mat * vec4(position, 1.0);',
-  '  gl_Position.xy += side * linewidth / angle_factor * normal / win_size;',
-  '}'].join('\n');
-
 const wide_segments_vert = `
 attribute vec3 color;
 attribute vec3 other;
@@ -409,7 +379,7 @@ export function makeLineMaterial(options: Record<string, any>) {
   });
   return new ShaderMaterial({
     uniforms: uniforms,
-    vertexShader: options.segments ? wide_segments_vert : wide_line_vert,
+    vertexShader: wide_segments_vert,
     fragmentShader: varcolor_frag,
     fog: true,
     type: 'um_line',

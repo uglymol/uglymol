@@ -330,7 +330,6 @@ class ModelBag {
       const material = makeLineMaterial({
         linewidth: linewidth,
         win_size: this.win_size,
-        segments: true,
       });
       this.objects.push(makeLineSegments(material, vertex_arr, color_arr));
       if (this.conf.line_style !== 'simplistic') {
@@ -361,7 +360,6 @@ class ModelBag {
     const material = makeLineMaterial({
       linewidth: linewidth,
       win_size: this.win_size,
-      segments: true,
     });
     this.objects.push(makeLineSegments(material, vertex_arr, color_arr));
     if (this.conf.line_style !== 'simplistic') {
