@@ -1,7 +1,6 @@
 import { BufferAttribute, BufferGeometry, ShaderMaterial,
          Object3D, Mesh, Line, LineSegments, Points,
-         Color, Vector3, Matrix4, Ray,
-         TriangleStripDrawMode, Texture } from './uthree/main.js';
+         Color, Vector3, Texture } from './uthree/main.js';
 import { CatmullRomCurve3 } from './uthree/extras.js';
 
 import type { Atom } from './model';
@@ -418,40 +417,6 @@ export function makeLineMaterial(options: Record<string, any>) {
 }
 
 // vertex_arr and color_arr must be of the same length
-export function makeLine(material: ShaderMaterial,
-                         vertex_arr: Num3[],
-                         color_arr: Color[]) {
-  const len = vertex_arr.length;
-  const pos = double_pos(vertex_arr);
-  const position = new Float32Array(pos);
-  // could we use three overlapping views of the same buffer?
-  const previous = new Float32Array(6*len);
-  let i;
-  for (i = 0; i < 6; i++) previous[i] = pos[i];
-  for (; i < 6 * len; i++) previous[i] = pos[i-6];
-  const next = new Float32Array(6*len);
-  for (i = 0; i < 6 * (len-1); i++) next[i] = pos[i+6];
-  for (; i < 6 * len; i++) next[i] = pos[i];
-  const side = new Float32Array(2*len);
-  for (i = 0; i < len; i++) {
-    side[2*i] = 1;
-    side[2*i+1] = -1;
-  }
-  const color = double_color(color_arr);
-  const geometry = new BufferGeometry();
-  geometry.setAttribute('position', new BufferAttribute(position, 3));
-  geometry.setAttribute('previous', new BufferAttribute(previous, 3));
-  geometry.setAttribute('next', new BufferAttribute(next, 3));
-  geometry.setAttribute('side', new BufferAttribute(side, 1));
-  geometry.setAttribute('color', new BufferAttribute(color, 3));
-
-  const mesh = new Mesh(geometry, material);
-  mesh.drawMode = TriangleStripDrawMode;
-  //mesh.userData.bond_lines = true;
-  return mesh;
-}
-
-// vertex_arr and color_arr must be of the same length
 export function makeLineSegments(material: ShaderMaterial,
                                  vertex_arr: Num3[],
                                  color_arr?: Color[]) {
@@ -724,6 +689,7 @@ function makeBalls(atom_arr: Atom[], color_arr: Color[], radius: number) {
   return obj;
 }
 
+/*
 interface LineRaycastOptions {
   precision: number;
   ray: Ray;
@@ -743,9 +709,8 @@ function line_raycast(mesh: Mesh, options: LineRaycastOptions,
   const vEnd = new Vector3();
   const interSegment = new Vector3();
   const interRay = new Vector3();
-  const step = mesh.drawMode === TriangleStripDrawMode ? 1 : 2;
   const positions = mesh.geometry.attributes.position.array;
-  for (let i = 0, l = positions.length / 6 - 1; i < l; i += step) {
+  for (let i = 0, l = positions.length / 6 - 1; i < l; i += 2) {
     vStart.fromArray(positions, 6 * i);
     vEnd.fromArray(positions, 6 * i + 6);
     const distSq = ray.distanceSqToSegment(vStart, vEnd, interRay, interSegment);
@@ -762,6 +727,7 @@ function line_raycast(mesh: Mesh, options: LineRaycastOptions,
     });
   }
 }
+*/
 
 const label_vert = `
 attribute vec2 uvs;

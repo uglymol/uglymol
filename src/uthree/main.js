@@ -40,9 +40,6 @@ if ( Object.assign === undefined ) {
 // constants.js
 let NoBlending = 0;
 let NormalBlending = 1;
-let TrianglesDrawMode = 0;
-let TriangleStripDrawMode = 1;
-let TriangleFanDrawMode = 2;
 
 // core/EventDispatcher.js
 class EventDispatcher {
@@ -959,8 +956,6 @@ class Mesh extends Object3D {
     if (!geometry) throw new TypeError('Mesh: geometry not set');
     this.geometry = geometry;
     this.material = material;
-    // FIXME drawMode was removed in THREE in PR 18041
-    this.drawMode = TrianglesDrawMode;
   }
 }
 
@@ -2358,19 +2353,7 @@ function WebGLRenderer( parameters ) {
     //
 
     if ( object.isMesh ) {
-      switch ( object.drawMode ) {
-        case TrianglesDrawMode:
-          renderer.setMode( _gl.TRIANGLES );
-          break;
-
-        case TriangleStripDrawMode:
-          renderer.setMode( _gl.TRIANGLE_STRIP );
-          break;
-
-        case TriangleFanDrawMode:
-          renderer.setMode( _gl.TRIANGLE_FAN );
-          break;
-      }
+      renderer.setMode( _gl.TRIANGLES );
     } else if ( object.isLine ) {
       let lineWidth = material.linewidth;
       if ( lineWidth === undefined ) lineWidth = 1; // Not using Line*Material
@@ -2836,6 +2819,5 @@ export {
   Vector3,
   Quaternion,
   Color,
-  TriangleStripDrawMode,
   Texture,
 };
