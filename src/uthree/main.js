@@ -1,5 +1,3 @@
-// a small subset of THREE.js v83 that is used by UglyMol
-// modified with eslint --fix and manually,
 // Copyright 2010-2023 Three.js Authors
 // SPDX-License-Identifier: MIT
 
@@ -10,32 +8,6 @@
 import {
   Quaternion, Vector3, Vector4, Matrix4, Color, Ray, generateUUID
 } from './math.js';
-
-// Polyfills
-
-if ( Object.assign === undefined ) {
-  // Missing in IE.
-  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object/assign
-  ( function () {
-    Object.assign = function ( target ) {
-      if ( target === undefined || target === null ) {
-        throw new TypeError( 'Cannot convert undefined or null to object' );
-      }
-      let output = Object( target );
-      for ( let index = 1; index < arguments.length; index ++ ) {
-        let source = arguments[index];
-        if ( source !== undefined && source !== null ) {
-          for ( let nextKey in source ) {
-            if ( Object.prototype.hasOwnProperty.call( source, nextKey ) ) {
-              output[nextKey] = source[nextKey];
-            }
-          }
-        }
-      }
-      return output;
-    };
-  } )();
-}
 
 // constants.js
 let NoBlending = 0;

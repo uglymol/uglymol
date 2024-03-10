@@ -1,3 +1,5 @@
+// Copyright 2010-2023 Three.js Authors
+// SPDX-License-Identifier: MIT
 
 const _lut = [
   '00', '01', '02', '03', '04', '05', '06', '07', '08', '09', '0a', '0b', '0c',

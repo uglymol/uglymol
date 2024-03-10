@@ -1,3 +1,6 @@
+// Copyright 2010-2023 Three.js Authors
+// SPDX-License-Identifier: MIT
+
 import { Vector3 } from './main.js';
 
 // from extras/core/Curve.js
