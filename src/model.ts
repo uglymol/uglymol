@@ -27,7 +27,6 @@ export function modelsFromPDB(pdb_string: string) {
 export class Model {
   atoms: Atom[];
   unit_cell: UnitCell | null;
-  space_group: null;
   has_hydrogens: boolean;
   lower_bound: Num3;
   upper_bound: Num3;
@@ -37,7 +36,6 @@ export class Model {
   constructor() {
     this.atoms = [];
     this.unit_cell = null;
-    this.space_group = null;
     this.has_hydrogens = false;
     this.lower_bound = [0, 0, 0];
     this.upper_bound = [0, 0, 0];
@@ -260,7 +258,6 @@ export class Model {
 
 // Single atom and associated labels
 class Atom {
-  hetero: boolean;
   name: string;
   altloc: string;
   resname: string;
@@ -277,7 +274,6 @@ class Atom {
   bonds: number[];
 
   constructor() {
-    this.hetero = false;
     this.name = '';
     this.altloc = '';
     this.resname = '';
@@ -300,9 +296,7 @@ class Atom {
       throw Error('ATOM or HETATM record is too short: ' + pdb_line);
     }
     const rec_type = pdb_line.substring(0, 6);
-    if (rec_type === 'HETATM') {
-      this.hetero = true;
-    } else if (rec_type !== 'ATOM  ') {
+    if (rec_type !== 'HETATM' && rec_type !== 'ATOM  ') {
       throw Error('Wrong record type: ' + rec_type);
     }
     this.name = pdb_line.substring(12, 16).trim();
@@ -324,11 +318,6 @@ class Atom {
     //  this.charge = pdb_line.substring(78, 80).trim();
     //}
     this.is_ligand = (NOT_LIGANDS.indexOf(this.resname) === -1);
-  }
-
-  b_as_u() {
-    // B = 8 * pi^2 * u^2
-    return Math.sqrt(this.b / (8 * 3.14159 * 3.14159));
   }
 
   distance_sq(other: Atom) {
