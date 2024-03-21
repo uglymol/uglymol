@@ -1,6 +1,3 @@
-[![Build Status](https://travis-ci.org/uglymol/uglymol.svg?branch=master)](https://travis-ci.org/uglymol/uglymol)
-[![Coverage Status](https://coveralls.io/repos/github/uglymol/uglymol/badge.svg?branch=master)](https://coveralls.io/github/uglymol/uglymol?branch=master)
-[![chat at https://gitter.im/ccp4/dimple](https://badges.gitter.im/ccp4/dimple.svg)](https://gitter.im/ccp4/dimple)
 [![npm](https://img.shields.io/npm/v/uglymol.svg?maxAge=2592000)](https://www.npmjs.com/package/uglymol)
 
 UglyMol is a web-based macromolecular viewer focused on electron density.
@@ -30,11 +27,9 @@ It also has a [reciprocal space spin-off](https://uglymol.github.io/reciprocal.h
 
 UglyMol is a small (~3 KLOC) [project](https://github.com/uglymol/uglymol)
 forked from Nat Echols' [xtal.js](https://github.com/natechols/xtal.js/).
-The [plan](https://github.com/uglymol/uglymol/blob/master/TODO.md)
-is to keep it small. But if you're missing some functionality,
+The plan is to keep it small. But if you're missing some functionality,
 it won't hurt if you get in touch --
 use [Issues](https://github.com/uglymol/uglymol/issues)
-or [chat](https://gitter.im/ccp4/dimple)
 or [email](mailto:wojdyr@gmail.com).
 
 See the [Wiki](https://github.com/uglymol/uglymol/wiki)
