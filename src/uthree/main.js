@@ -989,9 +989,7 @@ class OrthographicCamera extends Camera {
 }
 
 
-
-// renderers/webgl/WebGLIndexedBufferRenderer.js
-// FIXME: not updated
+// renderers/webgl/WebGLIndexedBufferRenderer.js (not updated)
 function WebGLIndexedBufferRenderer( gl, extensions, infoRender ) {
   let mode;
 
@@ -1031,8 +1029,7 @@ function WebGLIndexedBufferRenderer( gl, extensions, infoRender ) {
 }
 
 
-// renderers/webgl/WebGLBufferRenderer.js
-// FIXME: not updated
+// renderers/webgl/WebGLBufferRenderer.js (not updated)
 function WebGLBufferRenderer( gl, extensions, infoRender ) {
   let mode;
 
@@ -1056,8 +1053,7 @@ function WebGLBufferRenderer( gl, extensions, infoRender ) {
 }
 
 
-// renderers/webgl/WebGLShader.js
-// FIXME: not updated
+// renderers/webgl/WebGLShader.js (not updated)
 function WebGLShader( gl, type, string ) {
   let shader = gl.createShader( type );
 
@@ -1080,8 +1076,7 @@ function WebGLShader( gl, type, string ) {
 }
 
 
-// renderers/webgl/WebGLProgram.js
-// FIXME: not updated
+// renderers/webgl/WebGLProgram.js (not updated)
 let programIdCount = 0;
 
 function generateExtensions( extensions, parameters, rendererExtensions ) {
@@ -1311,8 +1306,7 @@ function WebGLPrograms( renderer, capabilities ) {
 }
 
 
-// renderers/webgl/WebGLGeometries.js
-// FIXME: not updated
+// renderers/webgl/WebGLGeometries.js (not updated)
 function WebGLGeometries( gl, properties ) {
   let geometries = {};
 
@@ -1384,8 +1378,7 @@ function WebGLGeometries( gl, properties ) {
 }
 
 
-// renderers/webgl/WebGLObjects.js
-// FIXME: not updated
+// renderers/webgl/WebGLObjects.js (not updated)
 function WebGLObjects( gl, properties, info ) {
   let geometries = new WebGLGeometries( gl, properties, info );
 
@@ -1497,8 +1490,7 @@ function WebGLObjects( gl, properties, info ) {
 }
 
 
-// renderers/webgl/WebGLTextures.js
-// FIXME: not updated
+// renderers/webgl/WebGLTextures.js (not updated)
 function WebGLTextures( _gl, extensions, state, properties, capabilities ) {
   function onTextureDispose( event ) {
     let texture = event.target;
@@ -1602,8 +1594,7 @@ function WebGLTextures( _gl, extensions, state, properties, capabilities ) {
 }
 
 
-// renderers/webgl/WebGLProperties.js
-// FIXME: not updated
+// renderers/webgl/WebGLProperties.js (not updated)
 function WebGLProperties() {
   let properties = {};
 
@@ -1629,8 +1620,7 @@ function WebGLProperties() {
 }
 
 
-// renderers/webgl/WebGLState.js
-// FIXME: not updated
+// renderers/webgl/WebGLState.js (not updated)
 function WebGLState( gl ) {
   function ColorBuffer() {
     let color = new Vector4();
@@ -1899,8 +1889,7 @@ function WebGLState( gl ) {
 }
 
 
-// renderers/webgl/WebGLCapabilities.js
-// FIXME: not updated
+// renderers/webgl/WebGLCapabilities.js (not updated)
 function WebGLCapabilities( gl, extensions, parameters ) {
   function getMaxPrecision( precision ) {
     if ( precision === 'highp' ) {
@@ -1940,8 +1929,7 @@ function WebGLCapabilities( gl, extensions, parameters ) {
 }
 
 
-// renderers/webgl/WebGLExtensions.js
-// FIXME: not updated
+// renderers/webgl/WebGLExtensions.js (not updated)
 function WebGLExtensions( gl ) {
   let extensions = {};
 
@@ -1975,8 +1963,7 @@ function WebGLExtensions( gl ) {
 }
 
 
-// renderers/WebGLRenderer.js
-// FIXME: not updated
+// renderers/WebGLRenderer.js (not updated)
 function WebGLRenderer( parameters ) {
   parameters = parameters || {};
 

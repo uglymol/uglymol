@@ -1,0 +1,21 @@
+
+This directory contains a subset of three.js used by UglyMol.
+
+The reason for creating this subset was to make the UglyMol bundle small.
+We use less than 1/10 of the three.js code. In 2018, before three.js
+transitioned to ES6 modules, automatic tree-shaking wasn't helping at all.
+Nowadays, bundling tools can remove unused classes, but here we also
+eliminate unused methods and sometimes even unnecessary code from the methods.
+
+Initially, in 2018, this subset was derived from r83 (r stands for revision,
+that's how three.js is versioned). In 2024, I partly updated it to r162.
+Partly -- because updating everything turned out to be too time-consuming.
+
+The code was reformatted automatically (eslint --fix, prettier) and manually.
+
+Being compatible with the most popular WebGL library could make starting
+easier for new developers. But our use of three.js is superficial.
+No lights, no perspective, no real scene graph - only custom BufferGeometry
+and custom shaders wrapped in ShaderMaterial. Because UglyMol draws only
+lines and "impostors" (a common technique in molecular graphics).
+Therefore, the benefits of using three.js are debatable.
