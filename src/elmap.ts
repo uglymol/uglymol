@@ -70,7 +70,7 @@ export class ElMap {
   grid: GridArray | null;
   stats: { mean: number, rms: number };
   block: Block;
-  unit: string;
+  declare unit: string;
   box_size?: Num3; // used in ReciprocalSpaceMap
 
   constructor() {

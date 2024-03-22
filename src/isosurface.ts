@@ -613,15 +613,17 @@ function calculateVertOffsets(dims: Num3) {
 }
 
 
-function marchingCubes(dims: Num3, values, points,
-                       isolevel: number, method: string) {
+function marchingCubes(dims: Num3,
+                       values: number[] | null,
+                       points: Num3[] | null,
+                       isolevel: number,
+                       method: string) {
   const snap = (method === 'snapped MC');
   const seg_table = (method === 'squarish' ? segTable2 : segTable);
   const vlist = new Array(12);
   const vert_offsets = calculateVertOffsets(dims);
   const vertex_values = new Float32Array(8);
-  const p0: Num3 = [0, 0, 0]; // unused initial value - to make Flow happy
-  const vertex_points = [p0, p0, p0, p0, p0, p0, p0, p0];
+  const vertex_points: Num3[] = new Array(8);
   const size_x = dims[0];
   const size_y = dims[1];
   const size_z = dims[2];

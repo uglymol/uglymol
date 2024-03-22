@@ -467,13 +467,13 @@ export class Viewer {
   help_el: HTMLElement | null;
   initial_hud_html: string;
   scheduled: boolean;
-  MOUSE_HELP: string;
-  KEYBOARD_HELP: string;
-  ABOUT_HELP: string;
+  declare MOUSE_HELP: string;
+  declare KEYBOARD_HELP: string;
+  declare ABOUT_HELP: string;
   mousemove: (arg: MouseEvent) => void;
   mouseup: (arg: MouseEvent) => void;
   key_bindings: Array<((evt: KeyboardEvent) => void) | false | undefined>;
-  ColorSchemes: typeof ColorSchemes;
+  declare ColorSchemes: typeof ColorSchemes;
 
   constructor(options: Record<string, any>) {
     // rendered objects
