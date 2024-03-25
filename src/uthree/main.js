@@ -1616,6 +1616,9 @@ function WebGLProperties() {
       delete properties[object.uuid];
     },
 
+    clear: function () {
+      properties = {};
+    }
   };
 }
 
@@ -1632,15 +1635,16 @@ function WebGLState( gl ) {
         if ( premultipliedAlpha === true ) {
           r *= a; g *= a; b *= a;
         }
-
         color.set( r, g, b, a );
-
         if ( currentColorClear.equals( color ) === false ) {
           gl.clearColor( r, g, b, a );
           currentColorClear.copy( color );
         }
       },
 
+      reset: function () {
+        currentColorClear.set( 0, 0, 0, 1 );
+      }
     };
   }
 
@@ -1858,6 +1862,21 @@ function WebGLState( gl ) {
     }
   }
 
+  function reset() {
+    for ( let i = 0; i < enabledAttributes.length; i ++ ) {
+      if ( enabledAttributes[ i ] === 1 ) {
+        gl.disableVertexAttribArray( i );
+        enabledAttributes[ i ] = 0;
+      }
+    }
+    capabilities = {};
+    currentTextureSlot = null;
+    currentBoundTextures = {};
+    currentBlending = null;
+    colorBuffer.reset();
+    depthBuffer.reset();
+  }
+
   //
 
   return {
@@ -1885,6 +1904,7 @@ function WebGLState( gl ) {
     texImage2D: texImage2D,
 
     viewport: viewport,
+    reset: reset
   };
 }
 
