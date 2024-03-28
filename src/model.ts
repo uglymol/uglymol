@@ -24,6 +24,52 @@ export function modelsFromPDB(pdb_string: string) {
   return models;
 }
 
+export function modelsFromGemmi(gemmi, buffer: ArrayBuffer, name: string) {
+  const st = gemmi.read_structure(buffer, name);
+  const cell = st.cell;  // TODO: check if a copy of cell is created here
+  const models: Model[] = [];
+  for (let i_model = 0; i_model < st.length; ++i_model) {
+    const model = st.at(i_model);
+    const m = new Model();
+    m.unit_cell = new UnitCell(cell.a, cell.b, cell.c, cell.alpha, cell.beta, cell.gamma);
+    let atom_i_seq = 0;
+    for (let i_chain = 0; i_chain < model.length; ++i_chain) {
+      const chain = model.at(i_chain);
+      const chain_name = chain.name;
+      for (let i_res = 0; i_res < chain.length; ++i_res) {
+        const res = chain.at(i_res);
+        const seqid = res.seqid_string;
+        const resname = res.name;
+        const ent_type = res.entity_type_string;
+        const is_ligand = (ent_type === "non-polymer" || ent_type === "branched");
+        for (let i_atom = 0; i_atom < res.length; ++i_atom) {
+          const atom = res.at(i_atom);
+          const new_atom = new Atom();
+          new_atom.i_seq = atom_i_seq++;
+          new_atom.chain = chain_name;
+          new_atom.chain_index = i_chain + 1;
+          new_atom.resname = resname;
+          new_atom.seqid = seqid;
+          new_atom.name = atom.name;
+          new_atom.altloc = atom.altloc === 0 ? '' : String.fromCharCode(atom.altloc);
+          new_atom.xyz = atom.pos;
+          new_atom.occ = atom.occ;
+          new_atom.b = atom.b_iso;
+          new_atom.element = atom.element_uname;
+          new_atom.is_ligand = is_ligand;
+          m.atoms.push(new_atom);
+        }
+      }
+    }
+    m.calculate_bounds();
+    m.calculate_connectivity();
+    models.push(m);
+  }
+  st.delete();
+  //console.log("[after modelsFromGemmi] wasm mem:", gemmi.HEAPU8.length / 1024, "kb");
+  return models;
+}
+
 export class Model {
   atoms: Atom[];
   unit_cell: UnitCell | null;

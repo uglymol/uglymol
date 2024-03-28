@@ -5,7 +5,7 @@ import { makeLineMaterial, makeLineSegments, makeRibbon,
          makeRgbBox, Label, addXyzCross } from './draw';
 import { STATE, Controls } from './controls';
 import { ElMap } from './elmap';
-import { modelsFromPDB } from './model';
+import { modelsFromPDB, modelsFromGemmi } from './model';
 
 import type { Atom, Model } from './model';
 import type { LineSegments } from './uthree/main';
@@ -1607,11 +1607,28 @@ export class Viewer {
     this.selected.bag = this.model_bags[len];
   }
 
+  load_structure_from_buffer(gemmi, buffer: ArrayBuffer, name: string) {
+    const len = this.model_bags.length;
+    const models = modelsFromGemmi(gemmi, buffer, name);
+    for (const model of models) {
+      this.add_model(model);
+    }
+    this.selected.bag = this.model_bags[len];
+  }
+
   load_pdb(url: string, options?: Record<string, any>,
            callback?: () => void) {
     const self = this;
-    this.load_file(url, {binary: false, progress: true}, function (req) {
-      self.load_pdb_from_text(req.responseText);
+    const gemmi = options && options.gemmi;
+    this.load_file(url, {binary: !!gemmi, progress: true}, function (req) {
+      const t0 = performance.now();
+      if (gemmi) {
+        self.load_structure_from_buffer(gemmi, req.response, url);
+      } else {
+        self.load_pdb_from_text(req.responseText);
+      }
+      console.log('coordinate file processed in', (performance.now() - t0).toFixed(2),
+                  gemmi ? 'ms (using gemmi)': 'ms');
       if (options == null || !options.stay) self.set_view(options);
       if (callback) callback();
     });
