@@ -1,7 +1,7 @@
 import { UnitCell } from './unitcell';
 import { ElMap, GridArray } from './elmap';
 import type { Viewer } from './viewer';
-import type { Module as WasmModule, Mtz as WasmMtz } from './wasm/mtz.d.ts';
+import type { Module as MtzModule, Mtz as WasmMtz } from './wasm/mtz.d.ts';
 
 function log_timing(t0: number, text: string) {
   console.log(text + ': ' + (performance.now() - t0).toFixed(2) + ' ms.');
@@ -50,24 +50,26 @@ function load_maps_from_mtz_buffer(viewer: Viewer, mtz: WasmMtz,
 }
 
 export
-function load_maps_from_mtz(Gemmi: WasmModule, viewer: Viewer, url: string,
+function load_maps_from_mtz(gemmi: MtzModule, viewer: Viewer, url: string,
                             labels?: string[], callback?: () => void) {
   viewer.load_file(url, {binary: true, progress: true}, function (req) {
     const t0 = performance.now();
     try {
-      const mtz = Gemmi.readMtz(req.response);
+      const mtz = gemmi.readMtz(req.response);
+      //console.log("[after readMTZ] wasm mem:", gemmi.HEAPU8.length / 1024, "kb");
       load_maps_from_mtz_buffer(viewer, mtz, labels);
     } catch (e) {
       viewer.hud(e.message, 'ERR');
       return;
     }
     log_timing(t0, 'load_maps_from_mtz');
+    //console.log("wasm mem:", gemmi.HEAPU8.length / 1024, "kb");
     if (callback) callback();
   });
 }
 
 export
-function set_pdb_and_mtz_dropzone(Gemmi: WasmModule, viewer: Viewer,
+function set_pdb_and_mtz_dropzone(gemmi: MtzModule, viewer: Viewer,
                                   zone: HTMLElement) {
   viewer.set_dropzone(zone, function (file) {
     if (/\.mtz$/.test(file.name)) {
@@ -76,7 +78,7 @@ function set_pdb_and_mtz_dropzone(Gemmi: WasmModule, viewer: Viewer,
         if (evt.target.readyState == 2) {
           const t0 = performance.now();
           try {
-            const mtz = Gemmi.readMtz(evt.target.result);
+            const mtz = gemmi.readMtz(evt.target.result);
             load_maps_from_mtz_buffer(viewer, mtz);
           } catch (e) {
             viewer.hud(e.message, 'ERR');
