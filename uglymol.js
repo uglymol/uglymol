@@ -98,6 +98,52 @@ function modelsFromPDB(pdb_string) {
   return models;
 }
 
+function modelsFromGemmi(gemmi, buffer, name) {
+  var st = gemmi.read_structure(buffer, name);
+  var cell = st.cell;  // TODO: check if a copy of cell is created here
+  var models = [];
+  for (var i_model = 0; i_model < st.length; ++i_model) {
+    var model = st.at(i_model);
+    var m = new Model();
+    m.unit_cell = new UnitCell(cell.a, cell.b, cell.c, cell.alpha, cell.beta, cell.gamma);
+    var atom_i_seq = 0;
+    for (var i_chain = 0; i_chain < model.length; ++i_chain) {
+      var chain = model.at(i_chain);
+      var chain_name = chain.name;
+      for (var i_res = 0; i_res < chain.length; ++i_res) {
+        var res = chain.at(i_res);
+        var seqid = res.seqid_string;
+        var resname = res.name;
+        var ent_type = res.entity_type_string;
+        var is_ligand = (ent_type === "non-polymer" || ent_type === "branched");
+        for (var i_atom = 0; i_atom < res.length; ++i_atom) {
+          var atom = res.at(i_atom);
+          var new_atom = new Atom();
+          new_atom.i_seq = atom_i_seq++;
+          new_atom.chain = chain_name;
+          new_atom.chain_index = i_chain + 1;
+          new_atom.resname = resname;
+          new_atom.seqid = seqid;
+          new_atom.name = atom.name;
+          new_atom.altloc = atom.altloc === 0 ? '' : String.fromCharCode(atom.altloc);
+          new_atom.xyz = atom.pos;
+          new_atom.occ = atom.occ;
+          new_atom.b = atom.b_iso;
+          new_atom.element = atom.element_uname;
+          new_atom.is_ligand = is_ligand;
+          m.atoms.push(new_atom);
+        }
+      }
+    }
+    m.calculate_bounds();
+    m.calculate_connectivity();
+    models.push(m);
+  }
+  st.delete();
+  //console.log("[after modelsFromGemmi] wasm mem:", gemmi.HEAPU8.length / 1024, "kb");
+  return models;
+}
+
 var Model = function Model() {
   this.atoms = [];
   this.unit_cell = null;
@@ -325,8 +371,7 @@ var Atom = function Atom() {
   this.resname = '';
   this.chain = '';
   this.chain_index = -1;
-  this.resseq = -1;
-  this.icode = null;
+  this.seqid = '';
   this.xyz = [0, 0, 0];
   this.occ = 1.0;
   this.b = 0;
@@ -349,8 +394,7 @@ Atom.prototype.from_pdb_line = function from_pdb_line (pdb_line) {
   this.altloc = pdb_line.substring(16, 17).trim();
   this.resname = pdb_line.substring(17, 20).trim();
   this.chain = pdb_line.substring(20, 22).trim();
-  this.resseq = parseInt(pdb_line.substring(22, 26), 10);
-  this.icode = pdb_line.substring(26, 27).trim();
+  this.seqid = pdb_line.substring(22, 27).trim();
   var x = parseFloat(pdb_line.substring(30, 38));
   var y = parseFloat(pdb_line.substring(38, 46));
   var z = parseFloat(pdb_line.substring(46, 54));
@@ -420,12 +464,12 @@ Atom.prototype.is_bonded_to = function is_bonded_to (other) {
 };
 
 Atom.prototype.resid = function resid () {
-  return this.resseq + '/' + this.chain;
+  return this.seqid + '/' + this.chain;
 };
 
 Atom.prototype.long_label = function long_label () {
   var a = this;// eslint-disable-line @typescript-eslint/no-this-alias
-  return a.name + ' /' + a.resseq + ' ' + a.resname + '/' + a.chain +
+  return a.name + ' /' + a.seqid + ' ' + a.resname + '/' + a.chain +
          ' - occ: ' + a.occ.toFixed(2) + ' bf: ' + a.b.toFixed(2) +
          ' ele: ' + a.element + ' pos: (' + a.xyz[0].toFixed(2) + ',' +
          a.xyz[1].toFixed(2) + ',' + a.xyz[2].toFixed(2) + ')';
@@ -433,7 +477,7 @@ Atom.prototype.long_label = function long_label () {
 
 Atom.prototype.short_label = function short_label () {
   var a = this;// eslint-disable-line @typescript-eslint/no-this-alias
-  return a.name + ' /' + a.resseq + ' ' + a.resname + '/' + a.chain;
+  return a.name + ' /' + a.seqid + ' ' + a.resname + '/' + a.chain;
 };
 
 
@@ -7856,11 +7900,30 @@ Viewer.prototype.load_pdb_from_text = function load_pdb_from_text (text) {
   this.selected.bag = this.model_bags[len];
 };
 
+Viewer.prototype.load_structure_from_buffer = function load_structure_from_buffer (gemmi, buffer, name) {
+  var len = this.model_bags.length;
+  var models = modelsFromGemmi(gemmi, buffer, name);
+  for (var i = 0, list = models; i < list.length; i += 1) {
+    var model = list[i];
+
+      this.add_model(model);
+  }
+  this.selected.bag = this.model_bags[len];
+};
+
 Viewer.prototype.load_pdb = function load_pdb (url, options,
          callback) {
   var self = this;
-  this.load_file(url, {binary: false, progress: true}, function (req) {
-    self.load_pdb_from_text(req.responseText);
+  var gemmi = options && options.gemmi;
+  this.load_file(url, {binary: !!gemmi, progress: true}, function (req) {
+    var t0 = performance.now();
+    if (gemmi) {
+      self.load_structure_from_buffer(gemmi, req.response, url);
+    } else {
+      self.load_pdb_from_text(req.responseText);
+    }
+    console.log('coordinate file processed in', (performance.now() - t0).toFixed(2),
+                gemmi ? 'ms (using gemmi)': 'ms');
     if (options == null || !options.stay) { self.set_view(options); }
     if (callback) { callback(); }
   });
@@ -8504,23 +8567,25 @@ function load_maps_from_mtz_buffer(viewer, mtz,
   mtz.delete();
 }
 
-function load_maps_from_mtz(Gemmi, viewer, url,
+function load_maps_from_mtz(gemmi, viewer, url,
                             labels, callback) {
   viewer.load_file(url, {binary: true, progress: true}, function (req) {
     var t0 = performance.now();
     try {
-      var mtz = Gemmi.readMtz(req.response);
+      var mtz = gemmi.readMtz(req.response);
+      //console.log("[after readMTZ] wasm mem:", gemmi.HEAPU8.length / 1024, "kb");
       load_maps_from_mtz_buffer(viewer, mtz, labels);
     } catch (e) {
       viewer.hud(e.message, 'ERR');
       return;
     }
     log_timing(t0, 'load_maps_from_mtz');
+    //console.log("wasm mem:", gemmi.HEAPU8.length / 1024, "kb");
     if (callback) { callback(); }
   });
 }
 
-function set_pdb_and_mtz_dropzone(Gemmi, viewer,
+function set_pdb_and_mtz_dropzone(gemmi, viewer,
                                   zone) {
   viewer.set_dropzone(zone, function (file) {
     if (/\.mtz$/.test(file.name)) {
@@ -8529,7 +8594,7 @@ function set_pdb_and_mtz_dropzone(Gemmi, viewer,
         if (evt.target.readyState == 2) {
           var t0 = performance.now();
           try {
-            var mtz = Gemmi.readMtz(evt.target.result);
+            var mtz = gemmi.readMtz(evt.target.result);
             load_maps_from_mtz_buffer(viewer, mtz);
           } catch (e) {
             viewer.hud(e.message, 'ERR');
@@ -8596,6 +8661,7 @@ exports.makeRibbon = makeRibbon;
 exports.makeSticks = makeSticks;
 exports.makeUniforms = makeUniforms;
 exports.makeWheels = makeWheels;
+exports.modelsFromGemmi = modelsFromGemmi;
 exports.modelsFromPDB = modelsFromPDB;
 exports.set_pdb_and_mtz_dropzone = set_pdb_and_mtz_dropzone;
 
