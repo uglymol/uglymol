@@ -263,8 +263,7 @@ class Atom {
   resname: string;
   chain: string;
   chain_index: number;
-  resseq: number;
-  icode: string | null;
+  seqid: string;
   xyz: Num3;
   occ: number;
   b: number;
@@ -279,8 +278,7 @@ class Atom {
     this.resname = '';
     this.chain = '';
     this.chain_index = -1;
-    this.resseq = -1;
-    this.icode = null;
+    this.seqid = '';
     this.xyz = [0, 0, 0];
     this.occ = 1.0;
     this.b = 0;
@@ -303,8 +301,7 @@ class Atom {
     this.altloc = pdb_line.substring(16, 17).trim();
     this.resname = pdb_line.substring(17, 20).trim();
     this.chain = pdb_line.substring(20, 22).trim();
-    this.resseq = parseInt(pdb_line.substring(22, 26), 10);
-    this.icode = pdb_line.substring(26, 27).trim();
+    this.seqid = pdb_line.substring(22, 27).trim();
     const x = parseFloat(pdb_line.substring(30, 38));
     const y = parseFloat(pdb_line.substring(38, 46));
     const z = parseFloat(pdb_line.substring(46, 54));
@@ -374,12 +371,12 @@ class Atom {
   }
 
   resid() {
-    return this.resseq + '/' + this.chain;
+    return this.seqid + '/' + this.chain;
   }
 
   long_label() {
     const a = this;  // eslint-disable-line @typescript-eslint/no-this-alias
-    return a.name + ' /' + a.resseq + ' ' + a.resname + '/' + a.chain +
+    return a.name + ' /' + a.seqid + ' ' + a.resname + '/' + a.chain +
            ' - occ: ' + a.occ.toFixed(2) + ' bf: ' + a.b.toFixed(2) +
            ' ele: ' + a.element + ' pos: (' + a.xyz[0].toFixed(2) + ',' +
            a.xyz[1].toFixed(2) + ',' + a.xyz[2].toFixed(2) + ')';
@@ -387,7 +384,7 @@ class Atom {
 
   short_label() {
     const a = this;  // eslint-disable-line @typescript-eslint/no-this-alias
-    return a.name + ' /' + a.resseq + ' ' + a.resname + '/' + a.chain;
+    return a.name + ' /' + a.seqid + ' ' + a.resname + '/' + a.chain;
   }
 }
 

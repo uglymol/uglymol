@@ -43,12 +43,12 @@ describe('Model', () => {
   });
   it('next_residue', () => {
     var a1 = model.next_residue();  // first residue
-    expect(a1.resseq).toEqual(1);
+    expect(a1.seqid).toEqual("1");
     expect(a1.name).toEqual('CA');
     var atom_label = a1.long_label();
     expect(atom_label.indexOf('CA /1')).toEqual(0);
     var next_res_atom = model.next_residue(a1);
-    expect(next_res_atom.resseq).toEqual(2);
+    expect(next_res_atom.seqid).toEqual("2");
     expect(next_res_atom.name).toEqual('CA');
     expect(model.next_residue(next_res_atom, true)).toEqual(a1);
     var last_res_atom = model.next_residue(a1, true);
