@@ -668,7 +668,7 @@ export class Viewer {
   }
 
   set_colors() {
-    const scheme = ColorSchemes[this.config.color_scheme];
+    const scheme = this.ColorSchemes[this.config.color_scheme];
     if (!scheme) throw Error('Unknown color scheme.');
     this.decor.zoom_grid.material.uniforms.ucolor.value.set(scheme.fg);
     this.config.colors = scheme;

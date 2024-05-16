@@ -5085,7 +5085,7 @@ function WebGLRenderer( parameters ) {
       var renderItem = renderList[i];
       var object = renderItem.object;
       var geometry = renderItem.geometry;
-      var material = overrideMaterial === undefined ? renderItem.material : overrideMaterial;
+      var material = renderItem.material ;
       var group = renderItem.group;
 
       object.modelViewMatrix.multiplyMatrices( camera.matrixWorldInverse, object.matrixWorld );
@@ -6939,7 +6939,7 @@ Viewer.prototype.pick_atom = function pick_atom (coords, camera) {
 };
 
 Viewer.prototype.set_colors = function set_colors () {
-  var scheme = ColorSchemes$1[this.config.color_scheme];
+  var scheme = this.ColorSchemes[this.config.color_scheme];
   if (!scheme) { throw Error('Unknown color scheme.'); }
   this.decor.zoom_grid.material.uniforms.ucolor.value.set(scheme.fg);
   this.config.colors = scheme;
