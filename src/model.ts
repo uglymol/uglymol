@@ -24,50 +24,130 @@ export function modelsFromPDB(pdb_string: string) {
   return models;
 }
 
-export function modelsFromGemmi(gemmi, buffer: ArrayBuffer, name: string) {
+type MonomerFetcher = (resnames: string[]) => Promise<string[]>;
+export type GemmiBondingInfo = {
+  source: 'gemmi' | 'fallback' | 'unavailable',
+  monomers_requested: number,
+  monomers_loaded: number,
+  bond_count: number,
+};
+export const BondType = {
+  Unspec: 0,
+  Single: 1,
+  Double: 2,
+  Triple: 3,
+  Aromatic: 4,
+  Deloc: 5,
+  Metal: 6,
+} as const;
+export type BondTypeValue = typeof BondType[keyof typeof BondType];
+
+function getGemmiBondData(gemmi: any, st: any,
+                          getMonomerCifs?: MonomerFetcher) {
+  if (typeof gemmi.BondInfo !== 'function') {
+    return Promise.resolve({
+      bond_data: null,
+      info: {
+        source: 'unavailable',
+        monomers_requested: 0,
+        monomers_loaded: 0,
+        bond_count: 0,
+      } as GemmiBondingInfo,
+    });
+  }
+  const bond_info = new gemmi.BondInfo();
+  const resnames = (getMonomerCifs && typeof gemmi.get_residue_names === 'function') ?
+    gemmi.get_residue_names(st).split(',').filter(Boolean) :
+    [];
+  const monomers_requested = Array.from(new Set(resnames)).length;
+  let loaded_monomers = 0;
+  const load_monomers = (resnames.length !== 0) ?
+    getMonomerCifs(resnames) :
+    Promise.resolve([]);
+  return load_monomers.then(function (cif_texts) {
+    for (const cif_text of cif_texts) {
+      bond_info.add_monomer_cif(cif_text);
+      loaded_monomers++;
+    }
+    bond_info.get_bond_lines(st);
+    const len = bond_info.bond_data_size();
+    const source = (len !== 0 ? 'gemmi' : 'fallback');
+    const info: GemmiBondingInfo = {
+      source: source,
+      monomers_requested: monomers_requested,
+      monomers_loaded: loaded_monomers,
+      bond_count: len / 3,
+    };
+    if (loaded_monomers === 0 && len === 0) return { bond_data: null, info: info };
+    const ptr = bond_info.bond_data_ptr();
+    return {
+      bond_data: new Int32Array(gemmi.HEAPU8.buffer, ptr, len).slice(),
+      info: info,
+    };
+  }).finally(() => bond_info.delete());
+}
+
+export function modelsFromGemmi(gemmi, buffer: ArrayBuffer, name: string,
+                                getMonomerCifs?: MonomerFetcher) {
   const st = gemmi.read_structure(buffer, name);
-  const cell = st.cell;  // TODO: check if a copy of cell is created here
-  const models: Model[] = [];
-  for (let i_model = 0; i_model < st.length; ++i_model) {
-    const model = st.at(i_model);
-    const m = new Model();
-    m.unit_cell = new UnitCell(cell.a, cell.b, cell.c, cell.alpha, cell.beta, cell.gamma);
-    let atom_i_seq = 0;
-    for (let i_chain = 0; i_chain < model.length; ++i_chain) {
-      const chain = model.at(i_chain);
-      const chain_name = chain.name;
-      for (let i_res = 0; i_res < chain.length; ++i_res) {
-        const res = chain.at(i_res);
-        const seqid = res.seqid_string;
-        const resname = res.name;
-        const ent_type = res.entity_type_string;
-        const is_ligand = (ent_type === "non-polymer" || ent_type === "branched");
-        for (let i_atom = 0; i_atom < res.length; ++i_atom) {
-          const atom = res.at(i_atom);
-          const new_atom = new Atom();
-          new_atom.i_seq = atom_i_seq++;
-          new_atom.chain = chain_name;
-          new_atom.chain_index = i_chain + 1;
-          new_atom.resname = resname;
-          new_atom.seqid = seqid;
-          new_atom.name = atom.name;
-          new_atom.altloc = atom.altloc === 0 ? '' : String.fromCharCode(atom.altloc);
-          new_atom.xyz = atom.pos;
-          new_atom.occ = atom.occ;
-          new_atom.b = atom.b_iso;
-          new_atom.element = atom.element_uname;
-          new_atom.is_ligand = is_ligand;
-          m.atoms.push(new_atom);
-        }
+  return getGemmiBondData(gemmi, st, getMonomerCifs).then(function (bond_result) {
+    const bond_data = bond_result.bond_data;
+    const cell = st.cell;  // TODO: check if a copy of cell is created here
+    const models: Model[] = [];
+    let max_bond_atom = -1;
+    if (bond_data != null) {
+      for (let i = 0; i < bond_data.length; i += 3) {
+        max_bond_atom = Math.max(max_bond_atom, bond_data[i], bond_data[i+1]);
       }
     }
-    m.calculate_bounds();
-    m.calculate_connectivity();
-    models.push(m);
-  }
-  st.delete();
-  //console.log("[after modelsFromGemmi] wasm mem:", gemmi.HEAPU8.length / 1024, "kb");
-  return models;
+    for (let i_model = 0; i_model < st.length; ++i_model) {
+      const model = st.at(i_model);
+      const m = new Model();
+      m.unit_cell = new UnitCell(cell.a, cell.b, cell.c, cell.alpha, cell.beta, cell.gamma);
+      let atom_i_seq = 0;
+      for (let i_chain = 0; i_chain < model.length; ++i_chain) {
+        const chain = model.at(i_chain);
+        const chain_name = chain.name;
+        for (let i_res = 0; i_res < chain.length; ++i_res) {
+          const res = chain.at(i_res);
+          const seqid = res.seqid_string;
+          const resname = res.name;
+          const ent_type = res.entity_type_string;
+          const is_ligand = (ent_type === 'non-polymer' || ent_type === 'branched');
+          for (let i_atom = 0; i_atom < res.length; ++i_atom) {
+            const atom = res.at(i_atom);
+            const new_atom = new Atom();
+            new_atom.i_seq = atom_i_seq++;
+            new_atom.chain = chain_name;
+            new_atom.chain_index = i_chain + 1;
+            new_atom.resname = resname;
+            new_atom.seqid = seqid;
+            new_atom.name = atom.name;
+            new_atom.altloc = atom.altloc === 0 ? '' : String.fromCharCode(atom.altloc);
+            new_atom.xyz = atom.pos;
+            new_atom.occ = atom.occ;
+            new_atom.b = atom.b_iso;
+            new_atom.element = atom.element_uname;
+            new_atom.is_ligand = is_ligand;
+            m.atoms.push(new_atom);
+          }
+        }
+      }
+      m.calculate_bounds();
+      if (i_model === 0 && bond_data != null && max_bond_atom < m.atoms.length) {
+        m.apply_bond_data(bond_data);
+      } else {
+        m.calculate_connectivity();
+      }
+      models.push(m);
+    }
+    st.delete();
+    //console.log("[after modelsFromGemmi] wasm mem:", gemmi.HEAPU8.length / 1024, "kb");
+    return { models: models, bonding: bond_result.info };
+  }, function (err) {
+    st.delete();
+    throw err;
+  });
 }
 
 export class Model {
@@ -257,7 +337,11 @@ export class Model {
 
   calculate_connectivity() {
     const atoms = this.atoms;
-    const cubes = new Cubicles(atoms, 3.0, this.lower_bound, this.upper_bound);
+    const cubes = this.calculate_cubicles();
+    for (const atom of atoms) {
+      atom.bonds = [];
+      atom.bond_types = [];
+    }
     //let cnt = 0;
     for (let i = 0; i < cubes.boxes.length; i++) {
       const box = cubes.boxes[i];
@@ -268,15 +352,44 @@ export class Model {
         for (let k = 0; k < nearby_atoms.length; k++) {
           const j = nearby_atoms[k];
           if (j > atom_id && atoms[atom_id].is_bonded_to(atoms[j])) {
-            atoms[atom_id].bonds.push(j);
-            atoms[j].bonds.push(atom_id);
+            this.add_bond(atom_id, j, BondType.Unspec);
             //cnt++;
           }
         }
       }
     }
     //console.log(atoms.length + ' atoms, ' + cnt + ' bonds.');
+  }
+
+  calculate_cubicles() {
+    const cubes = new Cubicles(this.atoms, 3.0, this.lower_bound, this.upper_bound);
     this.cubes = cubes;
+    return cubes;
+  }
+
+  apply_bond_data(bond_data: Int32Array) {
+    for (const atom of this.atoms) {
+      atom.bonds = [];
+      atom.bond_types = [];
+    }
+    for (let i = 0; i + 2 < bond_data.length; i += 3) {
+      const idx1 = bond_data[i];
+      const idx2 = bond_data[i+1];
+      const bond_type = bond_data[i+2] as BondTypeValue;
+      if (idx1 < 0 || idx2 < 0 ||
+          idx1 >= this.atoms.length || idx2 >= this.atoms.length) {
+        continue;
+      }
+      this.add_bond(idx1, idx2, bond_type);
+    }
+    this.calculate_cubicles();
+  }
+
+  add_bond(idx1: number, idx2: number, bond_type: BondTypeValue) {
+    this.atoms[idx1].bonds.push(idx2);
+    this.atoms[idx1].bond_types.push(bond_type);
+    this.atoms[idx2].bonds.push(idx1);
+    this.atoms[idx2].bond_types.push(bond_type);
   }
 
   get_nearest_atom(x: number, y: number, z: number, atom_name?: string) {
@@ -317,6 +430,7 @@ class Atom {
   i_seq: number;
   is_ligand: boolean | null;
   bonds: number[];
+  bond_types: BondTypeValue[];
 
   constructor() {
     this.name = '';
@@ -332,6 +446,7 @@ class Atom {
     this.i_seq = -1;
     this.is_ligand = null;
     this.bonds = [];
+    this.bond_types = [];
   }
 
   // http://www.wwpdb.org/documentation/format33/sect9.html#ATOM
@@ -421,16 +536,14 @@ class Atom {
   }
 
   long_label() {
-    const a = this;  // eslint-disable-line @typescript-eslint/no-this-alias
-    return a.name + ' /' + a.seqid + ' ' + a.resname + '/' + a.chain +
-           ' - occ: ' + a.occ.toFixed(2) + ' bf: ' + a.b.toFixed(2) +
-           ' ele: ' + a.element + ' pos: (' + a.xyz[0].toFixed(2) + ',' +
-           a.xyz[1].toFixed(2) + ',' + a.xyz[2].toFixed(2) + ')';
+    return this.name + ' /' + this.seqid + ' ' + this.resname + '/' + this.chain +
+           ' - occ: ' + this.occ.toFixed(2) + ' bf: ' + this.b.toFixed(2) +
+           ' ele: ' + this.element + ' pos: (' + this.xyz[0].toFixed(2) + ',' +
+           this.xyz[1].toFixed(2) + ',' + this.xyz[2].toFixed(2) + ')';
   }
 
   short_label() {
-    const a = this;  // eslint-disable-line @typescript-eslint/no-this-alias
-    return a.name + ' /' + a.seqid + ' ' + a.resname + '/' + a.chain;
+    return this.name + ' /' + this.seqid + ' ' + this.resname + '/' + this.chain;
   }
 }
 

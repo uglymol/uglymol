@@ -106,8 +106,7 @@ ReciprocalSpaceMap.prototype.unit = '';
 function find_max_dist(pos) {
   let max_sq = 0;
   for (let i = 0; i < pos.length; i += 3) {
-    const n = 3 * i;
-    const sq = pos[n]*pos[n] + pos[n+1]*pos[n+1] + pos[n+2]*pos[n+2];
+    const sq = pos[i]*pos[i] + pos[i+1]*pos[i+1] + pos[i+2]*pos[i+2];
     if (sq > max_sq) max_sq = sq;
   }
   return Math.sqrt(max_sq);
@@ -140,9 +139,7 @@ function parse_csv(text): DataType {
 }
 
 function minus_ones(n) {
-  const a = [];
-  for (let i = 0; i < n; i++) a.push(-1);
-  return a;
+  return new Array(n).fill(-1);
 }
 
 function parse_json(text): DataType {

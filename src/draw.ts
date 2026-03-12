@@ -249,8 +249,8 @@ export function makeUniforms(params: Record<string, any>) {
     fogFar: { value: null },
     fogColor: { value: null },
   };
-  for (const p in params) {  // eslint-disable-line guard-for-in
-    uniforms[p] = { value: params[p] };
+  for (const [p, v] of Object.entries(params)) {
+    uniforms[p] = { value: v };
   }
   return uniforms;
 }
@@ -658,46 +658,6 @@ function makeBalls(atom_arr: Atom[], color_arr: Color[], radius: number) {
   const obj = new Mesh(geometry, material);
   return obj;
 }
-
-/*
-interface LineRaycastOptions {
-  precision: number;
-  ray: Ray;
-  near: number;
-  far: number;
-}
-// based on Line.prototype.raycast(), but skipping duplicated points
-const inverseMatrix = new Matrix4();
-const ray = new Ray();
-export
-function line_raycast(mesh: Mesh, options: LineRaycastOptions,
-                      intersects: object[]) {
-  const precisionSq = options.precision * options.precision;
-  inverseMatrix.copy(mesh.matrixWorld).invert();
-  ray.copy(options.ray).applyMatrix4(inverseMatrix);
-  const vStart = new Vector3();
-  const vEnd = new Vector3();
-  const interSegment = new Vector3();
-  const interRay = new Vector3();
-  const positions = mesh.geometry.attributes.position.array;
-  for (let i = 0, l = positions.length / 6 - 1; i < l; i += 2) {
-    vStart.fromArray(positions, 6 * i);
-    vEnd.fromArray(positions, 6 * i + 6);
-    const distSq = ray.distanceSqToSegment(vStart, vEnd, interRay, interSegment);
-    if (distSq > precisionSq) continue;
-    interRay.applyMatrix4(mesh.matrixWorld);
-    const distance = options.ray.origin.distanceTo(interRay);
-    if (distance < options.near || distance > options.far) continue;
-    intersects.push({
-      distance: distance,
-      point: interSegment.clone().applyMatrix4(mesh.matrixWorld),
-      index: i,
-      object: mesh,
-      line_dist: Math.sqrt(distSq), // extra property, not in Three.js
-    });
-  }
-}
-*/
 
 const label_vert = `
 attribute vec2 uvs;

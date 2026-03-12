@@ -75,7 +75,7 @@ function set_pdb_and_mtz_dropzone(gemmi: MtzModule, viewer: Viewer,
     if (/\.mtz$/.test(file.name)) {
       const reader = new FileReader();
       reader.onloadend = function (evt) {
-        if (evt.target.readyState == 2) {
+        if (evt.target.readyState === 2) {
           const t0 = performance.now();
           try {
             const mtz = gemmi.readMtz(evt.target.result);
