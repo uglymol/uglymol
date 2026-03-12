@@ -5,9 +5,10 @@ import { makeLineMaterial, makeLineSegments, makeRibbon,
          makeRgbBox, Label, addXyzCross } from './draw';
 import { STATE, Controls } from './controls';
 import { ElMap } from './elmap';
-import { modelsFromPDB, modelsFromGemmi } from './model';
+import { BondType, modelsFromPDB, modelsFromGemmi } from './model';
 
 import type { Atom, Model } from './model';
+import type { GemmiBondingInfo } from './model';
 import type { LineSegments } from './uthree/main';
 import type { OrCameraType } from './controls';
 
@@ -143,12 +144,13 @@ const INIT_HUD_TEXT = 'This is UglyMol not Coot. ' +
 // options handled by select_next()
 
 const COLOR_PROPS = ['element', 'B-factor', 'pLDDT', 'occupancy', 'index', 'chain'];
-const RENDER_STYLES = ['lines', 'trace', 'ribbon', 'ball&stick'];
+const RENDER_STYLES = ['lines', 'sticks', 'trace', 'ribbon', 'ball&stick'];
 const LIGAND_STYLES = ['ball&stick', 'lines'];
 const WATER_STYLES = ['cross', 'dot', 'invisible'];
 const MAP_STYLES = ['marching cubes', 'squarish'/*, 'snapped MC'*/];
 const LINE_STYLES = ['normal', 'simplistic'];
 const LABEL_FONTS = ['bold 14px', '14px', '16px', 'bold 16px'];
+const THIN_STICK_RADIUS = 0.08;
 
 function rainbow_value(v: number, vmin: number, vmax: number) {
   const c = new Color(0xe0e0e0);
@@ -288,8 +290,13 @@ class ModelBag {
                             this.conf.colors, this.hue_shift);
     const vertex_arr: Num3[] = [];
     const color_arr = [];
+    const bond_type_arr = [];
+    const metal_vertex_arr: Num3[] = [];
+    const metal_color_arr = [];
+    const metal_bond_type_arr = [];
     const sphere_arr = [];
     const sphere_color_arr = [];
+    const metal_color = this.conf.colors.center;
     const hydrogens = this.conf.hydrogens;
     for (let i = 0; i < visible_atoms.length; i++) {
       const atom = visible_atoms[i];
@@ -310,8 +317,16 @@ class ModelBag {
           // Coot show X-H bonds as thinner lines in a single color.
           // Here we keep it simple and render such bonds like all others.
           const mid = atom.midpoint(other);
-          vertex_arr.push(atom.xyz, mid);
-          color_arr.push(color, color);
+          const bond_type = atom.bond_types[j];
+          if (bond_type === BondType.Metal) {
+            metal_vertex_arr.push(atom.xyz, mid);
+            metal_color_arr.push(metal_color, metal_color);
+            metal_bond_type_arr.push(bond_type, bond_type);
+          } else {
+            vertex_arr.push(atom.xyz, mid);
+            color_arr.push(color, color);
+            bond_type_arr.push(bond_type, bond_type);
+          }
         }
       }
       sphere_arr.push(atom);
@@ -320,18 +335,40 @@ class ModelBag {
 
     if (ball_size != null) {
       if (vertex_arr.length !== 0) {
-        this.objects.push(makeSticks(vertex_arr, color_arr, ball_size / 2));
+        const obj = makeSticks(vertex_arr, color_arr, ball_size / 2);
+        obj.userData.bond_types = bond_type_arr;
+        this.objects.push(obj);
+      }
+      if (metal_vertex_arr.length !== 0) {
+        const metal_obj = makeSticks(metal_vertex_arr, metal_color_arr,
+                                     ball_size * 0.3);
+        metal_obj.userData.bond_types = metal_bond_type_arr;
+        this.objects.push(metal_obj);
       }
       if (sphere_arr.length !== 0) {
         this.objects.push(makeBalls(sphere_arr, sphere_color_arr, ball_size));
       }
-    } else if (vertex_arr.length !== 0) {
+    } else if (vertex_arr.length !== 0 || metal_vertex_arr.length !== 0) {
       const linewidth = scale_by_height(this.conf.bond_line, this.win_size);
-      const material = makeLineMaterial({
-        linewidth: linewidth,
-        win_size: this.win_size,
-      });
-      this.objects.push(makeLineSegments(material, vertex_arr, color_arr));
+      if (vertex_arr.length !== 0) {
+        const material = makeLineMaterial({
+          linewidth: linewidth,
+          win_size: this.win_size,
+        });
+        const obj = makeLineSegments(material, vertex_arr, color_arr);
+        obj.userData.bond_types = bond_type_arr;
+        this.objects.push(obj);
+      }
+      if (metal_vertex_arr.length !== 0) {
+        const metal_material = makeLineMaterial({
+          linewidth: linewidth * 0.6,
+          win_size: this.win_size,
+        });
+        const metal_obj = makeLineSegments(metal_material, metal_vertex_arr,
+                                           metal_color_arr);
+        metal_obj.userData.bond_types = metal_bond_type_arr;
+        this.objects.push(metal_obj);
+      }
       if (this.conf.line_style !== 'simplistic') {
         // wheels (discs) as round caps
         this.objects.push(makeWheels(sphere_arr, sphere_color_arr, linewidth));
@@ -339,6 +376,111 @@ class ModelBag {
     }
 
     sphere_arr.forEach(function (v) { this.atom_array.push(v); }, this);
+  }
+
+  add_sticks(polymers: boolean, ligands: boolean, radius: number) {
+    const visible_atoms = this.get_visible_atoms();
+    const colors = color_by(this.conf.color_prop, visible_atoms,
+                            this.conf.colors, this.hue_shift);
+    const vertex_arr: Num3[] = [];
+    const color_arr = [];
+    const bond_type_arr = [];
+    const metal_vertex_arr: Num3[] = [];
+    const metal_color_arr = [];
+    const metal_bond_type_arr = [];
+    const atom_arr = [];
+    const metal_color = this.conf.colors.center;
+    const hydrogens = this.conf.hydrogens;
+    for (let i = 0; i < visible_atoms.length; i++) {
+      const atom = visible_atoms[i];
+      const color = colors[i];
+      if (!(atom.is_ligand ? ligands : polymers)) continue;
+      if (atom.is_water() && this.conf.water_style === 'invisible') continue;
+      atom_arr.push(atom);
+      if (atom.bonds.length === 0) continue;
+      for (let j = 0; j < atom.bonds.length; j++) {
+        const other = this.model.atoms[atom.bonds[j]];
+        if (!hydrogens && other.element === 'H') continue;
+        const bond_type = atom.bond_types[j];
+        if (bond_type === BondType.Metal) {
+          const mid = atom.midpoint(other);
+          metal_vertex_arr.push(atom.xyz, mid);
+          metal_color_arr.push(metal_color, metal_color);
+          metal_bond_type_arr.push(bond_type, bond_type);
+        } else if (bond_type === BondType.Double) {
+          this.add_offset_stick(vertex_arr, color_arr, bond_type_arr,
+                                atom, other, color, bond_type, radius * 0.75);
+          this.add_offset_stick(vertex_arr, color_arr, bond_type_arr,
+                                atom, other, color, bond_type, -radius * 0.75);
+        } else if (bond_type === BondType.Triple) {
+          const mid = atom.midpoint(other);
+          vertex_arr.push(atom.xyz, mid);
+          color_arr.push(color, color);
+          bond_type_arr.push(bond_type, bond_type);
+          this.add_offset_stick(vertex_arr, color_arr, bond_type_arr,
+                                atom, other, color, bond_type, radius * 1.2);
+          this.add_offset_stick(vertex_arr, color_arr, bond_type_arr,
+                                atom, other, color, bond_type, -radius * 1.2);
+        } else {
+          const mid = atom.midpoint(other);
+          vertex_arr.push(atom.xyz, mid);
+          color_arr.push(color, color);
+          bond_type_arr.push(bond_type, bond_type);
+        }
+      }
+    }
+    if (vertex_arr.length !== 0) {
+      const obj = makeSticks(vertex_arr, color_arr, radius);
+      obj.userData.bond_types = bond_type_arr;
+      this.objects.push(obj);
+    }
+    if (metal_vertex_arr.length !== 0) {
+      const metal_obj = makeSticks(metal_vertex_arr, metal_color_arr,
+                                   radius * 0.6);
+      metal_obj.userData.bond_types = metal_bond_type_arr;
+      this.objects.push(metal_obj);
+    }
+    this.atom_array = atom_arr;
+  }
+
+  bond_normal(atom: Atom, other: Atom): Num3 {
+    const first = atom.i_seq < other.i_seq ? atom : other;
+    const second = atom.i_seq < other.i_seq ? other : atom;
+    const dir = [
+      second.xyz[0] - first.xyz[0],
+      second.xyz[1] - first.xyz[1],
+      second.xyz[2] - first.xyz[2],
+    ];
+    const ref = (Math.abs(dir[2]) < Math.abs(dir[1])) ? [0, 0, 1] : [0, 1, 0];
+    let normal: Num3 = [
+      dir[1] * ref[2] - dir[2] * ref[1],
+      dir[2] * ref[0] - dir[0] * ref[2],
+      dir[0] * ref[1] - dir[1] * ref[0],
+    ];
+    const len = Math.sqrt(normal[0] * normal[0] +
+                          normal[1] * normal[1] +
+                          normal[2] * normal[2]);
+    if (len < 1e-6) return [1, 0, 0];
+    normal = [normal[0] / len, normal[1] / len, normal[2] / len];
+    return normal;
+  }
+
+  add_offset_stick(vertex_arr: Num3[], color_arr: Color[], bond_type_arr: number[],
+                   atom: Atom, other: Atom, color: Color, bond_type: number,
+                   offset_scale: number) {
+    const mid = atom.midpoint(other);
+    const normal = this.bond_normal(atom, other);
+    const offset = [
+      normal[0] * offset_scale,
+      normal[1] * offset_scale,
+      normal[2] * offset_scale,
+    ];
+    vertex_arr.push(
+      [atom.xyz[0] + offset[0], atom.xyz[1] + offset[1], atom.xyz[2] + offset[2]],
+      [mid[0] + offset[0], mid[1] + offset[1], mid[2] + offset[2]],
+    );
+    color_arr.push(color, color);
+    bond_type_arr.push(bond_type, bond_type);
   }
 
   add_trace() {
@@ -448,6 +590,11 @@ export class Viewer {
   labels: {[index:string]: {o: Label, bag: ModelBag}};
   //nav: object | null;
   xhr_headers: Record<string, string>;
+  monomer_cif_cache: Record<string, Promise<string | null>>;
+  last_bonding_info: GemmiBondingInfo | null;
+  gemmi_factory: (() => Promise<any>) | null;
+  gemmi_module: any;
+  gemmi_loading: Promise<any> | null;
   config: ViewerConfig;
   window_size: Num2;
   window_offset: Num2;
@@ -488,6 +635,11 @@ export class Viewer {
     this.labels = {};
     //this.nav = null;
     this.xhr_headers = {};
+    this.monomer_cif_cache = {};
+    this.last_bonding_info = null;
+    this.gemmi_factory = null;
+    this.gemmi_module = null;
+    this.gemmi_loading = null;
 
     this.config = {
       bond_line: 4.0, // ~ to height, like in Coot (see scale_by_height())
@@ -514,6 +666,14 @@ export class Viewer {
       if (o in this.config) {
         this.config[o] = options[o];
       }
+    }
+    if (options.gemmi) {
+      this.gemmi_module = options.gemmi;
+    } else if (options.gemmi_factory) {
+      this.gemmi_factory = options.gemmi_factory;
+    } else if (typeof globalThis !== 'undefined' &&
+               typeof (globalThis as any).Gemmi === 'function') {
+      this.gemmi_factory = (globalThis as any).Gemmi;
     }
 
     this.set_colors();
@@ -778,6 +938,14 @@ export class Viewer {
           model_bag.add_bonds(true, false);
           model_bag.add_bonds(false, true, ligand_balls);
         }
+        break;
+      case 'sticks':
+        if (!this.has_frag_depth()) {
+          this.hud('Stick rendering is not working in this browser' +
+                   '\ndue to lack of suppport for EXT_frag_depth', 'ERR');
+          return;
+        }
+        model_bag.add_sticks(true, true, THIN_STICK_RADIUS);
         break;
       case 'ball&stick':
         if (!this.has_frag_depth()) {
@@ -1570,12 +1738,16 @@ export class Viewer {
   pick_pdb_and_map(file: File) {
     const self = this;
     const reader = new FileReader();
-    if (/\.(pdb|ent)$/.test(file.name)) {
-      reader.onload = function (evt) {
-        self.load_pdb_from_text(evt.target.result as string);
-        self.recenter();
+    if (/\.(pdb|ent|cif|mmcif|mcif|mmjson)$/i.test(file.name)) {
+      reader.onloadend = function (evt) {
+        if (evt.target == null || evt.target.readyState != 2) return;
+        self.load_coordinate_buffer(evt.target.result as ArrayBuffer, file.name).then(function () {
+          self.recenter();
+        }, function (e) {
+          self.hud('Loading ' + file.name + ' failed.\n' + e.message, 'ERR');
+        });
       };
-      reader.readAsText(file);
+      reader.readAsArrayBuffer(file);
     } else if (/\.(map|ccp4|mrc|dsn6|omap)$/.test(file.name)) {
       const map_format = /\.(dsn6|omap)$/.test(file.name) ? 'dsn6' : 'ccp4';
       reader.onloadend = function (evt) {
@@ -1590,7 +1762,7 @@ export class Viewer {
       reader.readAsArrayBuffer(file);
     } else {
       throw Error('Unknown file extension. ' +
-                  'Use: pdb, ent, ccp4, mrc, map, dsn6 or omap.');
+                  'Use: pdb, ent, cif, mmcif, mcif, mmjson, ccp4, mrc, map, dsn6 or omap.');
     }
   }
 
@@ -1600,40 +1772,108 @@ export class Viewer {
     this.recenter(frag.xyz || (options && options.center), frag.eye, 1);
   }
 
-  // Load molecular model from PDB file and centers the view
-  load_pdb_from_text(text: string) {
-    const len = this.model_bags.length;
-    const models = modelsFromPDB(text);
-    for (const model of models) {
-      this.add_model(model);
+  fetch_monomer_cif(resname: string) {
+    const name = resname.toUpperCase();
+    if (!(name in this.monomer_cif_cache)) {
+      this.monomer_cif_cache[name] = fetch(
+        'https://files.rcsb.org/ligands/view/' + encodeURIComponent(name) + '.cif'
+      ).then(function (resp) {
+        return resp.ok ? resp.text() : null;
+      }).catch(function () {
+        return null;
+      });
     }
-    this.selected.bag = this.model_bags[len];
+    return this.monomer_cif_cache[name];
+  }
+
+  fetch_monomer_cifs(resnames: string[]) {
+    const unique = Array.from(new Set(resnames.filter(Boolean))).sort();
+    return Promise.all(unique.map(this.fetch_monomer_cif, this)).then(function (cif_texts) {
+      return cif_texts.filter(function (v): v is string { return v != null; });
+    });
+  }
+
+  has_gemmi() {
+    return this.gemmi_module != null || this.gemmi_factory != null;
+  }
+
+  resolve_gemmi(explicit_module?: any) {
+    if (explicit_module) return Promise.resolve(explicit_module);
+    if (this.gemmi_module) return Promise.resolve(this.gemmi_module);
+    if (this.gemmi_factory == null) return Promise.resolve(null);
+    if (this.gemmi_loading == null) {
+      const self = this;
+      this.gemmi_loading = this.gemmi_factory().then(function (gemmi) {
+        self.gemmi_module = gemmi;
+        return gemmi;
+      }, function (err) {
+        self.gemmi_loading = null;
+        throw err;
+      });
+    }
+    return this.gemmi_loading;
+  }
+
+  load_coordinate_buffer(buffer: ArrayBuffer, name: string, explicit_gemmi?: any) {
+    const self = this;
+    return this.resolve_gemmi(explicit_gemmi).then(function (gemmi) {
+      if (gemmi) {
+        return self.load_structure_from_buffer(gemmi, buffer, name);
+      }
+      const text = new TextDecoder().decode(buffer);
+      return self.load_pdb_from_text(text, name, null);
+    });
+  }
+
+  // Load molecular model from PDB file and centers the view
+  load_pdb_from_text(text: string, name: string='model.pdb', explicit_gemmi?: any) {
+    const self = this;
+    return this.resolve_gemmi(explicit_gemmi).then(function (gemmi) {
+      if (gemmi) {
+        const buffer = new TextEncoder().encode(text).buffer;
+        return self.load_structure_from_buffer(gemmi, buffer, name);
+      }
+      const len = self.model_bags.length;
+      const models = modelsFromPDB(text);
+      for (const model of models) {
+        self.add_model(model);
+      }
+      self.selected.bag = self.model_bags[len];
+      self.last_bonding_info = null;
+    });
   }
 
   load_structure_from_buffer(gemmi, buffer: ArrayBuffer, name: string) {
     const len = this.model_bags.length;
-    const models = modelsFromGemmi(gemmi, buffer, name);
-    for (const model of models) {
-      this.add_model(model);
-    }
-    this.selected.bag = this.model_bags[len];
+    const self = this;
+    return modelsFromGemmi(gemmi, buffer, name,
+                           this.fetch_monomer_cifs.bind(this)).then(function (result) {
+      for (const model of result.models) {
+        self.add_model(model);
+      }
+      self.selected.bag = self.model_bags[len];
+      self.last_bonding_info = result.bonding;
+    });
   }
 
   load_pdb(url: string, options?: Record<string, any>,
            callback?: () => void) {
     const self = this;
     const gemmi = options && options.gemmi;
-    this.load_file(url, {binary: !!gemmi, progress: true}, function (req) {
+    const wants_binary = !!gemmi || this.has_gemmi();
+    this.load_file(url, {binary: wants_binary, progress: true}, function (req) {
       const t0 = performance.now();
-      if (gemmi) {
-        self.load_structure_from_buffer(gemmi, req.response, url);
-      } else {
-        self.load_pdb_from_text(req.responseText);
-      }
-      console.log('coordinate file processed in', (performance.now() - t0).toFixed(2),
-                  gemmi ? 'ms (using gemmi)': 'ms');
-      if (options == null || !options.stay) self.set_view(options);
-      if (callback) callback();
+      const load = wants_binary ?
+        self.load_coordinate_buffer(req.response, url, gemmi) :
+        self.load_pdb_from_text(req.responseText, url, gemmi);
+      load.then(function () {
+        console.log('coordinate file processed in', (performance.now() - t0).toFixed(2),
+                    (gemmi || self.gemmi_module) ? 'ms (using gemmi)': 'ms');
+        if (options == null || !options.stay) self.set_view(options);
+        if (callback) callback();
+      }, function (e) {
+        self.hud('Error: ' + e.message + '\nwhen processing ' + url, 'ERR');
+      });
     });
   }
 
@@ -1776,4 +2016,3 @@ Viewer.prototype.ABOUT_HELP =
   (typeof VERSION === 'string' ? VERSION : 'dev'); // eslint-disable-line
 
 Viewer.prototype.ColorSchemes = ColorSchemes;
-

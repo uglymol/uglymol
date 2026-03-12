@@ -98,50 +98,141 @@ function modelsFromPDB(pdb_string) {
   return models;
 }
 
-function modelsFromGemmi(gemmi, buffer, name) {
+
+
+
+
+
+
+
+var BondType = {
+  Unspec: 0,
+  Single: 1,
+  Double: 2,
+  Triple: 3,
+  Aromatic: 4,
+  Deloc: 5,
+  Metal: 6,
+} ;
+ 
+
+function getGemmiBondData(gemmi, st,
+                          getMonomerCifs) {
+  if (typeof gemmi.BondInfo !== 'function') {
+    return Promise.resolve({
+      bond_data: null,
+      info: {
+        source: 'unavailable',
+        monomers_requested: 0,
+        monomers_loaded: 0,
+        bond_count: 0,
+      } ,
+    });
+  }
+  var bond_info = new gemmi.BondInfo();
+  var resnames = (getMonomerCifs && typeof gemmi.get_residue_names === 'function') ?
+    gemmi.get_residue_names(st).split(',').filter(Boolean) :
+    [];
+  var monomers_requested = Array.from(new Set(resnames)).length;
+  var loaded_monomers = 0;
+  var load_monomers = (resnames.length !== 0) ?
+    getMonomerCifs(resnames) :
+    Promise.resolve([]);
+  return load_monomers.then(function (cif_texts) {
+    for (var i = 0, list = cif_texts; i < list.length; i += 1) {
+      var cif_text = list[i];
+
+      bond_info.add_monomer_cif(cif_text);
+      loaded_monomers++;
+    }
+    bond_info.get_bond_lines(st);
+    var len = bond_info.bond_data_size();
+    var source = (len !== 0 ? 'gemmi' : 'fallback');
+    var info = {
+      source: source,
+      monomers_requested: monomers_requested,
+      monomers_loaded: loaded_monomers,
+      bond_count: len / 3,
+    };
+    if (loaded_monomers === 0 && len === 0) { return { bond_data: null, info: info }; }
+    var ptr = bond_info.bond_data_ptr();
+    return {
+      bond_data: new Int32Array(gemmi.HEAPU8.buffer, ptr, len).slice(),
+      info: info,
+    };
+  }, function (err) {
+    bond_info.delete();
+    throw err;
+  }).then(function (bond_data) {
+    bond_info.delete();
+    return bond_data;
+  }, function (err) {
+    bond_info.delete();
+    throw err;
+  });
+}
+
+function modelsFromGemmi(gemmi, buffer, name,
+                                getMonomerCifs) {
   var st = gemmi.read_structure(buffer, name);
-  var cell = st.cell;  // TODO: check if a copy of cell is created here
-  var models = [];
-  for (var i_model = 0; i_model < st.length; ++i_model) {
-    var model = st.at(i_model);
-    var m = new Model();
-    m.unit_cell = new UnitCell(cell.a, cell.b, cell.c, cell.alpha, cell.beta, cell.gamma);
-    var atom_i_seq = 0;
-    for (var i_chain = 0; i_chain < model.length; ++i_chain) {
-      var chain = model.at(i_chain);
-      var chain_name = chain.name;
-      for (var i_res = 0; i_res < chain.length; ++i_res) {
-        var res = chain.at(i_res);
-        var seqid = res.seqid_string;
-        var resname = res.name;
-        var ent_type = res.entity_type_string;
-        var is_ligand = (ent_type === "non-polymer" || ent_type === "branched");
-        for (var i_atom = 0; i_atom < res.length; ++i_atom) {
-          var atom = res.at(i_atom);
-          var new_atom = new Atom();
-          new_atom.i_seq = atom_i_seq++;
-          new_atom.chain = chain_name;
-          new_atom.chain_index = i_chain + 1;
-          new_atom.resname = resname;
-          new_atom.seqid = seqid;
-          new_atom.name = atom.name;
-          new_atom.altloc = atom.altloc === 0 ? '' : String.fromCharCode(atom.altloc);
-          new_atom.xyz = atom.pos;
-          new_atom.occ = atom.occ;
-          new_atom.b = atom.b_iso;
-          new_atom.element = atom.element_uname;
-          new_atom.is_ligand = is_ligand;
-          m.atoms.push(new_atom);
-        }
+  return getGemmiBondData(gemmi, st, getMonomerCifs).then(function (bond_result) {
+    var bond_data = bond_result.bond_data;
+    var cell = st.cell;  // TODO: check if a copy of cell is created here
+    var models = [];
+    var max_bond_atom = -1;
+    if (bond_data != null) {
+      for (var i = 0; i < bond_data.length; i += 3) {
+        max_bond_atom = Math.max(max_bond_atom, bond_data[i], bond_data[i+1]);
       }
     }
-    m.calculate_bounds();
-    m.calculate_connectivity();
-    models.push(m);
-  }
-  st.delete();
-  //console.log("[after modelsFromGemmi] wasm mem:", gemmi.HEAPU8.length / 1024, "kb");
-  return models;
+    for (var i_model = 0; i_model < st.length; ++i_model) {
+      var model = st.at(i_model);
+      var m = new Model();
+      m.unit_cell = new UnitCell(cell.a, cell.b, cell.c, cell.alpha, cell.beta, cell.gamma);
+      var atom_i_seq = 0;
+      for (var i_chain = 0; i_chain < model.length; ++i_chain) {
+        var chain = model.at(i_chain);
+        var chain_name = chain.name;
+        for (var i_res = 0; i_res < chain.length; ++i_res) {
+          var res = chain.at(i_res);
+          var seqid = res.seqid_string;
+          var resname = res.name;
+          var ent_type = res.entity_type_string;
+          var is_ligand = (ent_type === 'non-polymer' || ent_type === 'branched');
+          for (var i_atom = 0; i_atom < res.length; ++i_atom) {
+            var atom = res.at(i_atom);
+            var new_atom = new Atom();
+            new_atom.i_seq = atom_i_seq++;
+            new_atom.chain = chain_name;
+            new_atom.chain_index = i_chain + 1;
+            new_atom.resname = resname;
+            new_atom.seqid = seqid;
+            new_atom.name = atom.name;
+            new_atom.altloc = atom.altloc === 0 ? '' : String.fromCharCode(atom.altloc);
+            new_atom.xyz = atom.pos;
+            new_atom.occ = atom.occ;
+            new_atom.b = atom.b_iso;
+            new_atom.element = atom.element_uname;
+            new_atom.is_ligand = is_ligand;
+            m.atoms.push(new_atom);
+          }
+        }
+      }
+      m.calculate_bounds();
+      if (i_model === 0 && bond_data != null && max_bond_atom < m.atoms.length) {
+        m.apply_bond_data(bond_data);
+      } else {
+        m.calculate_connectivity();
+      }
+      models.push(m);
+    }
+    st.delete();
+    //console.log("[after modelsFromGemmi] wasm mem:", gemmi.HEAPU8.length / 1024, "kb");
+    return { models: models, bonding: bond_result.info };
+  }, function (err) {
+    st.delete();
+    throw err;
+  });
 }
 
 var Model = function Model() {
@@ -320,7 +411,13 @@ Model.prototype.get_center = function get_center () {
 
 Model.prototype.calculate_connectivity = function calculate_connectivity () {
   var atoms = this.atoms;
-  var cubes = new Cubicles(atoms, 3.0, this.lower_bound, this.upper_bound);
+  var cubes = this.calculate_cubicles();
+  for (var i$1 = 0, list = atoms; i$1 < list.length; i$1 += 1) {
+    var atom = list[i$1];
+
+      atom.bonds = [];
+    atom.bond_types = [];
+  }
   //let cnt = 0;
   for (var i = 0; i < cubes.boxes.length; i++) {
     var box = cubes.boxes[i];
@@ -331,15 +428,46 @@ Model.prototype.calculate_connectivity = function calculate_connectivity () {
       for (var k = 0; k < nearby_atoms.length; k++) {
         var j = nearby_atoms[k];
         if (j > atom_id && atoms[atom_id].is_bonded_to(atoms[j])) {
-          atoms[atom_id].bonds.push(j);
-          atoms[j].bonds.push(atom_id);
+          this.add_bond(atom_id, j, BondType.Unspec);
           //cnt++;
         }
       }
     }
   }
   //console.log(atoms.length + ' atoms, ' + cnt + ' bonds.');
+};
+
+Model.prototype.calculate_cubicles = function calculate_cubicles () {
+  var cubes = new Cubicles(this.atoms, 3.0, this.lower_bound, this.upper_bound);
   this.cubes = cubes;
+  return cubes;
+};
+
+Model.prototype.apply_bond_data = function apply_bond_data (bond_data) {
+  for (var i$1 = 0, list = this.atoms; i$1 < list.length; i$1 += 1) {
+    var atom = list[i$1];
+
+      atom.bonds = [];
+    atom.bond_types = [];
+  }
+  for (var i = 0; i + 2 < bond_data.length; i += 3) {
+    var idx1 = bond_data[i];
+    var idx2 = bond_data[i+1];
+    var bond_type = bond_data[i+2] ;
+    if (idx1 < 0 || idx2 < 0 ||
+        idx1 >= this.atoms.length || idx2 >= this.atoms.length) {
+      continue;
+    }
+    this.add_bond(idx1, idx2, bond_type);
+  }
+  this.calculate_cubicles();
+};
+
+Model.prototype.add_bond = function add_bond (idx1, idx2, bond_type) {
+  this.atoms[idx1].bonds.push(idx2);
+  this.atoms[idx1].bond_types.push(bond_type);
+  this.atoms[idx2].bonds.push(idx1);
+  this.atoms[idx2].bond_types.push(bond_type);
 };
 
 Model.prototype.get_nearest_atom = function get_nearest_atom (x, y, z, atom_name) {
@@ -379,6 +507,7 @@ var Atom = function Atom() {
   this.i_seq = -1;
   this.is_ligand = null;
   this.bonds = [];
+  this.bond_types = [];
 };
 
 // http://www.wwpdb.org/documentation/format33/sect9.html#ATOM
@@ -2225,7 +2354,7 @@ Matrix4.prototype.makeOrthographic = function makeOrthographic (left, right, top
 
   te[0] = 2 * w; te[4] = 0; te[8] = 0; te[12] = -x;
   te[1] = 0; te[5] = 2 * h; te[9] = 0; te[13] = -y;
-  te[2] = 0; te[6] = 0; te[10] = - 2 * p; te[14] = -z;
+  te[2] = 0; te[6] = 0; te[10] = -2 * p; te[14] = -z;
   te[3] = 0; te[7] = 0; te[11] = 0; te[15] = 1;
 
   return this;
@@ -3385,7 +3514,7 @@ var BufferAttribute = function BufferAttribute(array, itemSize, normalized) {
   //this.gpuType = FloatType;
   // FIXME: old variables
   this.dynamic = false;
-  this.updateRange = { offset: 0, count: - 1 };
+  this.updateRange = { offset: 0, count: -1 };
   this.uuid = generateUUID();
 
   this.version = 0;
@@ -3986,7 +4115,7 @@ function WebGLObjects( gl, properties, info ) {
 
     if ( data.dynamic === false ) {
       gl.bufferData( bufferType, data.array, gl.STATIC_DRAW );
-    } else if ( data.updateRange.count === - 1 ) {
+    } else if ( data.updateRange.count === -1 ) {
       // Not using update ranges
 
       gl.bufferSubData( bufferType, 0, data.array );
@@ -4235,7 +4364,7 @@ function WebGLState( gl ) {
 
   var glVersion = gl.getParameter(gl.VERSION);
   var lineWidthAvailable = false;
-  if ( glVersion.indexOf( 'WebGL' ) !== - 1 ) {
+  if ( glVersion.indexOf( 'WebGL' ) !== -1 ) {
     var version = parseFloat( /^WebGL\ (\d)/.exec( glVersion )[1] );
     lineWidthAvailable = ( version >= 1.0 );
   }
@@ -4525,9 +4654,9 @@ function WebGLRenderer( parameters ) {
     _premultipliedAlpha = parameters.premultipliedAlpha !== undefined ? parameters.premultipliedAlpha : true;
 
   var opaqueObjects = [];
-  var opaqueObjectsLastIndex = - 1;
+  var opaqueObjectsLastIndex = -1;
   var transparentObjects = [];
-  var transparentObjectsLastIndex = - 1;
+  var transparentObjectsLastIndex = -1;
 
   // public properties
 
@@ -4552,7 +4681,7 @@ function WebGLRenderer( parameters ) {
 
     _currentProgram = null,
     _currentRenderTarget = null,
-    _currentMaterialId = - 1,
+    _currentMaterialId = -1,
     _currentGeometryProgram = '',
     _currentCamera = null,
 
@@ -4663,7 +4792,7 @@ function WebGLRenderer( parameters ) {
     _currentCamera = null;
 
     _currentGeometryProgram = '';
-    _currentMaterialId = - 1;
+    _currentMaterialId = -1;
 
     state.reset();
   }
@@ -4956,7 +5085,7 @@ function WebGLRenderer( parameters ) {
     // reset caching for this frame
 
     _currentGeometryProgram = '';
-    _currentMaterialId = - 1;
+    _currentMaterialId = -1;
     _currentCamera = null;
 
     // update scene graph
@@ -4971,8 +5100,8 @@ function WebGLRenderer( parameters ) {
 
     _projScreenMatrix.multiplyMatrices( camera.projectionMatrix, camera.matrixWorldInverse );
 
-    opaqueObjectsLastIndex = - 1;
-    transparentObjectsLastIndex = - 1;
+    opaqueObjectsLastIndex = -1;
+    transparentObjectsLastIndex = -1;
 
     projectObject( scene );
 
@@ -5933,10 +6062,10 @@ function makeSticks(vertex_arr, color_arr, radius) {
     corner[8*i$1 + 0] = -1;  // 0
     corner[8*i$1 + 1] = -1;  // 0
     corner[8*i$1 + 2] = -1;  // 1
-    corner[8*i$1 + 3] = +1;  // 1
-    corner[8*i$1 + 4] = +1;  // 2
-    corner[8*i$1 + 5] = +1;  // 2
-    corner[8*i$1 + 6] = +1;  // 3
+    corner[8*i$1 + 3] = 1;  // 1
+    corner[8*i$1 + 4] = 1;  // 2
+    corner[8*i$1 + 5] = 1;  // 2
+    corner[8*i$1 + 6] = 1;  // 3
     corner[8*i$1 + 7] = -1;  // 3
   }
   geometry.setAttribute('axis', new BufferAttribute(axis, 3));
@@ -5970,10 +6099,10 @@ function makeBalls(atom_arr, color_arr, radius) {
     corner[8*i$1 + 0] = -1;  // 0
     corner[8*i$1 + 1] = -1;  // 0
     corner[8*i$1 + 2] = -1;  // 1
-    corner[8*i$1 + 3] = +1;  // 1
-    corner[8*i$1 + 4] = +1;  // 2
-    corner[8*i$1 + 5] = +1;  // 2
-    corner[8*i$1 + 6] = +1;  // 3
+    corner[8*i$1 + 3] = 1;  // 1
+    corner[8*i$1 + 4] = 1;  // 2
+    corner[8*i$1 + 5] = 1;  // 2
+    corner[8*i$1 + 6] = 1;  // 3
     corner[8*i$1 + 7] = -1;  // 3
   }
   geometry.setAttribute('corner', new BufferAttribute(corner, 2));
@@ -6174,7 +6303,7 @@ Controls.prototype._zoom_camera = function _zoom_camera (eye) {
   if (this._state === STATE.ZOOM) {
     this._camera.zoom /= (1 - dx + dy);
   } else if (this._state === STATE.SLAB) {
-    this._target.addScaledVector(eye, -5.0 / eye.length() * dy);
+    this._target.addScaledVector(eye, -5 / eye.length() * dy);
   } else if (this._state === STATE.ROLL) {
     var quat = new Quaternion();
     quat.setFromAxisAngle(eye, 0.05 * (dx - dy));
@@ -6461,12 +6590,13 @@ var INIT_HUD_TEXT = 'This is UglyMol not Coot. ' +
 // options handled by select_next()
 
 var COLOR_PROPS = ['element', 'B-factor', 'pLDDT', 'occupancy', 'index', 'chain'];
-var RENDER_STYLES = ['lines', 'trace', 'ribbon', 'ball&stick'];
+var RENDER_STYLES = ['lines', 'sticks', 'trace', 'ribbon', 'ball&stick'];
 var LIGAND_STYLES = ['ball&stick', 'lines'];
 var WATER_STYLES = ['cross', 'dot', 'invisible'];
 var MAP_STYLES = ['marching cubes', 'squarish' ];
 var LINE_STYLES = ['normal', 'simplistic'];
 var LABEL_FONTS = ['bold 14px', '14px', '16px', 'bold 16px'];
+var THIN_STICK_RADIUS = 0.08;
 
 function rainbow_value(v, vmin, vmax) {
   var c = new Color(0xe0e0e0);
@@ -6587,8 +6717,13 @@ ModelBag.prototype.add_bonds = function add_bonds (polymers, ligands, ball_size)
                           this.conf.colors, this.hue_shift);
   var vertex_arr = [];
   var color_arr = [];
+  var bond_type_arr = [];
+  var metal_vertex_arr = [];
+  var metal_color_arr = [];
+  var metal_bond_type_arr = [];
   var sphere_arr = [];
   var sphere_color_arr = [];
+  var metal_color = this.conf.colors.center;
   var hydrogens = this.conf.hydrogens;
   for (var i = 0; i < visible_atoms.length; i++) {
     var atom = visible_atoms[i];
@@ -6609,8 +6744,16 @@ ModelBag.prototype.add_bonds = function add_bonds (polymers, ligands, ball_size)
         // Coot show X-H bonds as thinner lines in a single color.
         // Here we keep it simple and render such bonds like all others.
         var mid = atom.midpoint(other);
-        vertex_arr.push(atom.xyz, mid);
-        color_arr.push(color, color);
+        var bond_type = atom.bond_types[j];
+        if (bond_type === BondType.Metal) {
+          metal_vertex_arr.push(atom.xyz, mid);
+          metal_color_arr.push(metal_color, metal_color);
+          metal_bond_type_arr.push(bond_type, bond_type);
+        } else {
+          vertex_arr.push(atom.xyz, mid);
+          color_arr.push(color, color);
+          bond_type_arr.push(bond_type, bond_type);
+        }
       }
     }
     sphere_arr.push(atom);
@@ -6619,18 +6762,40 @@ ModelBag.prototype.add_bonds = function add_bonds (polymers, ligands, ball_size)
 
   if (ball_size != null) {
     if (vertex_arr.length !== 0) {
-      this.objects.push(makeSticks(vertex_arr, color_arr, ball_size / 2));
+      var obj = makeSticks(vertex_arr, color_arr, ball_size / 2);
+      obj.userData.bond_types = bond_type_arr;
+      this.objects.push(obj);
+    }
+    if (metal_vertex_arr.length !== 0) {
+      var metal_obj = makeSticks(metal_vertex_arr, metal_color_arr,
+                                   ball_size * 0.3);
+      metal_obj.userData.bond_types = metal_bond_type_arr;
+      this.objects.push(metal_obj);
     }
     if (sphere_arr.length !== 0) {
       this.objects.push(makeBalls(sphere_arr, sphere_color_arr, ball_size));
     }
-  } else if (vertex_arr.length !== 0) {
+  } else if (vertex_arr.length !== 0 || metal_vertex_arr.length !== 0) {
     var linewidth = scale_by_height(this.conf.bond_line, this.win_size);
-    var material = makeLineMaterial({
-      linewidth: linewidth,
-      win_size: this.win_size,
-    });
-    this.objects.push(makeLineSegments(material, vertex_arr, color_arr));
+    if (vertex_arr.length !== 0) {
+      var material = makeLineMaterial({
+        linewidth: linewidth,
+        win_size: this.win_size,
+      });
+      var obj$1 = makeLineSegments(material, vertex_arr, color_arr);
+      obj$1.userData.bond_types = bond_type_arr;
+      this.objects.push(obj$1);
+    }
+    if (metal_vertex_arr.length !== 0) {
+      var metal_material = makeLineMaterial({
+        linewidth: linewidth * 0.6,
+        win_size: this.win_size,
+      });
+      var metal_obj$1 = makeLineSegments(metal_material, metal_vertex_arr,
+                                         metal_color_arr);
+      metal_obj$1.userData.bond_types = metal_bond_type_arr;
+      this.objects.push(metal_obj$1);
+    }
     if (this.conf.line_style !== 'simplistic') {
       // wheels (discs) as round caps
       this.objects.push(makeWheels(sphere_arr, sphere_color_arr, linewidth));
@@ -6638,6 +6803,108 @@ ModelBag.prototype.add_bonds = function add_bonds (polymers, ligands, ball_size)
   }
 
   sphere_arr.forEach(function (v) { this.atom_array.push(v); }, this);
+};
+
+ModelBag.prototype.add_sticks = function add_sticks (polymers, ligands, radius) {
+  var visible_atoms = this.get_visible_atoms();
+  var colors = color_by(this.conf.color_prop, visible_atoms,
+                          this.conf.colors, this.hue_shift);
+  var vertex_arr = [];
+  var color_arr = [];
+  var bond_type_arr = [];
+  var metal_vertex_arr = [];
+  var metal_color_arr = [];
+  var metal_bond_type_arr = [];
+  var atom_arr = [];
+  var metal_color = this.conf.colors.center;
+  var hydrogens = this.conf.hydrogens;
+  for (var i = 0; i < visible_atoms.length; i++) {
+    var atom = visible_atoms[i];
+    var color = colors[i];
+    if (!(atom.is_ligand ? ligands : polymers)) { continue; }
+    if (atom.is_water() && this.conf.water_style === 'invisible') { continue; }
+    atom_arr.push(atom);
+    if (atom.bonds.length === 0) { continue; }
+    for (var j = 0; j < atom.bonds.length; j++) {
+      var other = this.model.atoms[atom.bonds[j]];
+      if (!hydrogens && other.element === 'H') { continue; }
+      var bond_type = atom.bond_types[j];
+      if (bond_type === BondType.Metal) {
+        var mid = atom.midpoint(other);
+        metal_vertex_arr.push(atom.xyz, mid);
+        metal_color_arr.push(metal_color, metal_color);
+        metal_bond_type_arr.push(bond_type, bond_type);
+      } else if (bond_type === BondType.Double) {
+        this.add_offset_stick(vertex_arr, color_arr, bond_type_arr,
+                              atom, other, color, bond_type, radius * 0.75);
+        this.add_offset_stick(vertex_arr, color_arr, bond_type_arr,
+                              atom, other, color, bond_type, -radius * 0.75);
+      } else if (bond_type === BondType.Triple) {
+        var mid$1 = atom.midpoint(other);
+        vertex_arr.push(atom.xyz, mid$1);
+        color_arr.push(color, color);
+        bond_type_arr.push(bond_type, bond_type);
+        this.add_offset_stick(vertex_arr, color_arr, bond_type_arr,
+                              atom, other, color, bond_type, radius * 1.2);
+        this.add_offset_stick(vertex_arr, color_arr, bond_type_arr,
+                              atom, other, color, bond_type, -radius * 1.2);
+      } else {
+        var mid$2 = atom.midpoint(other);
+        vertex_arr.push(atom.xyz, mid$2);
+        color_arr.push(color, color);
+        bond_type_arr.push(bond_type, bond_type);
+      }
+    }
+  }
+  if (vertex_arr.length !== 0) {
+    var obj = makeSticks(vertex_arr, color_arr, radius);
+    obj.userData.bond_types = bond_type_arr;
+    this.objects.push(obj);
+  }
+  if (metal_vertex_arr.length !== 0) {
+    var metal_obj = makeSticks(metal_vertex_arr, metal_color_arr,
+                                 radius * 0.6);
+    metal_obj.userData.bond_types = metal_bond_type_arr;
+    this.objects.push(metal_obj);
+  }
+  this.atom_array = atom_arr;
+};
+
+ModelBag.prototype.bond_normal = function bond_normal (atom, other) {
+  var first = atom.i_seq < other.i_seq ? atom : other;
+  var second = atom.i_seq < other.i_seq ? other : atom;
+  var dir = [
+    second.xyz[0] - first.xyz[0],
+    second.xyz[1] - first.xyz[1],
+    second.xyz[2] - first.xyz[2] ];
+  var ref = (Math.abs(dir[2]) < Math.abs(dir[1])) ? [0, 0, 1] : [0, 1, 0];
+  var normal = [
+    dir[1] * ref[2] - dir[2] * ref[1],
+    dir[2] * ref[0] - dir[0] * ref[2],
+    dir[0] * ref[1] - dir[1] * ref[0] ];
+  var len = Math.sqrt(normal[0] * normal[0] +
+                        normal[1] * normal[1] +
+                        normal[2] * normal[2]);
+  if (len < 1e-6) { return [1, 0, 0]; }
+  normal = [normal[0] / len, normal[1] / len, normal[2] / len];
+  return normal;
+};
+
+ModelBag.prototype.add_offset_stick = function add_offset_stick (vertex_arr, color_arr, bond_type_arr,
+                 atom, other, color, bond_type,
+                 offset_scale) {
+  var mid = atom.midpoint(other);
+  var normal = this.bond_normal(atom, other);
+  var offset = [
+    normal[0] * offset_scale,
+    normal[1] * offset_scale,
+    normal[2] * offset_scale ];
+  vertex_arr.push(
+    [atom.xyz[0] + offset[0], atom.xyz[1] + offset[1], atom.xyz[2] + offset[2]],
+    [mid[0] + offset[0], mid[1] + offset[1], mid[2] + offset[2]]
+  );
+  color_arr.push(color, color);
+  bond_type_arr.push(bond_type, bond_type);
 };
 
 ModelBag.prototype.add_trace = function add_trace () {
@@ -6753,6 +7020,11 @@ var Viewer = function Viewer(options) {
   this.labels = {};
   //this.nav = null;
   this.xhr_headers = {};
+  this.monomer_cif_cache = {};
+  this.last_bonding_info = null;
+  this.gemmi_factory = null;
+  this.gemmi_module = null;
+  this.gemmi_loading = null;
 
   this.config = {
     bond_line: 4.0, // ~ to height, like in Coot (see scale_by_height())
@@ -6781,6 +7053,14 @@ var Viewer = function Viewer(options) {
     if (o in this.config) {
       this.config[o] = options[o];
     }
+  }
+  if (options.gemmi) {
+    this.gemmi_module = options.gemmi;
+  } else if (options.gemmi_factory) {
+    this.gemmi_factory = options.gemmi_factory;
+  } else if (typeof globalThis !== 'undefined' &&
+             typeof (globalThis ).Gemmi === 'function') {
+    this.gemmi_factory = (globalThis ).Gemmi;
   }
 
   this.set_colors();
@@ -7057,6 +7337,14 @@ Viewer.prototype.set_model_objects = function set_model_objects (model_bag) {
         model_bag.add_bonds(true, false);
         model_bag.add_bonds(false, true, ligand_balls);
       }
+      break;
+    case 'sticks':
+      if (!this.has_frag_depth()) {
+        this.hud('Stick rendering is not working in this browser' +
+                 '\ndue to lack of suppport for EXT_frag_depth', 'ERR');
+        return;
+      }
+      model_bag.add_sticks(true, true, THIN_STICK_RADIUS);
       break;
     case 'ball&stick':
       if (!this.has_frag_depth()) {
@@ -7861,12 +8149,16 @@ Viewer.prototype.set_dropzone = function set_dropzone (zone, callback) {
 Viewer.prototype.pick_pdb_and_map = function pick_pdb_and_map (file) {
   var self = this;
   var reader = new FileReader();
-  if (/\.(pdb|ent)$/.test(file.name)) {
-    reader.onload = function (evt) {
-      self.load_pdb_from_text(evt.target.result );
-      self.recenter();
+  if (/\.(pdb|ent|cif|mmcif|mcif|mmjson)$/i.test(file.name)) {
+    reader.onloadend = function (evt) {
+      if (evt.target == null || evt.target.readyState != 2) { return; }
+      self.load_coordinate_buffer(evt.target.result , file.name).then(function () {
+        self.recenter();
+      }, function (e) {
+        self.hud('Loading ' + file.name + ' failed.\n' + e.message, 'ERR');
+      });
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
   } else if (/\.(map|ccp4|mrc|dsn6|omap)$/.test(file.name)) {
     var map_format = /\.(dsn6|omap)$/.test(file.name) ? 'dsn6' : 'ccp4';
     reader.onloadend = function (evt) {
@@ -7881,7 +8173,7 @@ Viewer.prototype.pick_pdb_and_map = function pick_pdb_and_map (file) {
     reader.readAsArrayBuffer(file);
   } else {
     throw Error('Unknown file extension. ' +
-                'Use: pdb, ent, ccp4, mrc, map, dsn6 or omap.');
+                'Use: pdb, ent, cif, mmcif, mcif, mmjson, ccp4, mrc, map, dsn6 or omap.');
   }
 };
 
@@ -7891,44 +8183,114 @@ Viewer.prototype.set_view = function set_view (options) {
   this.recenter(frag.xyz || (options && options.center), frag.eye, 1);
 };
 
-// Load molecular model from PDB file and centers the view
-Viewer.prototype.load_pdb_from_text = function load_pdb_from_text (text) {
-  var len = this.model_bags.length;
-  var models = modelsFromPDB(text);
-  for (var i = 0, list = models; i < list.length; i += 1) {
-    var model = list[i];
-
-      this.add_model(model);
+Viewer.prototype.fetch_monomer_cif = function fetch_monomer_cif (resname) {
+  var name = resname.toUpperCase();
+  if (!(name in this.monomer_cif_cache)) {
+    this.monomer_cif_cache[name] = fetch(
+      'https://files.rcsb.org/ligands/view/' + encodeURIComponent(name) + '.cif'
+    ).then(function (resp) {
+      return resp.ok ? resp.text() : null;
+    }).catch(function () {
+      return null;
+    });
   }
-  this.selected.bag = this.model_bags[len];
+  return this.monomer_cif_cache[name];
+};
+
+Viewer.prototype.fetch_monomer_cifs = function fetch_monomer_cifs (resnames) {
+  var unique = Array.from(new Set(resnames.filter(Boolean))).sort();
+  return Promise.all(unique.map(this.fetch_monomer_cif, this)).then(function (cif_texts) {
+    return cif_texts.filter(function (v) { return v != null; });
+  });
+};
+
+Viewer.prototype.has_gemmi = function has_gemmi () {
+  return this.gemmi_module != null || this.gemmi_factory != null;
+};
+
+Viewer.prototype.resolve_gemmi = function resolve_gemmi (explicit_module) {
+  if (explicit_module) { return Promise.resolve(explicit_module); }
+  if (this.gemmi_module) { return Promise.resolve(this.gemmi_module); }
+  if (this.gemmi_factory == null) { return Promise.resolve(null); }
+  if (this.gemmi_loading == null) {
+    var self = this;
+    this.gemmi_loading = this.gemmi_factory().then(function (gemmi) {
+      self.gemmi_module = gemmi;
+      return gemmi;
+    }, function (err) {
+      self.gemmi_loading = null;
+      throw err;
+    });
+  }
+  return this.gemmi_loading;
+};
+
+Viewer.prototype.load_coordinate_buffer = function load_coordinate_buffer (buffer, name, explicit_gemmi) {
+  var self = this;
+  return this.resolve_gemmi(explicit_gemmi).then(function (gemmi) {
+    if (gemmi) {
+      return self.load_structure_from_buffer(gemmi, buffer, name);
+    }
+    var text = new TextDecoder().decode(buffer);
+    return self.load_pdb_from_text(text, name, null);
+  });
+};
+
+// Load molecular model from PDB file and centers the view
+Viewer.prototype.load_pdb_from_text = function load_pdb_from_text (text, name, explicit_gemmi) {
+    if ( name === void 0 ) name='model.pdb';
+
+  var self = this;
+  return this.resolve_gemmi(explicit_gemmi).then(function (gemmi) {
+    if (gemmi) {
+      var buffer = new TextEncoder().encode(text).buffer;
+      return self.load_structure_from_buffer(gemmi, buffer, name);
+    }
+    var len = self.model_bags.length;
+    var models = modelsFromPDB(text);
+    for (var i = 0, list = models; i < list.length; i += 1) {
+      var model = list[i];
+
+        self.add_model(model);
+    }
+    self.selected.bag = self.model_bags[len];
+    self.last_bonding_info = null;
+  });
 };
 
 Viewer.prototype.load_structure_from_buffer = function load_structure_from_buffer (gemmi, buffer, name) {
   var len = this.model_bags.length;
-  var models = modelsFromGemmi(gemmi, buffer, name);
-  for (var i = 0, list = models; i < list.length; i += 1) {
-    var model = list[i];
+  var self = this;
+  return modelsFromGemmi(gemmi, buffer, name,
+                         this.fetch_monomer_cifs.bind(this)).then(function (result) {
+    for (var i = 0, list = result.models; i < list.length; i += 1) {
+      var model = list[i];
 
-      this.add_model(model);
-  }
-  this.selected.bag = this.model_bags[len];
+        self.add_model(model);
+    }
+    self.selected.bag = self.model_bags[len];
+    self.last_bonding_info = result.bonding;
+  });
 };
 
 Viewer.prototype.load_pdb = function load_pdb (url, options,
          callback) {
   var self = this;
   var gemmi = options && options.gemmi;
-  this.load_file(url, {binary: !!gemmi, progress: true}, function (req) {
+  var wants_binary = !!gemmi || this.has_gemmi();
+  this.load_file(url, {binary: wants_binary, progress: true}, function (req) {
     var t0 = performance.now();
-    if (gemmi) {
-      self.load_structure_from_buffer(gemmi, req.response, url);
-    } else {
-      self.load_pdb_from_text(req.responseText);
-    }
-    console.log('coordinate file processed in', (performance.now() - t0).toFixed(2),
-                gemmi ? 'ms (using gemmi)': 'ms');
-    if (options == null || !options.stay) { self.set_view(options); }
-    if (callback) { callback(); }
+    var load = wants_binary ?
+      self.load_coordinate_buffer(req.response, url, gemmi) :
+      self.load_pdb_from_text(req.responseText, url, gemmi);
+    load.then(function () {
+      console.log('coordinate file processed in', (performance.now() - t0).toFixed(2),
+                  (gemmi || self.gemmi_module) ? 'ms (using gemmi)': 'ms');
+      if (options == null || !options.stay) { self.set_view(options); }
+      if (callback) { callback(); }
+    }, function (e) {
+      self.hud('Error: ' + e.message + '\nwhen processing ' + url, 'ERR');
+    });
   });
 };
 
@@ -8325,7 +8687,7 @@ var ReciprocalViewer = /*@__PURE__*/(function (Viewer) {
       this.change_isolevel_by(0, -0.01);
     };
     // [
-    kb[219] = function () { this.change_map_radius(-0.001); };
+    kb[219] = function () { this.change_map_radius(-1e-3); };
     // ]
     kb[221] = function () { this.change_map_radius(0.001); };
   };
@@ -8618,6 +8980,7 @@ function set_pdb_and_mtz_dropzone(gemmi, viewer,
 
 exports.AmbientLight = AmbientLight;
 exports.Block = Block;
+exports.BondType = BondType;
 exports.BufferAttribute = BufferAttribute;
 exports.BufferGeometry = BufferGeometry;
 exports.Color = Color;

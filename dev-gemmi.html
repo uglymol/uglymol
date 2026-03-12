@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <title>1mru - UglyMol</title>
+  <title>1mru - UglyMol (Gemmi)</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, user-scalable=no">
   <meta name="theme-color" content="#333333">
@@ -60,7 +60,8 @@
    a { color: #59C; }
   </style>
 
-  <script src="uglymol.js?v=sticks-1"></script>
+  <script src="uglymol.js?v=gemmi-bonds-1"></script>
+  <script src="wasm/gemmi.js"></script>
 
 </head>
 <body style="background-color: black">
@@ -71,7 +72,29 @@
   <div id="inset"></div>
   <script>
     V = new UM.Viewer({viewer: "viewer", hud: "hud", help: "help"});
-    V.load_pdb("data/1mru.pdb");
+    V.hud("loading 1mru with Gemmi...");
+
+    function bondingSummary(info) {
+      if (!info) return "bonding: unavailable";
+      const fallback = (info.source === "fallback" || info.source === "unavailable");
+      return [
+        "Gemmi bonding summary",
+        "source: " + info.source,
+        "CCD loaded: " + info.monomers_loaded + " / " + info.monomers_requested,
+        "bonds: " + info.bond_count,
+        "fallback: " + (fallback ? "yes" : "no"),
+      ].join("\n");
+    }
+
+    function showBondingSummary() {
+      const text = bondingSummary(V.last_bonding_info);
+      V.initial_hud_html = text;
+      V.hud(text, "HTML");
+    }
+
+    V.load_pdb("data/1mru.pdb", {}, function () {
+      showBondingSummary();
+    });
     V.load_ccp4_maps("data/1mru.map", "data/1mru_diff.map");
   </script>
 </body>
