@@ -103,6 +103,7 @@ export function modelsFromGemmi(gemmi, buffer: ArrayBuffer, name: string,
     for (let i_model = 0; i_model < st.length; ++i_model) {
       const model = st.at(i_model);
       const m = new Model();
+      m.source_model_index = i_model;
       m.unit_cell = new UnitCell(cell.a, cell.b, cell.c, cell.alpha, cell.beta, cell.gamma);
       let atom_i_seq = 0;
       for (let i_chain = 0; i_chain < model.length; ++i_chain) {
@@ -141,9 +142,8 @@ export function modelsFromGemmi(gemmi, buffer: ArrayBuffer, name: string,
       }
       models.push(m);
     }
-    st.delete();
     //console.log("[after modelsFromGemmi] wasm mem:", gemmi.HEAPU8.length / 1024, "kb");
-    return { models: models, bonding: bond_result.info };
+    return { models: models, bonding: bond_result.info, structure: st };
   }, function (err) {
     st.delete();
     throw err;
@@ -158,6 +158,7 @@ export class Model {
   upper_bound: Num3;
   residue_map: Record<string, Atom[]> | null;
   cubes: Cubicles | null;
+  source_model_index: number | null;
 
   constructor() {
     this.atoms = [];
@@ -167,6 +168,7 @@ export class Model {
     this.upper_bound = [0, 0, 0];
     this.residue_map = null;
     this.cubes = null;
+    this.source_model_index = null;
   }
 
   from_pdb(pdb_lines: string[]): string[] | null {

@@ -14,6 +14,11 @@ import type { OrCameraType } from './controls';
 
 type Num2 = [number, number];
 type Num3 = [number, number, number];
+type GemmiSelectionContext = {
+  gemmi: any,
+  structure: any,
+  model_index: number,
+};
 
 type ColorScheme = {
   bg: Color,
@@ -257,6 +262,7 @@ class ModelBag {
   win_size: Num2;
   objects: object[];
   atom_array: Atom[]
+  gemmi_selection: GemmiSelectionContext | null;
   static ctor_counter: number;
 
   constructor(model: Model, config: ViewerConfig, win_size: Num2) {
@@ -268,6 +274,7 @@ class ModelBag {
     this.win_size = win_size;
     this.objects = []; // list of three.js objects
     this.atom_array = [];
+    this.gemmi_selection = null;
   }
 
   get_visible_atoms() {
@@ -612,6 +619,8 @@ export class Viewer {
   container: HTMLElement | null;
   hud_el: HTMLElement | null;
   help_el: HTMLElement | null;
+  cid_dialog_el: HTMLDivElement | null;
+  cid_input_el: HTMLInputElement | null;
   initial_hud_html: string;
   scheduled: boolean;
   declare MOUSE_HELP: string;
@@ -709,6 +718,8 @@ export class Viewer {
     this.hud_el = get_elem('hud');
     this.container = get_elem('viewer');
     this.help_el = get_elem('help');
+    this.cid_dialog_el = null;
+    this.cid_input_el = null;
     if (this.hud_el) {
       if (this.hud_el.innerHTML === '') this.hud_el.innerHTML = INIT_HUD_TEXT;
       this.initial_hud_html = this.hud_el.innerHTML;
@@ -733,6 +744,7 @@ export class Viewer {
     if (options.focusable) {
       el.tabIndex = 0;
     }
+    this.create_cid_dialog();
     this.decor.zoom_grid.visible = false;
     this.scene.add(this.decor.zoom_grid);
 
@@ -1227,6 +1239,96 @@ export class Viewer {
     this.hud('copy URL from the location bar');
   }
 
+  create_cid_dialog() {
+    if (typeof document === 'undefined' || this.container == null) return;
+    const dialog = document.createElement('div');
+    dialog.style.display = 'none';
+    dialog.style.position = 'absolute';
+    dialog.style.left = '50%';
+    dialog.style.top = '20px';
+    dialog.style.transform = 'translateX(-50%)';
+    dialog.style.padding = '8px 10px';
+    dialog.style.borderRadius = '6px';
+    dialog.style.backgroundColor = 'rgba(0, 0, 0, 0.85)';
+    dialog.style.color = '#ddd';
+    dialog.style.zIndex = '20';
+    dialog.style.boxShadow = '0 2px 12px rgba(0,0,0,0.35)';
+
+    const label = document.createElement('div');
+    label.textContent = 'Go to atom/residue (Gemmi CID)';
+    label.style.fontSize = '13px';
+    label.style.marginBottom = '6px';
+    dialog.appendChild(label);
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.placeholder = 'e.g. /*/A/15/CA';
+    input.style.width = '220px';
+    input.style.padding = '4px 6px';
+    input.style.border = '1px solid #666';
+    input.style.borderRadius = '4px';
+    input.style.backgroundColor = '#111';
+    input.style.color = '#eee';
+    input.style.outline = 'none';
+    input.addEventListener('keydown', (evt: KeyboardEvent) => {
+      evt.stopPropagation();
+      if (evt.key === 'Escape') {
+        evt.preventDefault();
+        this.close_cid_dialog();
+      } else if (evt.key === 'Enter') {
+        evt.preventDefault();
+        this.apply_cid_input();
+      }
+    });
+    dialog.appendChild(input);
+
+    this.container.appendChild(dialog);
+    this.cid_dialog_el = dialog;
+    this.cid_input_el = input;
+  }
+
+  open_cid_dialog() {
+    if (this.cid_dialog_el == null || this.cid_input_el == null) return;
+    if (this.selected.bag == null || this.selected.bag.gemmi_selection == null) {
+      this.hud('Gemmi selection is unavailable for this model.', 'ERR');
+      return;
+    }
+    this.cid_dialog_el.style.display = 'block';
+    this.cid_input_el.focus();
+    this.cid_input_el.select();
+  }
+
+  close_cid_dialog() {
+    if (this.cid_dialog_el == null || this.cid_input_el == null) return;
+    this.cid_dialog_el.style.display = 'none';
+    this.cid_input_el.blur();
+    if (this.renderer && this.renderer.domElement) this.renderer.domElement.focus();
+  }
+
+  apply_cid_input() {
+    if (this.cid_input_el == null) return;
+    const cid = this.cid_input_el.value.trim();
+    if (cid === '') {
+      this.close_cid_dialog();
+      return;
+    }
+    try {
+      const sel = this.selection_atoms(cid);
+      if (sel.atoms.length === 0) {
+        this.hud('No atoms match selection: ' + cid);
+        return;
+      }
+      if (sel.atoms.length === 1) {
+        this.select_atom({bag: sel.bag, atom: sel.atoms[0]}, {steps: 30});
+      } else {
+        this.center_on_selection(cid, {bag: sel.bag, steps: 30});
+      }
+      this.close_cid_dialog();
+    } catch (e) {
+      this.hud(e.message, 'ERR');
+    }
+  }
+
   redraw_all() {
     if (!this.renderer) return;
     this.scene.fog.color = this.config.colors.bg;
@@ -1260,7 +1362,14 @@ export class Viewer {
   }
 
   keydown(evt: KeyboardEvent) {
-    if (evt.ctrlKey) return;
+    if (evt.ctrlKey) {
+      if (evt.keyCode === 71) { // Ctrl-G
+        evt.preventDefault();
+        this.open_cid_dialog();
+        return;
+      }
+      return;
+    }
     const action = this.key_bindings[evt.keyCode];
     if (action) {
       (action.bind(this))(evt);
@@ -1599,6 +1708,65 @@ export class Viewer {
     this.toggle_label(this.selected, true);
   }
 
+  selection_atom_indices(cid: string, model_bag?: ModelBag | null) {
+    const bag = model_bag || this.selected.bag || this.model_bags[0];
+    if (bag == null) throw Error('No model is loaded.');
+    if (bag.gemmi_selection == null) {
+      throw Error('Gemmi selection is unavailable for this model.');
+    }
+    const ctx = bag.gemmi_selection;
+    const result = new ctx.gemmi.SelectionResult();
+    try {
+      result.set_atom_indices(ctx.structure, cid, ctx.model_index);
+      const ptr = result.atom_data_ptr();
+      const len = result.atom_data_size();
+      return new Int32Array(ctx.gemmi.HEAPU8.buffer, ptr, len).slice();
+    } finally {
+      result.delete();
+    }
+  }
+
+  selection_atoms(cid: string, model_bag?: ModelBag | null) {
+    const bag = model_bag || this.selected.bag || this.model_bags[0];
+    if (bag == null) throw Error('No model is loaded.');
+    const indices = this.selection_atom_indices(cid, bag);
+    const atoms = [];
+    for (let i = 0; i < indices.length; ++i) {
+      const idx = indices[i];
+      if (idx >= 0 && idx < bag.model.atoms.length) atoms.push(bag.model.atoms[idx]);
+    }
+    return { bag: bag, atoms: atoms, indices: indices };
+  }
+
+  center_on_selection(cid: string, options: {bag?: ModelBag | null, steps?: number}={}) {
+    const sel = this.selection_atoms(cid, options.bag);
+    if (sel.atoms.length === 0) {
+      this.hud('No atoms match selection: ' + cid);
+      return;
+    }
+    let x = 0, y = 0, z = 0; // eslint-disable-line one-var
+    for (const atom of sel.atoms) {
+      x += atom.xyz[0];
+      y += atom.xyz[1];
+      z += atom.xyz[2];
+    }
+    const n = sel.atoms.length;
+    this.hud('selection ' + cid + ': ' + n + ' atoms');
+    this.controls.go_to(new Vector3(x / n, y / n, z / n),
+                        null, null, options.steps);
+    this.request_render();
+  }
+
+  select_by_cid(cid: string, options: {bag?: ModelBag | null, steps?: number}={}) {
+    const sel = this.selection_atoms(cid, options.bag);
+    if (sel.atoms.length === 0) {
+      this.hud('No atoms match selection: ' + cid);
+      return;
+    }
+    this.select_atom({bag: sel.bag, atom: sel.atoms[0]}, {steps: options.steps});
+    this.request_render();
+  }
+
   update_camera() {
     const dxyz = this.camera.position.distanceTo(this.target);
     const w = this.controls.slab_width;
@@ -1640,9 +1808,10 @@ export class Viewer {
     }
   }
 
-  add_model(model: Model, options: {hue_shift?: number}={}) {
+  add_model(model: Model, options: {hue_shift?: number, gemmi_selection?: GemmiSelectionContext}={}) {
     const model_bag = new ModelBag(model, this.config, this.window_size);
     model_bag.hue_shift = options.hue_shift || 0.06 * this.model_bags.length;
+    model_bag.gemmi_selection = options.gemmi_selection || null;
     this.model_bags.push(model_bag);
     this.set_model_objects(model_bag);
     this.request_render();
@@ -1849,7 +2018,13 @@ export class Viewer {
     return modelsFromGemmi(gemmi, buffer, name,
                            this.fetch_monomer_cifs.bind(this)).then(function (result) {
       for (const model of result.models) {
-        self.add_model(model);
+        self.add_model(model, {
+          gemmi_selection: {
+            gemmi: gemmi,
+            structure: result.structure,
+            model_index: model.source_model_index == null ? 0 : model.source_model_index,
+          },
+        });
       }
       self.selected.bag = self.model_bags[len];
       self.last_bonding_info = result.bonding;
@@ -2005,6 +2180,7 @@ Viewer.prototype.KEYBOARD_HELP = [
   'Home/End = bond width',
   '\\ = bond caps',
   'P = nearest Cα',
+  'Ctrl+G = go to CID',
   'Shift+P = permalink',
   '(Shift+)space = next res.',
   'Shift+F = full screen',

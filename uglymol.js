@@ -160,16 +160,7 @@ function getGemmiBondData(gemmi, st,
       bond_data: new Int32Array(gemmi.HEAPU8.buffer, ptr, len).slice(),
       info: info,
     };
-  }, function (err) {
-    bond_info.delete();
-    throw err;
-  }).then(function (bond_data) {
-    bond_info.delete();
-    return bond_data;
-  }, function (err) {
-    bond_info.delete();
-    throw err;
-  });
+  }).finally(() => bond_info.delete());
 }
 
 function modelsFromGemmi(gemmi, buffer, name,
@@ -188,6 +179,7 @@ function modelsFromGemmi(gemmi, buffer, name,
     for (var i_model = 0; i_model < st.length; ++i_model) {
       var model = st.at(i_model);
       var m = new Model();
+      m.source_model_index = i_model;
       m.unit_cell = new UnitCell(cell.a, cell.b, cell.c, cell.alpha, cell.beta, cell.gamma);
       var atom_i_seq = 0;
       for (var i_chain = 0; i_chain < model.length; ++i_chain) {
@@ -226,9 +218,8 @@ function modelsFromGemmi(gemmi, buffer, name,
       }
       models.push(m);
     }
-    st.delete();
     //console.log("[after modelsFromGemmi] wasm mem:", gemmi.HEAPU8.length / 1024, "kb");
-    return { models: models, bonding: bond_result.info };
+    return { models: models, bonding: bond_result.info, structure: st };
   }, function (err) {
     st.delete();
     throw err;
@@ -243,6 +234,7 @@ var Model = function Model() {
   this.upper_bound = [0, 0, 0];
   this.residue_map = null;
   this.cubes = null;
+  this.source_model_index = null;
 };
 
 Model.prototype.from_pdb = function from_pdb (pdb_lines) {
@@ -597,16 +589,14 @@ Atom.prototype.resid = function resid () {
 };
 
 Atom.prototype.long_label = function long_label () {
-  var a = this;// eslint-disable-line @typescript-eslint/no-this-alias
-  return a.name + ' /' + a.seqid + ' ' + a.resname + '/' + a.chain +
-         ' - occ: ' + a.occ.toFixed(2) + ' bf: ' + a.b.toFixed(2) +
-         ' ele: ' + a.element + ' pos: (' + a.xyz[0].toFixed(2) + ',' +
-         a.xyz[1].toFixed(2) + ',' + a.xyz[2].toFixed(2) + ')';
+  return this.name + ' /' + this.seqid + ' ' + this.resname + '/' + this.chain +
+         ' - occ: ' + this.occ.toFixed(2) + ' bf: ' + this.b.toFixed(2) +
+         ' ele: ' + this.element + ' pos: (' + this.xyz[0].toFixed(2) + ',' +
+         this.xyz[1].toFixed(2) + ',' + this.xyz[2].toFixed(2) + ')';
 };
 
 Atom.prototype.short_label = function short_label () {
-  var a = this;// eslint-disable-line @typescript-eslint/no-this-alias
-  return a.name + ' /' + a.seqid + ' ' + a.resname + '/' + a.chain;
+  return this.name + ' /' + this.seqid + ' ' + this.resname + '/' + this.chain;
 };
 
 
@@ -5843,8 +5833,12 @@ function makeUniforms(params) {
     fogFar: { value: null },
     fogColor: { value: null },
   };
-  for (var p in params) {  // eslint-disable-line guard-for-in
-    uniforms[p] = { value: params[p] };
+  for (var i = 0, list = Object.entries(params); i < list.length; i += 1) {
+    var ref = list[i];
+    var p = ref[0];
+    var v = ref[1];
+
+    uniforms[p] = { value: v };
   }
   return uniforms;
 }
@@ -6134,46 +6128,6 @@ function makeBalls(atom_arr, color_arr, radius) {
   var obj = new Mesh(geometry, material);
   return obj;
 }
-
-/*
-interface LineRaycastOptions {
-  precision: number;
-  ray: Ray;
-  near: number;
-  far: number;
-}
-// based on Line.prototype.raycast(), but skipping duplicated points
-const inverseMatrix = new Matrix4();
-const ray = new Ray();
-export
-function line_raycast(mesh: Mesh, options: LineRaycastOptions,
-                      intersects: object[]) {
-  const precisionSq = options.precision * options.precision;
-  inverseMatrix.copy(mesh.matrixWorld).invert();
-  ray.copy(options.ray).applyMatrix4(inverseMatrix);
-  const vStart = new Vector3();
-  const vEnd = new Vector3();
-  const interSegment = new Vector3();
-  const interRay = new Vector3();
-  const positions = mesh.geometry.attributes.position.array;
-  for (let i = 0, l = positions.length / 6 - 1; i < l; i += 2) {
-    vStart.fromArray(positions, 6 * i);
-    vEnd.fromArray(positions, 6 * i + 6);
-    const distSq = ray.distanceSqToSegment(vStart, vEnd, interRay, interSegment);
-    if (distSq > precisionSq) continue;
-    interRay.applyMatrix4(mesh.matrixWorld);
-    const distance = options.ray.origin.distanceTo(interRay);
-    if (distance < options.near || distance > options.far) continue;
-    intersects.push({
-      distance: distance,
-      point: interSegment.clone().applyMatrix4(mesh.matrixWorld),
-      index: i,
-      object: mesh,
-      line_dist: Math.sqrt(distSq), // extra property, not in Three.js
-    });
-  }
-}
-*/
 
 var label_vert = "\nattribute vec2 uvs;\nuniform vec2 canvas_size;\nuniform vec2 win_size;\nuniform float z_shift;\nvarying vec2 vUv;\nvoid main() {\n  vUv = uvs;\n  vec2 rel_offset = vec2(0.02, -0.3);\n  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);\n  gl_Position.xy += (uvs + rel_offset) * 2.0 * canvas_size / win_size;\n  gl_Position.z += z_shift * projectionMatrix[2][2];\n}";
 
@@ -6693,6 +6647,7 @@ var ModelBag = function ModelBag(model, config, win_size) {
   this.win_size = win_size;
   this.objects = []; // list of three.js objects
   this.atom_array = [];
+  this.gemmi_selection = null;
 };
 
 ModelBag.prototype.get_visible_atoms = function get_visible_atoms () {
@@ -7096,6 +7051,8 @@ var Viewer = function Viewer(options) {
   this.hud_el = get_elem('hud');
   this.container = get_elem('viewer');
   this.help_el = get_elem('help');
+  this.cid_dialog_el = null;
+  this.cid_input_el = null;
   if (this.hud_el) {
     if (this.hud_el.innerHTML === '') { this.hud_el.innerHTML = INIT_HUD_TEXT; }
     this.initial_hud_html = this.hud_el.innerHTML;
@@ -7120,6 +7077,7 @@ var Viewer = function Viewer(options) {
   if (options.focusable) {
     el.tabIndex = 0;
   }
+  this.create_cid_dialog();
   this.decor.zoom_grid.visible = false;
   this.scene.add(this.decor.zoom_grid);
 
@@ -7634,6 +7592,96 @@ Viewer.prototype.permalink = function permalink () {
   this.hud('copy URL from the location bar');
 };
 
+Viewer.prototype.create_cid_dialog = function create_cid_dialog () {
+  if (typeof document === 'undefined' || this.container == null) { return; }
+  var dialog = document.createElement('div');
+  dialog.style.display = 'none';
+  dialog.style.position = 'absolute';
+  dialog.style.left = '50%';
+  dialog.style.top = '20px';
+  dialog.style.transform = 'translateX(-50%)';
+  dialog.style.padding = '8px 10px';
+  dialog.style.borderRadius = '6px';
+  dialog.style.backgroundColor = 'rgba(0, 0, 0, 0.85)';
+  dialog.style.color = '#ddd';
+  dialog.style.zIndex = '20';
+  dialog.style.boxShadow = '0 2px 12px rgba(0,0,0,0.35)';
+
+  var label = document.createElement('div');
+  label.textContent = 'Go to atom/residue (Gemmi CID)';
+  label.style.fontSize = '13px';
+  label.style.marginBottom = '6px';
+  dialog.appendChild(label);
+
+  var input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'e.g. /*/A/15/CA';
+  input.style.width = '220px';
+  input.style.padding = '4px 6px';
+  input.style.border = '1px solid #666';
+  input.style.borderRadius = '4px';
+  input.style.backgroundColor = '#111';
+  input.style.color = '#eee';
+  input.style.outline = 'none';
+  input.addEventListener('keydown', (evt) => {
+    evt.stopPropagation();
+    if (evt.key === 'Escape') {
+      evt.preventDefault();
+      this.close_cid_dialog();
+    } else if (evt.key === 'Enter') {
+      evt.preventDefault();
+      this.apply_cid_input();
+    }
+  });
+  dialog.appendChild(input);
+
+  this.container.appendChild(dialog);
+  this.cid_dialog_el = dialog;
+  this.cid_input_el = input;
+};
+
+Viewer.prototype.open_cid_dialog = function open_cid_dialog () {
+  if (this.cid_dialog_el == null || this.cid_input_el == null) { return; }
+  if (this.selected.bag == null || this.selected.bag.gemmi_selection == null) {
+    this.hud('Gemmi selection is unavailable for this model.', 'ERR');
+    return;
+  }
+  this.cid_dialog_el.style.display = 'block';
+  this.cid_input_el.focus();
+  this.cid_input_el.select();
+};
+
+Viewer.prototype.close_cid_dialog = function close_cid_dialog () {
+  if (this.cid_dialog_el == null || this.cid_input_el == null) { return; }
+  this.cid_dialog_el.style.display = 'none';
+  this.cid_input_el.blur();
+  if (this.renderer && this.renderer.domElement) { this.renderer.domElement.focus(); }
+};
+
+Viewer.prototype.apply_cid_input = function apply_cid_input () {
+  if (this.cid_input_el == null) { return; }
+  var cid = this.cid_input_el.value.trim();
+  if (cid === '') {
+    this.close_cid_dialog();
+    return;
+  }
+  try {
+    var sel = this.selection_atoms(cid);
+    if (sel.atoms.length === 0) {
+      this.hud('No atoms match selection: ' + cid);
+      return;
+    }
+    if (sel.atoms.length === 1) {
+      this.select_atom({bag: sel.bag, atom: sel.atoms[0]}, {steps: 30});
+    } else {
+      this.center_on_selection(cid, {bag: sel.bag, steps: 30});
+    }
+    this.close_cid_dialog();
+  } catch (e) {
+    this.hud(e.message, 'ERR');
+  }
+};
+
 Viewer.prototype.redraw_all = function redraw_all () {
   if (!this.renderer) { return; }
   this.scene.fog.color = this.config.colors.bg;
@@ -7667,7 +7715,14 @@ Viewer.prototype.select_next = function select_next (info, key, options, back) {
 };
 
 Viewer.prototype.keydown = function keydown (evt) {
-  if (evt.ctrlKey) { return; }
+  if (evt.ctrlKey) {
+    if (evt.keyCode === 71) { // Ctrl-G
+      evt.preventDefault();
+      this.open_cid_dialog();
+      return;
+    }
+    return;
+  }
   var action = this.key_bindings[evt.keyCode];
   if (action) {
     (action.bind(this))(evt);
@@ -8008,6 +8063,71 @@ Viewer.prototype.select_atom = function select_atom (pick, options) {
   this.toggle_label(this.selected, true);
 };
 
+Viewer.prototype.selection_atom_indices = function selection_atom_indices (cid, model_bag) {
+  var bag = model_bag || this.selected.bag || this.model_bags[0];
+  if (bag == null) { throw Error('No model is loaded.'); }
+  if (bag.gemmi_selection == null) {
+    throw Error('Gemmi selection is unavailable for this model.');
+  }
+  var ctx = bag.gemmi_selection;
+  var result = new ctx.gemmi.SelectionResult();
+  try {
+    result.set_atom_indices(ctx.structure, cid, ctx.model_index);
+    var ptr = result.atom_data_ptr();
+    var len = result.atom_data_size();
+    return new Int32Array(ctx.gemmi.HEAPU8.buffer, ptr, len).slice();
+  } finally {
+    result.delete();
+  }
+};
+
+Viewer.prototype.selection_atoms = function selection_atoms (cid, model_bag) {
+  var bag = model_bag || this.selected.bag || this.model_bags[0];
+  if (bag == null) { throw Error('No model is loaded.'); }
+  var indices = this.selection_atom_indices(cid, bag);
+  var atoms = [];
+  for (var i = 0; i < indices.length; ++i) {
+    var idx = indices[i];
+    if (idx >= 0 && idx < bag.model.atoms.length) { atoms.push(bag.model.atoms[idx]); }
+  }
+  return { bag: bag, atoms: atoms, indices: indices };
+};
+
+Viewer.prototype.center_on_selection = function center_on_selection (cid, options) {
+    if ( options === void 0 ) options={};
+
+  var sel = this.selection_atoms(cid, options.bag);
+  if (sel.atoms.length === 0) {
+    this.hud('No atoms match selection: ' + cid);
+    return;
+  }
+  var x = 0, y = 0, z = 0; // eslint-disable-line one-var
+  for (var i = 0, list = sel.atoms; i < list.length; i += 1) {
+    var atom = list[i];
+
+      x += atom.xyz[0];
+    y += atom.xyz[1];
+    z += atom.xyz[2];
+  }
+  var n = sel.atoms.length;
+  this.hud('selection ' + cid + ': ' + n + ' atoms');
+  this.controls.go_to(new Vector3(x / n, y / n, z / n),
+                      null, null, options.steps);
+  this.request_render();
+};
+
+Viewer.prototype.select_by_cid = function select_by_cid (cid, options) {
+    if ( options === void 0 ) options={};
+
+  var sel = this.selection_atoms(cid, options.bag);
+  if (sel.atoms.length === 0) {
+    this.hud('No atoms match selection: ' + cid);
+    return;
+  }
+  this.select_atom({bag: sel.bag, atom: sel.atoms[0]}, {steps: options.steps});
+  this.request_render();
+};
+
 Viewer.prototype.update_camera = function update_camera () {
   var dxyz = this.camera.position.distanceTo(this.target);
   var w = this.controls.slab_width;
@@ -8054,6 +8174,7 @@ Viewer.prototype.add_model = function add_model (model, options) {
 
   var model_bag = new ModelBag(model, this.config, this.window_size);
   model_bag.hue_shift = options.hue_shift || 0.06 * this.model_bags.length;
+  model_bag.gemmi_selection = options.gemmi_selection || null;
   this.model_bags.push(model_bag);
   this.set_model_objects(model_bag);
   this.request_render();
@@ -8266,7 +8387,13 @@ Viewer.prototype.load_structure_from_buffer = function load_structure_from_buffe
     for (var i = 0, list = result.models; i < list.length; i += 1) {
       var model = list[i];
 
-        self.add_model(model);
+        self.add_model(model, {
+        gemmi_selection: {
+          gemmi: gemmi,
+          structure: result.structure,
+          model_index: model.source_model_index == null ? 0 : model.source_model_index,
+        },
+      });
     }
     self.selected.bag = self.model_bags[len];
     self.last_bonding_info = result.bonding;
@@ -8402,6 +8529,7 @@ Viewer.prototype.KEYBOARD_HELP = [
   'Home/End = bond width',
   '\\ = bond caps',
   'P = nearest Cα',
+  'Ctrl+G = go to CID',
   'Shift+P = permalink',
   '(Shift+)space = next res.',
   'Shift+F = full screen' ].join('\n');
@@ -8506,8 +8634,7 @@ ReciprocalSpaceMap.prototype.unit = '';
 function find_max_dist(pos) {
   var max_sq = 0;
   for (var i = 0; i < pos.length; i += 3) {
-    var n = 3 * i;
-    var sq = pos[n]*pos[n] + pos[n+1]*pos[n+1] + pos[n+2]*pos[n+2];
+    var sq = pos[i]*pos[i] + pos[i+1]*pos[i+1] + pos[i+2]*pos[i+2];
     if (sq > max_sq) { max_sq = sq; }
   }
   return Math.sqrt(max_sq);
@@ -8540,9 +8667,7 @@ function parse_csv(text) {
 }
 
 function minus_ones(n) {
-  var a = [];
-  for (var i = 0; i < n; i++) { a.push(-1); }
-  return a;
+  return new Array(n).fill(-1);
 }
 
 function parse_json(text) {
@@ -8956,7 +9081,7 @@ function set_pdb_and_mtz_dropzone(gemmi, viewer,
     if (/\.mtz$/.test(file.name)) {
       var reader = new FileReader();
       reader.onloadend = function (evt) {
-        if (evt.target.readyState == 2) {
+        if (evt.target.readyState === 2) {
           var t0 = performance.now();
           try {
             var mtz = gemmi.readMtz(evt.target.result);
