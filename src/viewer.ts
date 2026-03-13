@@ -59,6 +59,7 @@ export type ViewerConfig = {
   colors?: ColorScheme,
   hydrogens: boolean,
   ball_size: number,
+  stick_radius: number,
   stay?: boolean;
 };
 
@@ -153,8 +154,6 @@ const LIGAND_STYLES = ['ball&stick', 'sticks', 'lines'];
 const WATER_STYLES = ['cross', 'dot', 'invisible'];
 const MAP_STYLES = ['marching cubes', 'squarish'/*, 'snapped MC'*/];
 const LABEL_FONTS = ['bold 14px', '14px', '16px', 'bold 16px'];
-const THIN_STICK_RADIUS = 0.08;
-
 function rainbow_value(v: number, vmin: number, vmax: number) {
   const c = new Color(0xe0e0e0);
   if (vmin < vmax) {
@@ -321,13 +320,18 @@ class ModelBag {
           if (!hydrogens && other.element === 'H') continue;
           // Coot show X-H bonds as thinner lines in a single color.
           // Here we keep it simple and render such bonds like all others.
-          const mid = atom.midpoint(other);
           const bond_type = atom.bond_types[j];
           if (bond_type === BondType.Metal) {
+            const mid = ball_size == null ?
+              atom.midpoint(other) :
+              this.bond_half_end(atom, other, ball_size * 0.3);
             metal_vertex_arr.push(atom.xyz, mid);
             metal_color_arr.push(metal_color, metal_color);
             metal_bond_type_arr.push(bond_type, bond_type);
           } else {
+            const mid = ball_size == null ?
+              atom.midpoint(other) :
+              this.bond_half_end(atom, other, ball_size / 2);
             vertex_arr.push(atom.xyz, mid);
             color_arr.push(color, color);
             bond_type_arr.push(bond_type, bond_type);
@@ -406,26 +410,30 @@ class ModelBag {
         if (!hydrogens && other.element === 'H') continue;
         const bond_type = atom.bond_types[j];
         if (bond_type === BondType.Metal) {
-          const mid = atom.midpoint(other);
+          const mid = this.bond_half_end(atom, other, radius * 0.6);
           metal_vertex_arr.push(atom.xyz, mid);
           metal_color_arr.push(metal_color, metal_color);
           metal_bond_type_arr.push(bond_type, bond_type);
         } else if (bond_type === BondType.Double) {
           this.add_offset_stick(vertex_arr, color_arr, bond_type_arr,
-                                atom, other, color, bond_type, radius * 0.75);
+                                atom, other, color, bond_type,
+                                radius * 0.75, radius);
           this.add_offset_stick(vertex_arr, color_arr, bond_type_arr,
-                                atom, other, color, bond_type, -radius * 0.75);
+                                atom, other, color, bond_type,
+                                -radius * 0.75, radius);
         } else if (bond_type === BondType.Triple) {
-          const mid = atom.midpoint(other);
+          const mid = this.bond_half_end(atom, other, radius);
           vertex_arr.push(atom.xyz, mid);
           color_arr.push(color, color);
           bond_type_arr.push(bond_type, bond_type);
           this.add_offset_stick(vertex_arr, color_arr, bond_type_arr,
-                                atom, other, color, bond_type, radius * 1.2);
+                                atom, other, color, bond_type,
+                                radius * 1.2, radius);
           this.add_offset_stick(vertex_arr, color_arr, bond_type_arr,
-                                atom, other, color, bond_type, -radius * 1.2);
+                                atom, other, color, bond_type,
+                                -radius * 1.2, radius);
         } else {
-          const mid = atom.midpoint(other);
+          const mid = this.bond_half_end(atom, other, radius);
           vertex_arr.push(atom.xyz, mid);
           color_arr.push(color, color);
           bond_type_arr.push(bond_type, bond_type);
@@ -468,10 +476,27 @@ class ModelBag {
     return normal;
   }
 
+  bond_half_end(atom: Atom, other: Atom, radius: number): Num3 {
+    const dir: Num3 = [
+      other.xyz[0] - atom.xyz[0],
+      other.xyz[1] - atom.xyz[1],
+      other.xyz[2] - atom.xyz[2],
+    ];
+    const len = Math.sqrt(dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2]);
+    if (len < 1e-6) return atom.midpoint(other);
+    const overlap = Math.min(radius * 0.5, len * 0.12);
+    const scale = 0.5 + overlap / len;
+    return [
+      atom.xyz[0] + dir[0] * scale,
+      atom.xyz[1] + dir[1] * scale,
+      atom.xyz[2] + dir[2] * scale,
+    ];
+  }
+
   add_offset_stick(vertex_arr: Num3[], color_arr: Color[], bond_type_arr: number[],
                    atom: Atom, other: Atom, color: Color, bond_type: number,
-                   offset_scale: number) {
-    const mid = atom.midpoint(other);
+                   offset_scale: number, radius: number) {
+    const mid = this.bond_half_end(atom, other, radius);
     const normal = this.bond_normal(atom, other);
     const offset = [
       normal[0] * offset_scale,
@@ -486,6 +511,26 @@ class ModelBag {
     bond_type_arr.push(bond_type, bond_type);
   }
 
+  extend_stick_segment(start: Num3, end: Num3, radius: number): [Num3, Num3] {
+    const dir: Num3 = [
+      end[0] - start[0],
+      end[1] - start[1],
+      end[2] - start[2],
+    ];
+    const len = Math.sqrt(dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2]);
+    if (len < 1e-6) return [start, end];
+    const overlap = Math.min(radius * 0.35, len * 0.12);
+    const unit: Num3 = [dir[0] / len, dir[1] / len, dir[2] / len];
+    return [
+      [start[0] - unit[0] * overlap,
+       start[1] - unit[1] * overlap,
+       start[2] - unit[2] * overlap],
+      [end[0] + unit[0] * overlap,
+       end[1] + unit[1] * overlap,
+       end[2] + unit[2] * overlap],
+    ];
+  }
+
   add_trace() {
     const segments = this.model.extract_trace();
     const visible_atoms = [].concat.apply([], segments);
@@ -494,15 +539,17 @@ class ModelBag {
     const vertex_arr: Num3[] = [];
     const color_arr = [];
     let k = 0;
+    const radius = this.conf.stick_radius;
     for (const seg of segments) {
       for (let i = 1; i < seg.length; ++i) {
-        vertex_arr.push(seg[i-1].xyz, seg[i].xyz);
+        const [start, end] = this.extend_stick_segment(seg[i-1].xyz, seg[i].xyz, radius);
+        vertex_arr.push(start, end);
         color_arr.push(colors[k+i-1], colors[k+i]);
       }
       k += seg.length;
     }
     if (vertex_arr.length !== 0) {
-      this.objects.push(makeSticks(vertex_arr, color_arr, this.conf.ball_size / 2));
+      this.objects.push(makeSticks(vertex_arr, color_arr, radius));
     }
     this.atom_array = visible_atoms;
   }
@@ -658,6 +705,7 @@ export class Viewer {
       // `colors` is assigned in set_colors()
       hydrogens: false,
       ball_size: 0.4,
+      stick_radius: 0.08,
     };
 
     // options of the constructor overwrite default values of the config
@@ -941,7 +989,7 @@ export class Viewer {
           model_bag.add_bonds(true, true);
         } else if (ligand_sticks) {
           model_bag.add_bonds(true, false);
-          model_bag.add_sticks(false, true, THIN_STICK_RADIUS);
+          model_bag.add_sticks(false, true, this.config.stick_radius);
         } else {
           model_bag.add_bonds(true, false);
           model_bag.add_bonds(false, true, ligand_balls);
@@ -953,7 +1001,7 @@ export class Viewer {
                    '\ndue to lack of suppport for EXT_frag_depth', 'ERR');
           return;
         }
-        model_bag.add_sticks(true, true, THIN_STICK_RADIUS);
+        model_bag.add_sticks(true, true, this.config.stick_radius);
         break;
       case 'ball&stick':
         if (!this.has_frag_depth()) {
@@ -971,7 +1019,7 @@ export class Viewer {
       case 'backbone':
         model_bag.add_trace();
         if (ligand_sticks) {
-          model_bag.add_sticks(false, true, THIN_STICK_RADIUS);
+          model_bag.add_sticks(false, true, this.config.stick_radius);
         } else {
           model_bag.add_bonds(false, true, ligand_balls);
         }
@@ -979,7 +1027,7 @@ export class Viewer {
       case 'ribbon':
         model_bag.add_ribbon(8);
         if (ligand_sticks) {
-          model_bag.add_sticks(false, true, THIN_STICK_RADIUS);
+          model_bag.add_sticks(false, true, this.config.stick_radius);
         } else {
           model_bag.add_bonds(false, true, ligand_balls);
         }
@@ -1141,6 +1189,14 @@ export class Viewer {
     this.redraw_models();
     this.hud('bond width: ' + scale_by_height(this.config.bond_line,
                                               this.window_size).toFixed(1));
+  }
+
+  change_stick_radius(delta: number) {
+    this.config.stick_radius = Math.max(this.config.stick_radius + delta, 0.01);
+    this.config.stick_radius =
+      Math.round(this.config.stick_radius * 1000) / 1000;
+    this.redraw_models();
+    this.hud('stick radius: ' + this.config.stick_radius.toFixed(3));
   }
 
   change_map_line(delta: number) {
@@ -1496,7 +1552,7 @@ export class Viewer {
       if (evt.shiftKey) {
         this.change_map_line(0.1);
       } else {
-        this.change_bond_line(0.2);
+        this.change_stick_radius(0.01);
       }
     };
     // End
@@ -1504,7 +1560,7 @@ export class Viewer {
       if (evt.shiftKey) {
         this.change_map_line(-0.1);
       } else {
-        this.change_bond_line(-0.2);
+        this.change_stick_radius(-0.01);
       }
     };
     // Space
@@ -2220,7 +2276,7 @@ Viewer.prototype.KEYBOARD_HELP = [
   'W = wireframe style',
   'I = spin',
   'K = rock',
-  'Home/End = bond width',
+  'Home/End = stick width',
   'P = nearest Cα',
   'Ctrl+G = go to CID',
   'Shift+P = permalink',
