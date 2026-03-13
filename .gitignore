@@ -1,5 +1,6 @@
 node_modules/
 data/1mru*
-uglymol.min.js
+data/1yk4.pdb
+data/pdb2mru.ent
 *.js.map
 coverage/

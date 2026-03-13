@@ -18,25 +18,26 @@
   "license": "MIT",
   "main": "gemmimol.js",
   "module": "src/all.ts",
-  "jsnext:main": "src/all.ts",
   "files": [
     "gemmimol.js",
-    "gemmimol.js.map",
     "gemmimol.min.js",
     "src"
   ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
-    "build": "npm test && npm run uglify",
+    "build": "npm test",
     "bundle": "rollup -c",
     "coverage": "rollup -c --sourcemap && jest --testMatch='**/test/*.js' --coverage --collectCoverageFrom='gemmimol.js'",
+    "ci": "npm run download-data && npm test",
     "download-data": "node perf/util.js download-data",
-    "lint": "eslint src test perf || exit 0",
-    "prepublish": "npm run build",
+    "lint": "eslint src test perf",
+    "prepack": "npm run build",
     "serve": "serve -l 7890",
     "start": "npm run watch & npm run serve",
     "test": "npm run lint && tsc --noEmit src/*.ts && rollup -c && jest --testMatch='**/test/*.js'",
-    "uglify": "uglifyjs gemmimol.js -o gemmimol.min.js --compress --mangle",
-    "version": "npm run build && git add -A gemmimol.js",
+    "version": "npm run build && git add -A gemmimol.js gemmimol.min.js",
     "watch": "rollup -c --watch"
   },
   "prettier": {
@@ -47,8 +48,8 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@rollup/plugin-buble": "^1.0.3",
     "@rollup/plugin-sucrase": "^5.1.0",
+    "@rollup/plugin-terser": "^1.0.0",
     "@types/node": "^25.5.0",
     "benchmark": "^2.1.0",
     "eslint": "^10.0.3",
@@ -56,7 +57,6 @@
     "rollup": "^4.59.0",
     "serve": "^14.2.6",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.57.0",
-    "uglify-js": "^3.19.3"
+    "typescript-eslint": "^8.57.0"
   }
 }
