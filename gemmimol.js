@@ -6984,6 +6984,9 @@ class Viewer {
   
   
   
+  
+  
+  
 
   constructor(options) {
     // rendered objects
@@ -7073,6 +7076,9 @@ class Viewer {
     this.help_el = get_elem('help');
     this.cid_dialog_el = null;
     this.cid_input_el = null;
+    this.fps_text = 'FPS: --';
+    this.last_frame_time = 0;
+    this.frame_times = [];
     if (this.hud_el) {
       if (this.hud_el.innerHTML === '') this.hud_el.innerHTML = INIT_HUD_TEXT;
       this.initial_hud_html = this.hud_el.innerHTML;
@@ -7707,9 +7713,33 @@ class Viewer {
     const el = this.help_el;
     if (!el) return;
     el.style.display = el.style.display === 'block' ? 'none' : 'block';
-    if (el.innerHTML === '') {
-      el.innerHTML = [this.MOUSE_HELP, this.KEYBOARD_HELP,
-                      this.ABOUT_HELP].join('\n\n');
+    if (el.style.display === 'block') {
+      this.update_help();
+    }
+  }
+
+  update_help() {
+    const el = this.help_el;
+    if (!el) return;
+    el.innerHTML = [this.MOUSE_HELP, this.KEYBOARD_HELP,
+                    this.ABOUT_HELP, this.fps_text].join('\n\n');
+  }
+
+  update_fps() {
+    const now = performance.now();
+    if (this.last_frame_time !== 0) {
+      this.frame_times.push(now - this.last_frame_time);
+      if (this.frame_times.length > 30) this.frame_times.shift();
+      let sum = 0;
+      for (const dt of this.frame_times) sum += dt;
+      if (sum > 0) {
+        const fps = 1000 * this.frame_times.length / sum;
+        this.fps_text = 'FPS: ' + fps.toFixed(1);
+      }
+    }
+    this.last_frame_time = now;
+    if (this.help_el && this.help_el.style.display === 'block') {
+      this.update_help();
     }
   }
 
@@ -8163,6 +8193,7 @@ class Viewer {
   render() {
     this.scheduled = true;
     if (this.renderer === null) return;
+    this.update_fps();
     if (this.controls.update()) {
       this.update_camera();
     }
