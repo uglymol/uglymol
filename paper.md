@@ -1,5 +1,5 @@
 ---
-title: 'UglyMol: a WebGL macromolecular viewer focused on the electron density'
+title: 'GemmiMol: a WebGL macromolecular viewer focused on the electron density'
 tags:
  - protein structure visualization
  - electron density
@@ -19,7 +19,7 @@ bibliography: paper.bib
 
 # Summary
 
-UglyMol [@uglymol] is a macromolecular viewer specialized in presenting
+GemmiMol [@uglymol] is a macromolecular viewer specialized in presenting
 macromolecular models together with the electron density.
 It uses web technologies (JavaScript and WebGL) and is suitable for embedding
 in web applications. The project was started as a fork of xtal.js [@xtaljs].
@@ -30,17 +30,17 @@ are determined using X-ray crystallography, which provides information
 about electron density in a crystal. The electron density map is used to
 build a model and can be later used to check the local quality of the model.
 
-UglyMol is aimed at crystallographers who inspect electron density
+GemmiMol is aimed at crystallographers who inspect electron density
 at various stages of structure solution and model completion.
 It can be also used by researchers who before using a model from
 the Protein Data Bank want to check how well the model is supported
 by the experimental data.
 
-To make UglyMol easy to use by its audience,
+To make GemmiMol easy to use by its audience,
 the user interface is closely resembling Coot [@coot],
 a desktop program popular among crystallographers.
 
-Originally, UglyMol was developed to present results from the refinement
+Originally, GemmiMol was developed to present results from the refinement
 pipeline Dimple [@dimple]. Currently, it has also other uses.
 It is included in at least five web applications:
 

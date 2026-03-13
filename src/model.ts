@@ -2,28 +2,6 @@ import { UnitCell } from './unitcell';
 
 type Num3 = [number, number, number];
 
-const AMINO_ACIDS = [
-  'ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HIS', 'ILE', 'LEU',
-  'LYS', 'MET', 'MSE', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL', 'UNK',
-];
-const NUCLEIC_ACIDS = [
-  'DA', 'DC', 'DG', 'DT', 'A', 'C', 'G', 'U', 'rA', 'rC', 'rG', 'rU',
-  'Ar', 'Cr', 'Gr', 'Ur',
-];
-
-const NOT_LIGANDS = ['HOH'].concat(AMINO_ACIDS, NUCLEIC_ACIDS);
-
-export function modelsFromPDB(pdb_string: string) {
-  const models = [new Model()];
-  let pdb_tail = models[0].from_pdb(pdb_string.split('\n'));
-  while (pdb_tail != null) {
-    const model = new Model();
-    pdb_tail = model.from_pdb(pdb_tail);
-    if (model.atoms.length > 0) models.push(model);
-  }
-  return models;
-}
-
 type MonomerFetcher = (resnames: string[]) => Promise<string[]>;
 export type GemmiBondingInfo = {
   source: 'gemmi' | 'fallback' | 'unavailable',
@@ -169,56 +147,6 @@ export class Model {
     this.residue_map = null;
     this.cubes = null;
     this.source_model_index = null;
-  }
-
-  from_pdb(pdb_lines: string[]): string[] | null {
-    let chain_index = 0;  // will be ++'ed for the first atom
-    let last_chain = null;
-    let atom_i_seq = 0;
-    let continuation = null;
-    for (let i = 0; i < pdb_lines.length; i++) {
-      const line = pdb_lines[i];
-      const rec_type = line.substring(0, 6).toUpperCase();
-      if (rec_type === 'ATOM  ' || rec_type === 'HETATM') {
-        const new_atom = new Atom();
-        new_atom.from_pdb_line(line);
-        new_atom.i_seq = atom_i_seq++;
-        if (!this.has_hydrogens && new_atom.element === 'H') {
-          this.has_hydrogens = true;
-        }
-        if (new_atom.chain !== last_chain) {
-          chain_index++;
-        }
-        new_atom.chain_index = chain_index;
-        last_chain = new_atom.chain;
-        this.atoms.push(new_atom);
-      } else if (rec_type === 'ANISOU') {
-        // we don't use anisotropic B-factors
-      } else if (rec_type === 'CRYST1') {
-        const a = parseFloat(line.substring(6, 15));
-        const b = parseFloat(line.substring(15, 24));
-        const c = parseFloat(line.substring(24, 33));
-        const alpha = parseFloat(line.substring(33, 40));
-        const beta = parseFloat(line.substring(40, 47));
-        const gamma = parseFloat(line.substring(47, 54));
-        //const sg_symbol = line.substring(55, 66);
-        this.unit_cell = new UnitCell(a, b, c, alpha, beta, gamma);
-      } else if (rec_type.substring(0, 3) === 'TER') {
-        last_chain = null;
-      } else if (rec_type === 'ENDMDL') {
-        for (; i < pdb_lines.length; i++) {
-          if (pdb_lines[i].substring(0, 6).toUpperCase() === 'MODEL ') {
-            continuation = pdb_lines.slice(i);
-            break;
-          }
-        }
-        break;
-      }
-    }
-    if (this.atoms.length === 0) throw Error('No atom records found.');
-    this.calculate_bounds();
-    this.calculate_connectivity();
-    return continuation;
   }
 
   calculate_bounds() {
@@ -449,35 +377,6 @@ class Atom {
     this.is_ligand = null;
     this.bonds = [];
     this.bond_types = [];
-  }
-
-  // http://www.wwpdb.org/documentation/format33/sect9.html#ATOM
-  from_pdb_line(pdb_line: string) {
-    if (pdb_line.length < 66) {
-      throw Error('ATOM or HETATM record is too short: ' + pdb_line);
-    }
-    const rec_type = pdb_line.substring(0, 6);
-    if (rec_type !== 'HETATM' && rec_type !== 'ATOM  ') {
-      throw Error('Wrong record type: ' + rec_type);
-    }
-    this.name = pdb_line.substring(12, 16).trim();
-    this.altloc = pdb_line.substring(16, 17).trim();
-    this.resname = pdb_line.substring(17, 20).trim();
-    this.chain = pdb_line.substring(20, 22).trim();
-    this.seqid = pdb_line.substring(22, 27).trim();
-    const x = parseFloat(pdb_line.substring(30, 38));
-    const y = parseFloat(pdb_line.substring(38, 46));
-    const z = parseFloat(pdb_line.substring(46, 54));
-    this.xyz = [x, y, z];
-    this.occ = parseFloat(pdb_line.substring(54, 60));
-    this.b = parseFloat(pdb_line.substring(60, 66));
-    if (pdb_line.length >= 78) {
-      this.element = pdb_line.substring(76, 78).trim().toUpperCase();
-    }
-    //if (pdb_line.length >= 80) {
-    //  this.charge = pdb_line.substring(78, 80).trim();
-    //}
-    this.is_ligand = (NOT_LIGANDS.indexOf(this.resname) === -1);
   }
 
   distance_sq(other: Atom) {

@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <title>Reciprocal UglyMol</title>
+  <title>Reciprocal GemmiMol</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, user-scalable=no">
   <meta name="theme-color" content="#333333">
@@ -60,20 +60,21 @@
    a { color: #59C; }
   </style>
 
-  <script src="uglymol.js"></script>
+  <script src="gemmimol.js"></script>
+  <script src="wasm/gemmi.js"></script>
 
 </head>
 <body style="background-color: black">
   <div id="viewer"></div>
   <header id="hud" onmousedown="event.stopPropagation();"
                    ondblclick="event.stopPropagation();"
-             >This is reciprocal UM. <a href="#"
+             >This is reciprocal GM. <a href="#"
                          onclick="V.toggle_help(); return false;"
                          >H shows help.</a></header>
   <footer id="help"></footer>
   <div id="inset"></div>
   <script>
-    V = new UM.ReciprocalViewer({viewer: "viewer", hud: "hud", help: "help"});
+    V = new GM.ReciprocalViewer({viewer: "viewer", hud: "hud", help: "help"});
     var rlp = /[?&#]rlp(=([^&#]*)|&|#|$)/.exec(window.location.href);
     if (rlp && rlp[2])
       V.load_data(decodeURIComponent(rlp[2].replace(/\+/g, " ")));

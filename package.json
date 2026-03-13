@@ -1,7 +1,7 @@
 {
-  "name": "uglymol",
+  "name": "gemmimol",
   "version": "0.7.2",
-  "description": "Macromolecular Viewer for Crystallographers",
+  "description": "Gemmi-backed macromolecular viewer for crystallographers",
   "keywords": [
     "crystallography",
     "biochemistry",
@@ -16,27 +16,27 @@
     "url": "https://github.com/uglymol/uglymol.git"
   },
   "license": "MIT",
-  "main": "uglymol.js",
+  "main": "gemmimol.js",
   "module": "src/all.ts",
   "jsnext:main": "src/all.ts",
   "files": [
-    "uglymol.js",
-    "uglymol.js.map",
-    "uglymol.min.js",
+    "gemmimol.js",
+    "gemmimol.js.map",
+    "gemmimol.min.js",
     "src"
   ],
   "scripts": {
     "build": "npm test && npm run uglify",
     "bundle": "rollup -c",
-    "coverage": "rollup -c --sourcemap && jest --testMatch='**/test/*.js' --coverage --collectCoverageFrom='uglymol.js'",
+    "coverage": "rollup -c --sourcemap && jest --testMatch='**/test/*.js' --coverage --collectCoverageFrom='gemmimol.js'",
     "download-data": "node perf/util.js download-data",
     "lint": "eslint src test perf || exit 0",
     "prepublish": "npm run build",
     "serve": "serve -l 7890",
     "start": "npm run watch & npm run serve",
     "test": "npm run lint && tsc --noEmit src/*.ts && rollup -c && jest --testMatch='**/test/*.js'",
-    "uglify": "uglifyjs uglymol.js -o uglymol.min.js --compress --mangle",
-    "version": "npm run build && git add -A uglymol.js",
+    "uglify": "uglifyjs gemmimol.js -o gemmimol.min.js --compress --mangle",
+    "version": "npm run build && git add -A gemmimol.js",
     "watch": "rollup -c --watch"
   },
   "eslintIgnore": [

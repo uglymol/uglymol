@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <title>UglyMol Demo</title>
+  <title>GemmiMol Demo</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, user-scalable=no">
   <meta name="theme-color" content="#333333">
@@ -60,8 +60,11 @@
    a { color: #59C; }
   </style>
 
-  <script src="uglymol.js"></script> <!--DEV--><!--
-  <script src="/uglymol.js"></script>
+  <script src="gemmimol.js"></script> <!--DEV--><!--
+  <script src="/gemmimol.js"></script>
+  -DEV-->
+  <script src="src/wasm/gemmi.js"></script> <!--DEV--><!--
+  <script src="/wasm/gemmi.js"></script>
   -DEV-->
   <script src="src/wasm/mtz.js"></script> <!--DEV--><!--
   <script src="/wasm/mtz.js"></script>
@@ -76,12 +79,12 @@
   <footer id="help"></footer>
   <div id="inset"></div>
   <script>
-    V = new UM.Viewer({viewer: "viewer", hud: "hud", help: "help"});
+    V = new GM.Viewer({viewer: "viewer", hud: "hud", help: "help"});
     G = null;
     function load_from_pdbe(id, callback) {
       V.load_pdb('https://www.ebi.ac.uk/pdbe/entry-files/pdb' + id + '.ent', {},
                  function () {
-          UM.load_maps_from_mtz(G, V,
+          GM.load_maps_from_mtz(G, V,
             'https://www.ebi.ac.uk/pdbe/coordinates/files/' + id + '_map.mtz',
             null, callback);
       });
@@ -109,7 +112,7 @@
     function setup(Module) {
       G = Module;
       //V.set_pdb_and_map_dropzone(V.renderer.domElement);
-      UM.set_pdb_and_mtz_dropzone(G, V, V.renderer.domElement);
+      GM.set_pdb_and_mtz_dropzone(G, V, V.renderer.domElement);
       var id_match = window.location.href.match(/[?&]id=([^&#]+)/);
       if (id_match) {
         load_from_pdbe(id_match[1].toLowerCase());

@@ -1,5 +1,5 @@
 /*!
- * UglyMol v0.7.2. Macromolecular Viewer for Crystallographers.
+ * GemmiMol v0.7.2. Macromolecular Viewer for Crystallographers.
  * Copyright 2014 Nat Echols
  * Copyright 2016 Diamond Light Source Ltd
  * Copyright 2016 Marcin Wojdyr
@@ -8,7 +8,7 @@
 (function (global, factory) {
 typeof exports === 'object' && typeof module !== 'undefined' ? factory(exports) :
 typeof define === 'function' && define.amd ? define(['exports'], factory) :
-(global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.UM = {}));
+(global = typeof globalThis !== 'undefined' ? globalThis : global || self, factory(global.GM = {}));
 })(this, (function (exports) { 'use strict';
 
 var VERSION = exports.VERSION = '0.7.2';
@@ -77,33 +77,6 @@ function multiply(xyz, mat) {
         /*mat[3] * xyz[0]*/+ mat[4] * xyz[1]  + mat[5] * xyz[2],
         /*mat[6] * xyz[0]  + mat[7] * xyz[1]*/+ mat[8] * xyz[2]];
 }
-
-var AMINO_ACIDS = [
-  'ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY', 'HIS', 'ILE', 'LEU',
-  'LYS', 'MET', 'MSE', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL', 'UNK' ];
-var NUCLEIC_ACIDS = [
-  'DA', 'DC', 'DG', 'DT', 'A', 'C', 'G', 'U', 'rA', 'rC', 'rG', 'rU',
-  'Ar', 'Cr', 'Gr', 'Ur' ];
-
-var NOT_LIGANDS = ['HOH'].concat(AMINO_ACIDS, NUCLEIC_ACIDS);
-
-function modelsFromPDB(pdb_string) {
-  var models = [new Model()];
-  var pdb_tail = models[0].from_pdb(pdb_string.split('\n'));
-  while (pdb_tail != null) {
-    var model = new Model();
-    pdb_tail = model.from_pdb(pdb_tail);
-    if (model.atoms.length > 0) { models.push(model); }
-  }
-  return models;
-}
-
-
-
-
-
-
-
 
 var BondType = {
   Unspec: 0,
@@ -235,54 +208,6 @@ var Model = function Model() {
   this.residue_map = null;
   this.cubes = null;
   this.source_model_index = null;
-};
-
-Model.prototype.from_pdb = function from_pdb (pdb_lines) {
-  var chain_index = 0;// will be ++'ed for the first atom
-  var last_chain = null;
-  var atom_i_seq = 0;
-  var continuation = null;
-  for (var i = 0; i < pdb_lines.length; i++) {
-    var line = pdb_lines[i];
-    var rec_type = line.substring(0, 6).toUpperCase();
-    if (rec_type === 'ATOM  ' || rec_type === 'HETATM') {
-      var new_atom = new Atom();
-      new_atom.from_pdb_line(line);
-      new_atom.i_seq = atom_i_seq++;
-      if (!this.has_hydrogens && new_atom.element === 'H') {
-        this.has_hydrogens = true;
-      }
-      if (new_atom.chain !== last_chain) {
-        chain_index++;
-      }
-      new_atom.chain_index = chain_index;
-      last_chain = new_atom.chain;
-      this.atoms.push(new_atom);
-    } else if (rec_type === 'ANISOU') ; else if (rec_type === 'CRYST1') {
-      var a = parseFloat(line.substring(6, 15));
-      var b = parseFloat(line.substring(15, 24));
-      var c = parseFloat(line.substring(24, 33));
-      var alpha = parseFloat(line.substring(33, 40));
-      var beta = parseFloat(line.substring(40, 47));
-      var gamma = parseFloat(line.substring(47, 54));
-      //const sg_symbol = line.substring(55, 66);
-      this.unit_cell = new UnitCell(a, b, c, alpha, beta, gamma);
-    } else if (rec_type.substring(0, 3) === 'TER') {
-      last_chain = null;
-    } else if (rec_type === 'ENDMDL') {
-      for (; i < pdb_lines.length; i++) {
-        if (pdb_lines[i].substring(0, 6).toUpperCase() === 'MODEL ') {
-          continuation = pdb_lines.slice(i);
-          break;
-        }
-      }
-      break;
-    }
-  }
-  if (this.atoms.length === 0) { throw Error('No atom records found.'); }
-  this.calculate_bounds();
-  this.calculate_connectivity();
-  return continuation;
 };
 
 Model.prototype.calculate_bounds = function calculate_bounds () {
@@ -500,35 +425,6 @@ var Atom = function Atom() {
   this.is_ligand = null;
   this.bonds = [];
   this.bond_types = [];
-};
-
-// http://www.wwpdb.org/documentation/format33/sect9.html#ATOM
-Atom.prototype.from_pdb_line = function from_pdb_line (pdb_line) {
-  if (pdb_line.length < 66) {
-    throw Error('ATOM or HETATM record is too short: ' + pdb_line);
-  }
-  var rec_type = pdb_line.substring(0, 6);
-  if (rec_type !== 'HETATM' && rec_type !== 'ATOM  ') {
-    throw Error('Wrong record type: ' + rec_type);
-  }
-  this.name = pdb_line.substring(12, 16).trim();
-  this.altloc = pdb_line.substring(16, 17).trim();
-  this.resname = pdb_line.substring(17, 20).trim();
-  this.chain = pdb_line.substring(20, 22).trim();
-  this.seqid = pdb_line.substring(22, 27).trim();
-  var x = parseFloat(pdb_line.substring(30, 38));
-  var y = parseFloat(pdb_line.substring(38, 46));
-  var z = parseFloat(pdb_line.substring(46, 54));
-  this.xyz = [x, y, z];
-  this.occ = parseFloat(pdb_line.substring(54, 60));
-  this.b = parseFloat(pdb_line.substring(60, 66));
-  if (pdb_line.length >= 78) {
-    this.element = pdb_line.substring(76, 78).trim().toUpperCase();
-  }
-  //if (pdb_line.length >= 80) {
-  //this.charge = pdb_line.substring(78, 80).trim();
-  //}
-  this.is_ligand = (NOT_LIGANDS.indexOf(this.resname) === -1);
 };
 
 Atom.prototype.distance_sq = function distance_sq (other) {
@@ -1410,113 +1306,17 @@ ElMap.prototype.abs_level = function abs_level (sigma) {
   return sigma * this.stats.rms + this.stats.mean;
 };
 
-// http://www.ccp4.ac.uk/html/maplib.html#description
-// eslint-disable-next-line complexity
-ElMap.prototype.from_ccp4 = function from_ccp4 (buf, expand_symmetry) {
+ElMap.prototype.from_ccp4 = function from_ccp4 (buf, expand_symmetry, gemmi) {
   if (expand_symmetry === undefined) { expand_symmetry = true; }
-  if (buf.byteLength < 1024) { throw Error('File shorter than 1024 bytes.'); }
-  //console.log('buf type: ' + Object.prototype.toString.call(buf));
-  // for now we assume both file and host are little endian
-  var iview = new Int32Array(buf, 0, 256);
-  // word 53 - character string 'MAP ' to identify file type
-  if (iview[52] !== 0x2050414d) { throw Error('not a CCP4 map'); }
-  // map has 3 dimensions referred to as columns (fastest changing), rows
-  // and sections (c-r-s)
-  var n_crs = [iview[0], iview[1], iview[2]];
-  var mode = iview[3];
-  var nb;
-  if (mode === 2) { nb = 4; }
-  else if (mode === 0) { nb = 1; }
-  else { throw Error('Only Mode 2 and Mode 0 of CCP4 map is supported.'); }
-  var start = [iview[4], iview[5], iview[6]];
-  var n_grid = [iview[7], iview[8], iview[9]];
-  var nsymbt = iview[23]; // size of extended header in bytes
-  if (1024 + nsymbt + nb*n_crs[0]*n_crs[1]*n_crs[2] !== buf.byteLength) {
-    throw Error('ccp4 file too short or too long');
+  if (gemmi == null || typeof gemmi.readCcp4Map !== 'function') {
+    throw Error('Gemmi is required for CCP4 map loading.');
   }
-  var fview = new Float32Array(buf, 0, buf.byteLength / 4);
-  this.unit_cell = new UnitCell(fview[10], fview[11], fview[12],
-                                fview[13], fview[14], fview[15]);
-  // MAPC, MAPR, MAPS - axis corresp to cols, rows, sections (1,2,3 for X,Y,Z)
-  var map_crs = [iview[16], iview[17], iview[18]];
-  var ax = map_crs.indexOf(1);
-  var ay = map_crs.indexOf(2);
-  var az = map_crs.indexOf(3);
-
-  var min = fview[19];
-  var max = fview[20];
-  //const sg_number = iview[22];
-  //const lskflg = iview[24];
-  var grid = new GridArray(n_grid);
-  if (nsymbt % 4 !== 0) {
-    throw Error('CCP4 map with NSYMBT not divisible by 4 is not supported.');
+  var ccp4 = gemmi.readCcp4Map(buf, expand_symmetry);
+  try {
+    this.set_from_ccp4_map(ccp4);
+  } finally {
+    ccp4.delete();
   }
-  var data_view;
-  if (mode === 2) { data_view = fview; }
-  else /* mode === 0 */ { data_view = new Int8Array(buf); }
-  var idx = (1024 + nsymbt) / nb | 0;
-
-  // We assume that if DMEAN and RMS from the header are not clearly wrong
-  // they are what the user wants. Because the map can cover a small part
-  // of the asu and its rmsd may be different than the total rmsd.
-  this.stats.mean = fview[21];
-  this.stats.rms = fview[54];
-  if (this.stats.mean < min || this.stats.mean > max || this.stats.rms <= 0) {
-    this.stats = calculate_stddev(data_view, idx);
-  }
-  var b1 = 1;
-  var b0 = 0;
-  // if the file was converted by mapmode2to0 - scale the data
-  if (mode === 0 && iview[39] === -128 && iview[40] === 127) {
-    // scaling f(x)=b1*x+b0 such that f(-128)=min and f(127)=max
-    b1 = (max - min) / 255.0;
-    b0 = 0.5 * (min + max + b1);
-  }
-
-  var end = [start[0] + n_crs[0], start[1] + n_crs[1], start[2] + n_crs[2]];
-  var it = [0, 0, 0];
-  for (it[2] = start[2]; it[2] < end[2]; it[2]++) { // sections
-    for (it[1] = start[1]; it[1] < end[1]; it[1]++) { // rows
-      for (it[0] = start[0]; it[0] < end[0]; it[0]++) { // cols
-        grid.set_grid_value(it[ax], it[ay], it[az], b1 * data_view[idx] + b0);
-        idx++;
-      }
-    }
-  }
-  if (expand_symmetry && nsymbt > 0) {
-    var u8view = new Uint8Array(buf);
-    for (var i = 0; i+80 <= nsymbt; i += 80) {
-      var j = (void 0);
-      var symop = '';
-      for (j = 0; j < 80; ++j) {
-        symop += String.fromCharCode(u8view[1024 + i + j]);
-      }
-      if (/^\s*x\s*,\s*y\s*,\s*z\s*$/i.test(symop)) { continue; }// skip x,y,z
-      //console.log('sym ops', symop.trim());
-      var mat = parse_symop(symop);
-      // Note: we apply here symops to grid points instead of coordinates.
-      // In the cases we came across it is equivalent, but in general not.
-      for (j = 0; j < 3; ++j) {
-        mat[j][3] = Math.round(mat[j][3] * n_grid[j]) | 0;
-      }
-      idx = (1024 + nsymbt) / nb | 0;
-      var xyz = [0, 0, 0];
-      for (it[2] = start[2]; it[2] < end[2]; it[2]++) { // sections
-        for (it[1] = start[1]; it[1] < end[1]; it[1]++) { // rows
-          for (it[0] = start[0]; it[0] < end[0]; it[0]++) { // cols
-            for (j = 0; j < 3; ++j) {
-              xyz[j] = it[ax] * mat[j][0] + it[ay] * mat[j][1] +
-                       it[az] * mat[j][2] + mat[j][3];
-            }
-            grid.set_grid_value(xyz[0], xyz[1], xyz[2],
-                                b1 * data_view[idx] + b0);
-            idx++;
-          }
-        }
-      }
-    }
-  }
-  this.grid = grid;
 };
 
 // DSN6 MAP FORMAT
@@ -1629,33 +1429,27 @@ ElMap.prototype.isomesh_in_block = function isomesh_in_block (sigma, method) {
   return this.block.isosurface(abs_level, method);
 };
 
-ElMap.prototype.unit = 'e/\u212B\u00B3';
-
-// symop -> matrix ([x,y,z] = matrix * [x,y,z,1])
-function parse_symop(symop) {
-  var ops = symop.toLowerCase().replace(/\s+/g, '').split(',');
-  if (ops.length !== 3) { throw Error('Unexpected symop: ' + symop); }
-  var mat = [];
-  for (var i = 0; i < 3; i++) {
-    var terms = ops[i].split(/(?=[+-])/);
-    var row = [0, 0, 0, 0];
-    for (var j = 0; j < terms.length; j++) {
-      var term = terms[j];
-      var sign = (term[0] === '-' ? -1 : 1);
-      var m = terms[j].match(/^[+-]?([xyz])$/);
-      if (m) {
-        var pos = {x: 0, y: 1, z: 2}[m[1]] ;
-        row[pos] = sign;
-      } else {
-        m = terms[j].match(/^[+-]?(\d)\/(\d)$/);
-        if (!m) { throw Error('What is ' + terms[j] + ' in ' + symop); }
-        row[3] = sign * Number(m[1]) / Number(m[2]);
+ ElMap.prototype.set_from_ccp4_map = function set_from_ccp4_map (ccp4) {
+  var cell = ccp4.cell;
+  this.unit_cell = new UnitCell(cell.a, cell.b, cell.c,
+                                cell.alpha, cell.beta, cell.gamma);
+  this.stats.mean = ccp4.mean;
+  this.stats.rms = ccp4.rms;
+  var dim = [ccp4.nx, ccp4.ny, ccp4.nz];
+  var grid = new GridArray(dim);
+  var values = ccp4.data();
+  for (var x = 0; x < dim[0]; ++x) {
+    for (var y = 0; y < dim[1]; ++y) {
+      for (var z = 0; z < dim[2]; ++z) {
+        var src = (z * dim[1] + y) * dim[0] + x;
+        grid.values[grid.grid2index_unchecked(x, y, z)] = values[src];
       }
     }
-    mat.push(row);
   }
-  return mat;
-}
+  this.grid = grid;
+};
+
+ElMap.prototype.unit = 'e/\u212B\u00B3';
 
 // Copyright 2010-2023 Three.js Authors
 // SPDX-License-Identifier: MIT
@@ -6538,7 +6332,7 @@ var ColorSchemes$1 = {
 };
 
 
-var INIT_HUD_TEXT = 'This is UglyMol not Coot. ' +
+var INIT_HUD_TEXT = 'This is GemmiMol not Coot. ' +
   '<a href="#" onclick="V.toggle_help(); return false;">H shows help.</a>';
 
 // options handled by select_next()
@@ -8283,13 +8077,24 @@ Viewer.prototype.pick_pdb_and_map = function pick_pdb_and_map (file) {
   } else if (/\.(map|ccp4|mrc|dsn6|omap)$/.test(file.name)) {
     var map_format = /\.(dsn6|omap)$/.test(file.name) ? 'dsn6' : 'ccp4';
     reader.onloadend = function (evt) {
-      if (evt.target != null && evt.target.readyState == 2) {
-        self.load_map_from_buffer(evt.target.result ,
-                                  {format: map_format});
+      if (evt.target == null || evt.target.readyState != 2) { return; }
+      var after_load = (map_format === 'ccp4') ?
+        self.resolve_gemmi().then(function (gemmi) {
+          if (gemmi == null) { throw Error('Gemmi is required for CCP4 map loading.'); }
+          self.load_map_from_buffer(evt.target.result ,
+                                    {format: map_format}, gemmi);
+        }) :
+        Promise.resolve().then(function () {
+          self.load_map_from_buffer(evt.target.result ,
+                                    {format: map_format});
+        });
+      after_load.then(function () {
         if (self.model_bags.length === 0 && self.map_bags.length === 1) {
           self.recenter();
         }
-      }
+      }, function (e) {
+        self.hud('Loading ' + file.name + ' failed.\n' + e.message, 'ERR');
+      });
     };
     reader.readAsArrayBuffer(file);
   } else {
@@ -8325,10 +8130,6 @@ Viewer.prototype.fetch_monomer_cifs = function fetch_monomer_cifs (resnames) {
   });
 };
 
-Viewer.prototype.has_gemmi = function has_gemmi () {
-  return this.gemmi_module != null || this.gemmi_factory != null;
-};
-
 Viewer.prototype.resolve_gemmi = function resolve_gemmi (explicit_module) {
   if (explicit_module) { return Promise.resolve(explicit_module); }
   if (this.gemmi_module) { return Promise.resolve(this.gemmi_module); }
@@ -8349,11 +8150,8 @@ Viewer.prototype.resolve_gemmi = function resolve_gemmi (explicit_module) {
 Viewer.prototype.load_coordinate_buffer = function load_coordinate_buffer (buffer, name, explicit_gemmi) {
   var self = this;
   return this.resolve_gemmi(explicit_gemmi).then(function (gemmi) {
-    if (gemmi) {
-      return self.load_structure_from_buffer(gemmi, buffer, name);
-    }
-    var text = new TextDecoder().decode(buffer);
-    return self.load_pdb_from_text(text, name, null);
+    if (!gemmi) { throw Error('Gemmi is required for coordinate loading.'); }
+    return self.load_structure_from_buffer(gemmi, buffer, name);
   });
 };
 
@@ -8363,19 +8161,9 @@ Viewer.prototype.load_pdb_from_text = function load_pdb_from_text (text, name, e
 
   var self = this;
   return this.resolve_gemmi(explicit_gemmi).then(function (gemmi) {
-    if (gemmi) {
-      var buffer = new TextEncoder().encode(text).buffer;
-      return self.load_structure_from_buffer(gemmi, buffer, name);
-    }
-    var len = self.model_bags.length;
-    var models = modelsFromPDB(text);
-    for (var i = 0, list = models; i < list.length; i += 1) {
-      var model = list[i];
-
-        self.add_model(model);
-    }
-    self.selected.bag = self.model_bags[len];
-    self.last_bonding_info = null;
+    if (!gemmi) { throw Error('Gemmi is required for coordinate loading.'); }
+    var buffer = new TextEncoder().encode(text).buffer;
+    return self.load_structure_from_buffer(gemmi, buffer, name);
   });
 };
 
@@ -8404,13 +8192,9 @@ Viewer.prototype.load_pdb = function load_pdb (url, options,
          callback) {
   var self = this;
   var gemmi = options && options.gemmi;
-  var wants_binary = !!gemmi || this.has_gemmi();
-  this.load_file(url, {binary: wants_binary, progress: true}, function (req) {
+  this.load_file(url, {binary: true, progress: true}, function (req) {
     var t0 = performance.now();
-    var load = wants_binary ?
-      self.load_coordinate_buffer(req.response, url, gemmi) :
-      self.load_pdb_from_text(req.responseText, url, gemmi);
-    load.then(function () {
+    self.load_coordinate_buffer(req.response, url, gemmi).then(function () {
       console.log('coordinate file processed in', (performance.now() - t0).toFixed(2),
                   (gemmi || self.gemmi_module) ? 'ms (using gemmi)': 'ms');
       if (options == null || !options.stay) { self.set_view(options); }
@@ -8432,17 +8216,28 @@ Viewer.prototype.load_map = function load_map (url, options,
   }
   var self = this;
   this.load_file(url, {binary: true, progress: true}, function (req) {
-    self.load_map_from_buffer(req.response, options);
-    if (callback) { callback(); }
+    var after_load = (options.format === 'ccp4') ?
+      self.resolve_gemmi().then(function (gemmi) {
+        if (gemmi == null) { throw Error('Gemmi is required for CCP4 map loading.'); }
+        self.load_map_from_buffer(req.response, options, gemmi);
+      }) :
+      Promise.resolve().then(function () {
+        self.load_map_from_buffer(req.response, options);
+      });
+    after_load.then(function () {
+      if (callback) { callback(); }
+    }, function (e) {
+      self.hud('Error: ' + e.message + '\nwhen processing ' + url, 'ERR');
+    });
   });
 };
 
-Viewer.prototype.load_map_from_buffer = function load_map_from_buffer (buffer, options) {
+Viewer.prototype.load_map_from_buffer = function load_map_from_buffer (buffer, options, gemmi) {
   var map = new ElMap();
   if (options.format === 'dsn6') {
     map.from_dsn6(buffer);
   } else {
-    map.from_ccp4(buffer, true);
+    map.from_ccp4(buffer, true, gemmi);
   }
   this.add_map(map, options.diff_map);
 };
@@ -8535,7 +8330,7 @@ Viewer.prototype.KEYBOARD_HELP = [
   'Shift+F = full screen' ].join('\n');
 
 Viewer.prototype.ABOUT_HELP =
-  '&nbsp; <a href="https://uglymol.github.io">uglymol</a> ' +
+  '&nbsp; <a href="https://uglymol.github.io">GemmiMol</a> ' +
   // @ts-expect-error Cannot find name 'VERSION'
   (typeof VERSION === 'string' ? VERSION : 'dev'); // eslint-disable-line
 
@@ -8574,10 +8369,10 @@ var SPOT_SHAPES = ['wheel', 'square'];
 // shift it so the box is centered at 0,0,0,
 // and the translational symmetry doesn't apply.
 var ReciprocalSpaceMap = /*@__PURE__*/(function (ElMap) {
-  function ReciprocalSpaceMap(buf) {
+  function ReciprocalSpaceMap(buf, gemmi) {
     ElMap.call(this);
     this.box_size = [1, 1, 1];
-    this.from_ccp4(buf, false);
+    this.from_ccp4(buf, false, gemmi);
     if (this.unit_cell == null) { return; }
     // unit of the map from dials.rs_mapper is (100A)^-1, we scale it to A^-1
     // We assume the "unit cell" is cubic -- as it is in rs_mapper.
@@ -8873,23 +8668,28 @@ var ReciprocalViewer = /*@__PURE__*/(function (Viewer) {
   };
 
   ReciprocalViewer.prototype.load_map_from_ab = function load_map_from_ab (buffer) {
-    if (this.map_bags.length > 0) {
-      this.clear_el_objects(this.map_bags.pop());
-    }
-    var map = new ReciprocalSpaceMap(buffer);
-    if (map == null) { return; }
-    var map_range = map.box_size[0] / 2;
-    this.config.map_radius = Math.round(map_range / 2 * 100) / 100;
-    this.config.max_map_radius = Math.round(1.5 * map_range * 100) / 100;
-    this.config.default_isolevel = 2.0;
-    this.add_map(map, false);
-    var map_dmin = 1 / map_range;
-    var msg = 'Loaded density map (' + map_dmin.toFixed(2) + 'Å).\n';
-    if (this.points !== null && map_dmin > this.d_min) {
-      msg += 'Adjusted spot clipping. ';
-      this.change_dmin(map_dmin - this.d_min);
-    }
-    this.hud(msg + 'Use +/- to change the isolevel.');
+    var self = this;
+    this.resolve_gemmi().then(function (gemmi) {
+      if (gemmi == null) { throw Error('Gemmi is required for CCP4 map loading.'); }
+      if (self.map_bags.length > 0) {
+        self.clear_el_objects(self.map_bags.pop());
+      }
+      var map = new ReciprocalSpaceMap(buffer, gemmi);
+      var map_range = map.box_size[0] / 2;
+      self.config.map_radius = Math.round(map_range / 2 * 100) / 100;
+      self.config.max_map_radius = Math.round(1.5 * map_range * 100) / 100;
+      self.config.default_isolevel = 2.0;
+      self.add_map(map, false);
+      var map_dmin = 1 / map_range;
+      var msg = 'Loaded density map (' + map_dmin.toFixed(2) + 'Å).\n';
+      if (self.points !== null && map_dmin > self.d_min) {
+        msg += 'Adjusted spot clipping. ';
+        self.change_dmin(map_dmin - self.d_min);
+      }
+      self.hud(msg + 'Use +/- to change the isolevel.');
+    }, function (e) {
+      self.hud(e.message, 'ERR');
+    });
   };
 
   ReciprocalViewer.prototype.set_axes = function set_axes () {
@@ -9153,7 +8953,6 @@ exports.makeSticks = makeSticks;
 exports.makeUniforms = makeUniforms;
 exports.makeWheels = makeWheels;
 exports.modelsFromGemmi = modelsFromGemmi;
-exports.modelsFromPDB = modelsFromPDB;
 exports.set_pdb_and_mtz_dropzone = set_pdb_and_mtz_dropzone;
 
 }));

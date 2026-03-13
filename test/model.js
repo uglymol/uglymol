@@ -1,30 +1,14 @@
 
 var util = require('../perf/util');
-var modelsFromPDB = require('../uglymol').modelsFromPDB;
-
-// O(n^2) loop, for testing purposes only
-function get_connectivity_simple(atoms) {
-  'use strict';
-  var connectivity = [];
-  var i;
-  for (i = 0; i < atoms.length; i++) {
-    connectivity.push([]);
-  }
-  for (i = 0; i < atoms.length; i++) {
-    for (var j = i + 1; j < atoms.length; j++) {
-      if (atoms[i].is_bonded_to(atoms[j])) {
-        connectivity[i].push(j);
-        connectivity[j].push(i);
-      }
-    }
-  }
-  return connectivity;
-}
 
 describe('Model', () => {
   'use strict';
-  var pdb_string = util.open_as_utf8('1YJP.pdb');
-  var model = modelsFromPDB(pdb_string)[0];
+  var model;
+  beforeAll(function () {
+    return util.load_models_from_gemmi('1YJP.pdb').then(function (models) {
+      model = models[0];
+    });
+  });
   it('atoms', () => {
     for (var i = 0; i < model.atoms.length; i++) {
       var atom = model.atoms[i];
@@ -33,13 +17,15 @@ describe('Model', () => {
   });
   it('bonds', () => {
     var atoms = model.atoms;
-    var simple_conn = get_connectivity_simple(atoms);
-    // console.log(simple_conn);
-    var model_conn = [];
     for (var i = 0; i < atoms.length; i++) {
-      model_conn.push(atoms[i].bonds.sort(function (a, b) { return a - b; }));
+      var atom = atoms[i];
+      expect(atom.bonds.length).toEqual(atom.bond_types.length);
+      for (var j = 0; j < atom.bonds.length; j++) {
+        var other = atom.bonds[j];
+        expect(other).not.toEqual(i);
+        expect(atoms[other].bonds.includes(i)).toEqual(true);
+      }
     }
-    expect(model_conn).toEqual(simple_conn);
   });
   it('next_residue', () => {
     var a1 = model.next_residue();  // first residue
@@ -64,4 +50,3 @@ describe('Model', () => {
     }
   });
 });
-

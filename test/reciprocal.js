@@ -1,10 +1,10 @@
 
-var UM = require('../uglymol');
+var GM = require('../gemmimol');
 //var util = require('../perf/util');
 
 describe('ReciprocalViewer', () => {
   'use strict';
-  var viewer = new UM.ReciprocalViewer();
+  var viewer = new GM.ReciprocalViewer();
   //var data = util.open_as_utf8('rlp.csv');
   //viewer.load_from_string(data, false);
   it('misc calls', () => {

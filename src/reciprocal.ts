@@ -52,10 +52,10 @@ const SPOT_SHAPES = ['wheel', 'square'];
 export class ReciprocalSpaceMap extends ElMap {
   box_size: Num3;
 
-  constructor(buf: ArrayBuffer) {
+  constructor(buf: ArrayBuffer, gemmi: any) {
     super();
     this.box_size = [1, 1, 1];
-    this.from_ccp4(buf, false);
+    this.from_ccp4(buf, false, gemmi);
     if (this.unit_cell == null) return;
     // unit of the map from dials.rs_mapper is (100A)^-1, we scale it to A^-1
     // We assume the "unit cell" is cubic -- as it is in rs_mapper.
@@ -379,23 +379,28 @@ export class ReciprocalViewer extends Viewer {
   }
 
   load_map_from_ab(buffer: ArrayBuffer) {
-    if (this.map_bags.length > 0) {
-      this.clear_el_objects(this.map_bags.pop());
-    }
-    const map = new ReciprocalSpaceMap(buffer);
-    if (map == null) return;
-    const map_range = map.box_size[0] / 2;
-    this.config.map_radius = Math.round(map_range / 2 * 100) / 100;
-    this.config.max_map_radius = Math.round(1.5 * map_range * 100) / 100;
-    this.config.default_isolevel = 2.0;
-    this.add_map(map, false);
-    const map_dmin = 1 / map_range;
-    let msg = 'Loaded density map (' + map_dmin.toFixed(2) + 'Å).\n';
-    if (this.points !== null && map_dmin > this.d_min) {
-      msg += 'Adjusted spot clipping. ';
-      this.change_dmin(map_dmin - this.d_min);
-    }
-    this.hud(msg + 'Use +/- to change the isolevel.');
+    const self = this;
+    this.resolve_gemmi().then(function (gemmi) {
+      if (gemmi == null) throw Error('Gemmi is required for CCP4 map loading.');
+      if (self.map_bags.length > 0) {
+        self.clear_el_objects(self.map_bags.pop());
+      }
+      const map = new ReciprocalSpaceMap(buffer, gemmi);
+      const map_range = map.box_size[0] / 2;
+      self.config.map_radius = Math.round(map_range / 2 * 100) / 100;
+      self.config.max_map_radius = Math.round(1.5 * map_range * 100) / 100;
+      self.config.default_isolevel = 2.0;
+      self.add_map(map, false);
+      const map_dmin = 1 / map_range;
+      let msg = 'Loaded density map (' + map_dmin.toFixed(2) + 'Å).\n';
+      if (self.points !== null && map_dmin > self.d_min) {
+        msg += 'Adjusted spot clipping. ';
+        self.change_dmin(map_dmin - self.d_min);
+      }
+      self.hud(msg + 'Use +/- to change the isolevel.');
+    }, function (e) {
+      self.hud(e.message, 'ERR');
+    });
   }
 
   set_axes() {

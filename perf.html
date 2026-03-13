@@ -6,7 +6,7 @@
 <html lang="en">
 <head>
  <meta charset="utf-8">
- <title>benchmarks for uglymol</title>
+ <title>benchmarks for GemmiMol</title>
  <style>
    body { background-color: #ddd; font: 18px sans-serif; padding: 10px 20px; }
    a { color: #22b; text-decoration: none; }
@@ -20,7 +20,7 @@
  <p>Platform: <span id="platform">-</span></p>
  <p>Benchmarks from
  <a href="https://github.com/uglymol/uglymol/tree/master/perf/"
-    >uglymol/perf</a>. Click one and wait.
+    >GemmiMol/perf</a>. Click one and wait.
  <ul id="list"></ul>
  <script src="node_modules/lodash/lodash.min.js"></script>
  <script src="node_modules/platform/platform.js"></script>
@@ -94,8 +94,9 @@
   };
  </script>
 
- <!-- uglymol scripts -->
- <script src="uglymol.js"></script>
+ <!-- GemmiMol scripts -->
+ <script src="gemmimol.js"></script>
+ <script src="wasm/gemmi.js"></script>
  <script src="perf/model.js"></script>
  <script src="perf/elmap.js"></script>
  <script src="perf/isosurface.js"></script>

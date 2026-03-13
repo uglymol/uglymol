@@ -1,5 +1,5 @@
 
-var ElMap = require('../uglymol').ElMap;
+var ElMap = require('../gemmimol').ElMap;
 var util = require('../perf/util');
 
 
@@ -17,11 +17,17 @@ describe('ElMap', () => {
   var cmap_buf = util.open_as_array_buffer('1mru.map');
   var dmap = new ElMap();
   var cmap = new ElMap();
+  var gemmi;
+  beforeAll(function () {
+    return util.load_gemmi().then(function (loaded) {
+      gemmi = loaded;
+    });
+  });
   it('#from_dsn6', () => {
     dmap.from_dsn6(dmap_buf);
   });
   it('#from_ccp4', () => {
-    cmap.from_ccp4(cmap_buf);
+    cmap.from_ccp4(cmap_buf, true, gemmi);
   });
   it('compare unit cells', () => {
     for (var i = 0; i < 6; i++) {
@@ -31,4 +37,3 @@ describe('ElMap', () => {
     }
   });
 });
-

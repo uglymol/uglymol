@@ -4,6 +4,9 @@
 const child_process = require('child_process');
 const fs = require('fs');
 const Benchmark = require('benchmark');
+const GM = require('../gemmimol');
+
+let gemmi_promise;
 
 function data_path(filename) {
   if (filename.charAt(0) === '/') return filename;
@@ -38,6 +41,25 @@ exports.open_as_array_buffer = function (filename) {
     view[i] = buffer[i];
   }
   return ab;
+};
+
+exports.load_gemmi = function () {
+  if (!gemmi_promise) {
+    gemmi_promise = require('../wasm/gemmi.js')();
+  }
+  return gemmi_promise;
+};
+
+exports.load_models_from_gemmi = function (filename, getMonomerCifs) {
+  return exports.load_gemmi().then(function (gemmi) {
+    return GM.modelsFromGemmi(gemmi, exports.open_as_array_buffer(filename),
+                              filename, getMonomerCifs)
+      .then(function (result) {
+        const models = result.models;
+        result.structure.delete();
+        return models;
+      });
+  });
 };
 
 const bench_to_run = process.argv[2];

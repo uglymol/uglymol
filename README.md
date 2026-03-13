@@ -1,6 +1,6 @@
 [![npm](https://img.shields.io/npm/v/uglymol.svg?maxAge=2592000)](https://www.npmjs.com/package/uglymol)
 
-UglyMol is a web-based macromolecular viewer focused on electron density.
+GemmiMol is a web-based macromolecular viewer focused on electron density.
 
 It makes models and e.den. maps easy to recognize, navigate and interpret --
 for crystallographers.
@@ -25,7 +25,7 @@ Try it:
 
 It also has a [reciprocal space spin-off](https://uglymol.github.io/reciprocal.html?rlp=data/rlp.csv).
 
-UglyMol is a small (~3 KLOC) [project](https://github.com/uglymol/uglymol)
+GemmiMol is a small (~3 KLOC) [project](https://github.com/uglymol/uglymol)
 forked from Nat Echols' [xtal.js](https://github.com/natechols/xtal.js/).
 The plan is to keep it small. But if you're missing some functionality,
 it won't hurt if you get in touch --

@@ -1,5 +1,6 @@
 import { UnitCell } from './unitcell';
 import { Block } from './isosurface';
+import type { Module as GemmiModule, Ccp4Map as WasmCcp4Map } from './wasm/gemmi.d.ts';
 
 type Num3 = [number, number, number];
 
@@ -84,113 +85,17 @@ export class ElMap {
     return sigma * this.stats.rms + this.stats.mean;
   }
 
-  // http://www.ccp4.ac.uk/html/maplib.html#description
-  // eslint-disable-next-line complexity
-  from_ccp4(buf: ArrayBuffer, expand_symmetry?: boolean) {
+  from_ccp4(buf: ArrayBuffer, expand_symmetry?: boolean, gemmi?: GemmiModule) {
     if (expand_symmetry === undefined) expand_symmetry = true;
-    if (buf.byteLength < 1024) throw Error('File shorter than 1024 bytes.');
-    //console.log('buf type: ' + Object.prototype.toString.call(buf));
-    // for now we assume both file and host are little endian
-    const iview = new Int32Array(buf, 0, 256);
-    // word 53 - character string 'MAP ' to identify file type
-    if (iview[52] !== 0x2050414d) throw Error('not a CCP4 map');
-    // map has 3 dimensions referred to as columns (fastest changing), rows
-    // and sections (c-r-s)
-    const n_crs = [iview[0], iview[1], iview[2]];
-    const mode = iview[3];
-    let nb;
-    if (mode === 2) nb = 4;
-    else if (mode === 0) nb = 1;
-    else throw Error('Only Mode 2 and Mode 0 of CCP4 map is supported.');
-    const start = [iview[4], iview[5], iview[6]];
-    const n_grid: Num3 = [iview[7], iview[8], iview[9]];
-    const nsymbt = iview[23]; // size of extended header in bytes
-    if (1024 + nsymbt + nb*n_crs[0]*n_crs[1]*n_crs[2] !== buf.byteLength) {
-      throw Error('ccp4 file too short or too long');
+    if (gemmi == null || typeof gemmi.readCcp4Map !== 'function') {
+      throw Error('Gemmi is required for CCP4 map loading.');
     }
-    const fview = new Float32Array(buf, 0, buf.byteLength / 4);
-    this.unit_cell = new UnitCell(fview[10], fview[11], fview[12],
-                                  fview[13], fview[14], fview[15]);
-    // MAPC, MAPR, MAPS - axis corresp to cols, rows, sections (1,2,3 for X,Y,Z)
-    const map_crs = [iview[16], iview[17], iview[18]];
-    const ax = map_crs.indexOf(1);
-    const ay = map_crs.indexOf(2);
-    const az = map_crs.indexOf(3);
-
-    const min = fview[19];
-    const max = fview[20];
-    //const sg_number = iview[22];
-    //const lskflg = iview[24];
-    const grid = new GridArray(n_grid);
-    if (nsymbt % 4 !== 0) {
-      throw Error('CCP4 map with NSYMBT not divisible by 4 is not supported.');
+    const ccp4 = gemmi.readCcp4Map(buf, expand_symmetry);
+    try {
+      this.set_from_ccp4_map(ccp4);
+    } finally {
+      ccp4.delete();
     }
-    let data_view;
-    if (mode === 2) data_view = fview;
-    else /* mode === 0 */ data_view = new Int8Array(buf);
-    let idx = (1024 + nsymbt) / nb | 0;
-
-    // We assume that if DMEAN and RMS from the header are not clearly wrong
-    // they are what the user wants. Because the map can cover a small part
-    // of the asu and its rmsd may be different than the total rmsd.
-    this.stats.mean = fview[21];
-    this.stats.rms = fview[54];
-    if (this.stats.mean < min || this.stats.mean > max || this.stats.rms <= 0) {
-      this.stats = calculate_stddev(data_view, idx);
-    }
-    let b1 = 1;
-    let b0 = 0;
-    // if the file was converted by mapmode2to0 - scale the data
-    if (mode === 0 && iview[39] === -128 && iview[40] === 127) {
-      // scaling f(x)=b1*x+b0 such that f(-128)=min and f(127)=max
-      b1 = (max - min) / 255.0;
-      b0 = 0.5 * (min + max + b1);
-    }
-
-    const end = [start[0] + n_crs[0], start[1] + n_crs[1], start[2] + n_crs[2]];
-    const it = [0, 0, 0];
-    for (it[2] = start[2]; it[2] < end[2]; it[2]++) { // sections
-      for (it[1] = start[1]; it[1] < end[1]; it[1]++) { // rows
-        for (it[0] = start[0]; it[0] < end[0]; it[0]++) { // cols
-          grid.set_grid_value(it[ax], it[ay], it[az], b1 * data_view[idx] + b0);
-          idx++;
-        }
-      }
-    }
-    if (expand_symmetry && nsymbt > 0) {
-      const u8view = new Uint8Array(buf);
-      for (let i = 0; i+80 <= nsymbt; i += 80) {
-        let j;
-        let symop = '';
-        for (j = 0; j < 80; ++j) {
-          symop += String.fromCharCode(u8view[1024 + i + j]);
-        }
-        if (/^\s*x\s*,\s*y\s*,\s*z\s*$/i.test(symop)) continue;  // skip x,y,z
-        //console.log('sym ops', symop.trim());
-        const mat = parse_symop(symop);
-        // Note: we apply here symops to grid points instead of coordinates.
-        // In the cases we came across it is equivalent, but in general not.
-        for (j = 0; j < 3; ++j) {
-          mat[j][3] = Math.round(mat[j][3] * n_grid[j]) | 0;
-        }
-        idx = (1024 + nsymbt) / nb | 0;
-        const xyz = [0, 0, 0];
-        for (it[2] = start[2]; it[2] < end[2]; it[2]++) { // sections
-          for (it[1] = start[1]; it[1] < end[1]; it[1]++) { // rows
-            for (it[0] = start[0]; it[0] < end[0]; it[0]++) { // cols
-              for (j = 0; j < 3; ++j) {
-                xyz[j] = it[ax] * mat[j][0] + it[ay] * mat[j][1] +
-                         it[az] * mat[j][2] + mat[j][3];
-              }
-              grid.set_grid_value(xyz[0], xyz[1], xyz[2],
-                                  b1 * data_view[idx] + b0);
-              idx++;
-            }
-          }
-        }
-      }
-    }
-    this.grid = grid;
   }
 
   // DSN6 MAP FORMAT
@@ -302,33 +207,27 @@ export class ElMap {
     const abs_level = this.abs_level(sigma);
     return this.block.isosurface(abs_level, method);
   }
+
+  private set_from_ccp4_map(ccp4: WasmCcp4Map) {
+    const cell = ccp4.cell;
+    this.unit_cell = new UnitCell(cell.a, cell.b, cell.c,
+                                  cell.alpha, cell.beta, cell.gamma);
+    this.stats.mean = ccp4.mean;
+    this.stats.rms = ccp4.rms;
+    const dim: Num3 = [ccp4.nx, ccp4.ny, ccp4.nz];
+    const grid = new GridArray(dim);
+    const values = ccp4.data();
+    for (let x = 0; x < dim[0]; ++x) {
+      for (let y = 0; y < dim[1]; ++y) {
+        for (let z = 0; z < dim[2]; ++z) {
+          const src = (z * dim[1] + y) * dim[0] + x;
+          grid.values[grid.grid2index_unchecked(x, y, z)] = values[src];
+        }
+      }
+    }
+    this.grid = grid;
+  }
+
 }
 
 ElMap.prototype.unit = 'e/\u212B\u00B3';
-
-// symop -> matrix ([x,y,z] = matrix * [x,y,z,1])
-function parse_symop(symop: string) {
-  const ops = symop.toLowerCase().replace(/\s+/g, '').split(',');
-  if (ops.length !== 3) throw Error('Unexpected symop: ' + symop);
-  const mat = [];
-  for (let i = 0; i < 3; i++) {
-    const terms = ops[i].split(/(?=[+-])/);
-    const row = [0, 0, 0, 0];
-    for (let j = 0; j < terms.length; j++) {
-      const term = terms[j];
-      const sign = (term[0] === '-' ? -1 : 1);
-      let m = terms[j].match(/^[+-]?([xyz])$/);
-      if (m) {
-        const pos = {x: 0, y: 1, z: 2}[m[1]] as number;
-        row[pos] = sign;
-      } else {
-        m = terms[j].match(/^[+-]?(\d)\/(\d)$/);
-        if (!m) throw Error('What is ' + terms[j] + ' in ' + symop);
-        row[3] = sign * Number(m[1]) / Number(m[2]);
-      }
-    }
-    mat.push(row);
-  }
-  return mat;
-}
-

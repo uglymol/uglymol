@@ -1,15 +1,28 @@
 
-var UM = require('../uglymol');
+var GM = require('../gemmimol');
 var util = require('../perf/util');
 
 describe('Viewer', () => {
   'use strict';
-  var viewer = new UM.Viewer('viewer');
-  var emap = new UM.ElMap();
+  var viewer = new GM.Viewer('viewer');
+  var emap = new GM.ElMap();
   var cmap_buf = util.open_as_array_buffer('1mru.map');
-  emap.from_ccp4(cmap_buf);
-  var pdb_string = util.open_as_utf8('1mru.pdb');
-  var model = UM.modelsFromPDB(pdb_string)[0];
+  var gemmi;
+  var model;
+  var model2;
+  beforeAll(function () {
+    return util.load_gemmi().then(function (loaded) {
+      gemmi = loaded;
+      emap.from_ccp4(cmap_buf, true, gemmi);
+      return Promise.all([
+        util.load_models_from_gemmi('1mru.pdb'),
+        util.load_models_from_gemmi('1yk4.pdb'),
+      ]);
+    }).then(function (models) {
+      model = models[0][0];
+      model2 = models[1][0];
+    });
+  });
   it('misc calls (1mru)', () => {
     viewer.add_map(emap, false);
     viewer.toggle_map_visibility(viewer.map_bags[0], false);
@@ -27,9 +40,6 @@ describe('Viewer', () => {
     viewer.select_atom({bag: viewer.model_bags[0], atom: model.atoms[1]});
   });
 
-  pdb_string = util.open_as_utf8('1yk4.pdb');
-  var model2 = new UM.Model();
-  model2.from_pdb(pdb_string.split('\n'));
   it('misc calls (1yk4)', () => {
     viewer.add_model(model2);
     viewer.config.hydrogens = true;

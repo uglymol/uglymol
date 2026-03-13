@@ -1,5 +1,5 @@
 
-var Block = require('../uglymol').Block;
+var Block = require('../gemmimol').Block;
 
 describe('isosurface', () => {
   'use strict';
@@ -34,4 +34,3 @@ describe('isosurface', () => {
     }
   });
 });
-

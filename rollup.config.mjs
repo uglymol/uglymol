@@ -6,7 +6,7 @@ const require = createRequire(import.meta.url);
 const version = require('./package.json').version
 
 const banner = `/*!
- * UglyMol v${version}. Macromolecular Viewer for Crystallographers.
+ * GemmiMol v${version}. Macromolecular Viewer for Crystallographers.
  * Copyright 2014 Nat Echols
  * Copyright 2016 Diamond Light Source Ltd
  * Copyright 2016 Marcin Wojdyr
@@ -23,9 +23,9 @@ let build = {
     })
   ],
   output: {
-    file: 'uglymol.js',
+    file: 'gemmimol.js',
     format: 'umd',
-    name: 'UM',
+    name: 'GM',
     intro: `var VERSION = exports.VERSION = '${version}';\n`,
     banner,
     sourcemap: false,

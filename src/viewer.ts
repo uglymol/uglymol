@@ -5,7 +5,7 @@ import { makeLineMaterial, makeLineSegments, makeRibbon,
          makeRgbBox, Label, addXyzCross } from './draw';
 import { STATE, Controls } from './controls';
 import { ElMap } from './elmap';
-import { BondType, modelsFromPDB, modelsFromGemmi } from './model';
+import { BondType, modelsFromGemmi } from './model';
 
 import type { Atom, Model } from './model';
 import type { GemmiBondingInfo } from './model';
@@ -143,7 +143,7 @@ const ColorSchemes: Record<string, ColorScheme> = {
 };
 
 
-const INIT_HUD_TEXT = 'This is UglyMol not Coot. ' +
+const INIT_HUD_TEXT = 'This is GemmiMol not Coot. ' +
   '<a href="#" onclick="V.toggle_help(); return false;">H shows help.</a>';
 
 // options handled by select_next()
@@ -1920,13 +1920,24 @@ export class Viewer {
     } else if (/\.(map|ccp4|mrc|dsn6|omap)$/.test(file.name)) {
       const map_format = /\.(dsn6|omap)$/.test(file.name) ? 'dsn6' : 'ccp4';
       reader.onloadend = function (evt) {
-        if (evt.target != null && evt.target.readyState == 2) {
-          self.load_map_from_buffer(evt.target.result as ArrayBuffer,
-                                    {format: map_format});
+        if (evt.target == null || evt.target.readyState != 2) return;
+        const after_load = (map_format === 'ccp4') ?
+          self.resolve_gemmi().then(function (gemmi) {
+            if (gemmi == null) throw Error('Gemmi is required for CCP4 map loading.');
+            self.load_map_from_buffer(evt.target.result as ArrayBuffer,
+                                      {format: map_format}, gemmi);
+          }) :
+          Promise.resolve().then(function () {
+            self.load_map_from_buffer(evt.target.result as ArrayBuffer,
+                                      {format: map_format});
+          });
+        after_load.then(function () {
           if (self.model_bags.length === 0 && self.map_bags.length === 1) {
             self.recenter();
           }
-        }
+        }, function (e) {
+          self.hud('Loading ' + file.name + ' failed.\n' + e.message, 'ERR');
+        });
       };
       reader.readAsArrayBuffer(file);
     } else {
@@ -1962,10 +1973,6 @@ export class Viewer {
     });
   }
 
-  has_gemmi() {
-    return this.gemmi_module != null || this.gemmi_factory != null;
-  }
-
   resolve_gemmi(explicit_module?: any) {
     if (explicit_module) return Promise.resolve(explicit_module);
     if (this.gemmi_module) return Promise.resolve(this.gemmi_module);
@@ -1986,11 +1993,8 @@ export class Viewer {
   load_coordinate_buffer(buffer: ArrayBuffer, name: string, explicit_gemmi?: any) {
     const self = this;
     return this.resolve_gemmi(explicit_gemmi).then(function (gemmi) {
-      if (gemmi) {
-        return self.load_structure_from_buffer(gemmi, buffer, name);
-      }
-      const text = new TextDecoder().decode(buffer);
-      return self.load_pdb_from_text(text, name, null);
+      if (!gemmi) throw Error('Gemmi is required for coordinate loading.');
+      return self.load_structure_from_buffer(gemmi, buffer, name);
     });
   }
 
@@ -1998,17 +2002,9 @@ export class Viewer {
   load_pdb_from_text(text: string, name: string='model.pdb', explicit_gemmi?: any) {
     const self = this;
     return this.resolve_gemmi(explicit_gemmi).then(function (gemmi) {
-      if (gemmi) {
-        const buffer = new TextEncoder().encode(text).buffer;
-        return self.load_structure_from_buffer(gemmi, buffer, name);
-      }
-      const len = self.model_bags.length;
-      const models = modelsFromPDB(text);
-      for (const model of models) {
-        self.add_model(model);
-      }
-      self.selected.bag = self.model_bags[len];
-      self.last_bonding_info = null;
+      if (!gemmi) throw Error('Gemmi is required for coordinate loading.');
+      const buffer = new TextEncoder().encode(text).buffer;
+      return self.load_structure_from_buffer(gemmi, buffer, name);
     });
   }
 
@@ -2035,13 +2031,9 @@ export class Viewer {
            callback?: () => void) {
     const self = this;
     const gemmi = options && options.gemmi;
-    const wants_binary = !!gemmi || this.has_gemmi();
-    this.load_file(url, {binary: wants_binary, progress: true}, function (req) {
+    this.load_file(url, {binary: true, progress: true}, function (req) {
       const t0 = performance.now();
-      const load = wants_binary ?
-        self.load_coordinate_buffer(req.response, url, gemmi) :
-        self.load_pdb_from_text(req.responseText, url, gemmi);
-      load.then(function () {
+      self.load_coordinate_buffer(req.response, url, gemmi).then(function () {
         console.log('coordinate file processed in', (performance.now() - t0).toFixed(2),
                     (gemmi || self.gemmi_module) ? 'ms (using gemmi)': 'ms');
         if (options == null || !options.stay) self.set_view(options);
@@ -2063,17 +2055,28 @@ export class Viewer {
     }
     const self = this;
     this.load_file(url, {binary: true, progress: true}, function (req) {
-      self.load_map_from_buffer(req.response, options);
-      if (callback) callback();
+      const after_load = (options.format === 'ccp4') ?
+        self.resolve_gemmi().then(function (gemmi) {
+          if (gemmi == null) throw Error('Gemmi is required for CCP4 map loading.');
+          self.load_map_from_buffer(req.response, options, gemmi);
+        }) :
+        Promise.resolve().then(function () {
+          self.load_map_from_buffer(req.response, options);
+        });
+      after_load.then(function () {
+        if (callback) callback();
+      }, function (e) {
+        self.hud('Error: ' + e.message + '\nwhen processing ' + url, 'ERR');
+      });
     });
   }
 
-  load_map_from_buffer(buffer: ArrayBuffer, options: Record<string, any>) {
+  load_map_from_buffer(buffer: ArrayBuffer, options: Record<string, any>, gemmi?: any) {
     const map = new ElMap();
     if (options.format === 'dsn6') {
       map.from_dsn6(buffer);
     } else {
-      map.from_ccp4(buffer, true);
+      map.from_ccp4(buffer, true, gemmi);
     }
     this.add_map(map, options.diff_map);
   }
@@ -2187,7 +2190,7 @@ Viewer.prototype.KEYBOARD_HELP = [
 ].join('\n');
 
 Viewer.prototype.ABOUT_HELP =
-  '&nbsp; <a href="https://uglymol.github.io">uglymol</a> ' +
+  '&nbsp; <a href="https://uglymol.github.io">GemmiMol</a> ' +
   // @ts-expect-error Cannot find name 'VERSION'
   (typeof VERSION === 'string' ? VERSION : 'dev'); // eslint-disable-line
 

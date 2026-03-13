@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <title>1MRU x2 - UglyMol</title>
+  <title>1MRU x2 - GemmiMol</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, user-scalable=no">
   <meta name="theme-color" content="#333333">
@@ -49,18 +49,19 @@
    #viewer2 b { position: absolute; bottom: 30px; right: 30px; }
   </style>
 
-  <script src="uglymol.js"></script>
+  <script src="gemmimol.js"></script>
+  <script src="wasm/gemmi.js"></script>
 
 </head>
 <body>
   <div id="viewer1"><b>PDB original</b></div>
   <div id="viewer2"><b>PDB_REDO</b></div>
-  <header id="hud">Welcome to UglyMol. Press H for help.</header>
+  <header id="hud">Welcome to GemmiMol. Press H for help.</header>
   <footer id="help"></footer>
   <script>
-    V1 = new UM.Viewer({viewer: "viewer1", focusable: true});
+    V1 = new GM.Viewer({viewer: "viewer1", focusable: true});
     V1.load_pdb("data/1mru.pdb");
-    V2 = new UM.Viewer({viewer: "viewer2", focusable: true, share_view: V1});
+    V2 = new GM.Viewer({viewer: "viewer2", focusable: true, share_view: V1});
     V2.load_pdb_and_ccp4_maps("data/pdb_redo/1mru_final.pdb",
                               "data/pdb_redo/1mru.map",
                               "data/pdb_redo/1mru_diff.map", function () {

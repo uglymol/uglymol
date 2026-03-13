@@ -1,12 +1,12 @@
 
 var util = util || require('./util'); // eslint-disable-line
-var UM = UM || require('../uglymol'); // eslint-disable-line
+var GM = GM || require('../gemmimol'); // eslint-disable-line
 
 (function () {  // namespace is needed for perf.html
 'use strict';
 
 const dmap_buf = util.open_as_array_buffer('1mru.omap');
-let map = new UM.ElMap();
+let map = new GM.ElMap();
 map.from_dsn6(dmap_buf.slice(0));
 map.extract_block(15, [25, 26, 35]);
 

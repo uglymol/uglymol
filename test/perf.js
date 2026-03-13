@@ -9,14 +9,12 @@ Benchmark.options.initCount = 0;
 describe('perf', () => {
   'use strict';
   function add(name) {
-    it(name, () => {
+    it(name, function () {
       var save_console_log = console.log;
       console.log = function () {};
-      try {
-        require('../perf/' + name);
-      } finally {
+      return Promise.resolve(require('../perf/' + name)).finally(function () {
         console.log = save_console_log;
-      }
+      });
     });
   }
   add('model');
@@ -24,4 +22,3 @@ describe('perf', () => {
   add('isosurface');
   add('viewer');
 });
-

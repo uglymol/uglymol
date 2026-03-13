@@ -1,4 +1,4 @@
-var UnitCell = require('../uglymol').UnitCell;
+var UnitCell = require('../gemmimol').UnitCell;
 
 function assert_equal_arrays(a, b, rtol) {
   'use strict';
@@ -32,4 +32,3 @@ describe('UnitCell', () => {
     }
   });
 });
-
