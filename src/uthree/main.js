@@ -2773,12 +2773,6 @@ class Points extends Object3D {
   }
 }
 
-// kept for compatibility with THREE (lights/AmbientLight.js)
-class AmbientLight {
-  constructor() {}
-}
-
-
 export {
   WebGLRenderer,
   Fog,
@@ -2788,7 +2782,6 @@ export {
   Line,
   Points,
   ShaderMaterial,
-  AmbientLight,
   OrthographicCamera,
   BufferGeometry,
   BufferAttribute,

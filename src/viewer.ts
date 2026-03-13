@@ -1,4 +1,4 @@
-import { OrthographicCamera, Scene, AmbientLight, Color, Vector3,
+import { OrthographicCamera, Scene, Color, Vector3,
          Ray, WebGLRenderer, Fog } from './uthree/main';
 import { makeLineMaterial, makeLineSegments, makeRibbon,
          makeChickenWire, makeGrid, makeSticks, makeBalls, makeWheels, makeCube,
@@ -609,7 +609,6 @@ export class Viewer {
   selected: {bag: ModelBag | null, atom: Atom | null};
   dbl_click_callback: (arg: object) => void;
   scene: Scene;
-  light: AmbientLight;
   default_camera_pos: Num3;
   target: Vector3;
   camera: OrCameraType;
@@ -694,7 +693,6 @@ export class Viewer {
     this.dbl_click_callback = this.toggle_label;
     this.scene = new Scene();
     this.scene.fog = new Fog(this.config.colors.bg, 0, 1);
-    this.scene.add(new AmbientLight(0xffffff));
     this.default_camera_pos = [0, 0, 100];
     if (options.share_view) {
       this.target = options.share_view.target;

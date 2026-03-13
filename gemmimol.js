@@ -5231,11 +5231,6 @@ class Points extends Object3D {
   }
 }
 
-// kept for compatibility with THREE (lights/AmbientLight.js)
-class AmbientLight {
-  constructor() {}
-}
-
 // Copyright 2010-2023 Three.js Authors
 // SPDX-License-Identifier: MIT
 
@@ -6996,7 +6991,6 @@ class Viewer {
   
   
   
-  
 
   constructor(options) {
     // rendered objects
@@ -7061,7 +7055,6 @@ class Viewer {
     this.dbl_click_callback = this.toggle_label;
     this.scene = new Scene();
     this.scene.fog = new Fog(this.config.colors.bg, 0, 1);
-    this.scene.add(new AmbientLight(0xffffff));
     this.default_camera_pos = [0, 0, 100];
     if (options.share_view) {
       this.target = options.share_view.target;
@@ -9186,7 +9179,6 @@ function set_pdb_and_mtz_dropzone(gemmi, viewer,
   });
 }
 
-exports.AmbientLight = AmbientLight;
 exports.Block = Block;
 exports.BondType = BondType;
 exports.BufferAttribute = BufferAttribute;
