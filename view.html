@@ -63,11 +63,8 @@
   <script src="gemmimol.js"></script> <!--DEV--><!--
   <script src="/gemmimol.js"></script>
   -DEV-->
-  <script src="src/wasm/gemmi.js"></script> <!--DEV--><!--
-  <script src="/wasm/gemmi.js"></script>
-  -DEV-->
-  <script src="src/wasm/mtz.js"></script> <!--DEV--><!--
-  <script src="/wasm/mtz.js"></script>
+  <script src="vendor/wasm/gemmi.js"></script> <!--DEV--><!--
+  <script src="/vendor/wasm/gemmi.js"></script>
   -DEV-->
 
 </head>
@@ -130,7 +127,7 @@
       'HTML');
       }
     }
-    GemmiMtz().then(setup);
+    Gemmi().then(setup);
   </script>
 </body>
 </html>

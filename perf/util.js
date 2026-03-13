@@ -45,7 +45,7 @@ exports.open_as_array_buffer = function (filename) {
 
 exports.load_gemmi = function () {
   if (!gemmi_promise) {
-    gemmi_promise = require('../wasm/gemmi.js')();
+    gemmi_promise = require('../vendor/wasm/gemmi.js')();
   }
   return gemmi_promise;
 };

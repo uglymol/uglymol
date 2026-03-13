@@ -1,7 +1,7 @@
 import { UnitCell } from './unitcell';
 import { ElMap, GridArray } from './elmap';
 import type { Viewer } from './viewer';
-import type { Module as MtzModule, Mtz as WasmMtz } from './wasm/mtz.d.ts';
+import type { Module as MtzModule, Mtz as WasmMtz } from './gemmi_wasm';
 
 function log_timing(t0: number, text: string) {
   console.log(text + ': ' + (performance.now() - t0).toFixed(2) + ' ms.');

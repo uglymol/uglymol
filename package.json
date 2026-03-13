@@ -21,7 +21,8 @@
   "files": [
     "gemmimol.js",
     "gemmimol.min.js",
-    "src"
+    "src",
+    "vendor/wasm"
   ],
   "engines": {
     "node": ">=20"

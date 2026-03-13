@@ -71,7 +71,7 @@ const tsFiles = ['**/*.ts', '**/*.tsx', '**/*.mts', '**/*.cts'];
 
 module.exports = [
   {
-    ignores: ['coverage/**', 'node_modules/**', 'src/wasm/*', 'src/three/*', 'three.module.js'],
+    ignores: ['coverage/**', 'node_modules/**', 'src/three/*', 'three.module.js', 'vendor/wasm/**'],
   },
   js.configs.recommended,
   {

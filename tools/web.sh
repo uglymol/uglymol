@@ -21,7 +21,8 @@ done
 
 cp gemmimol.js LICENSE perf.html $outdir/
 #cp gemmimol.js.map gemmimol.min.js $outdir/
-cp src/wasm/mtz.wasm src/wasm/mtz.js $outdir/wasm/
+mkdir -p $outdir/vendor/wasm
+cp vendor/wasm/gemmi.wasm vendor/wasm/gemmi.js $outdir/vendor/wasm/
 cp perf/* $outdir/perf/
 cp test/*.html $outdir/test/
 

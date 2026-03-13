@@ -1,6 +1,6 @@
 import { UnitCell } from './unitcell';
 import { Block } from './isosurface';
-import type { Module as GemmiModule, Ccp4Map as WasmCcp4Map } from './wasm/gemmi.d.ts';
+import type { Module as GemmiModule, Ccp4Map as WasmCcp4Map } from './gemmi_wasm';
 
 type Num3 = [number, number, number];
 
