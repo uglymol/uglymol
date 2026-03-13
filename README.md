@@ -1,3 +1,5 @@
+**This project is deprecated in favor of GemmiMol:**
+https://github.com/gemmimol/gemmimol/
 [![npm](https://img.shields.io/npm/v/uglymol.svg?maxAge=2592000)](https://www.npmjs.com/package/uglymol)
 
 UglyMol is a web-based macromolecular viewer focused on electron density.
