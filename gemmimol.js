@@ -6511,8 +6511,8 @@ const INIT_HUD_TEXT = 'This is GemmiMol not Coot. ' +
 // options handled by select_next()
 
 const COLOR_PROPS = ['element', 'B-factor', 'pLDDT', 'occupancy', 'index', 'chain'];
-const RENDER_STYLES = ['lines', 'sticks', 'backbone', 'ribbon', 'ball&stick'];
-const LIGAND_STYLES = ['ball&stick', 'lines'];
+const RENDER_STYLES = ['sticks', 'lines', 'backbone', 'ribbon', 'ball&stick'];
+const LIGAND_STYLES = ['ball&stick', 'sticks', 'lines'];
 const WATER_STYLES = ['cross', 'dot', 'invisible'];
 const MAP_STYLES = ['marching cubes', 'squarish'/*, 'snapped MC'*/];
 const LINE_STYLES = ['normal', 'simplistic'];
@@ -7292,13 +7292,17 @@ class Viewer {
     model_bag.objects = [];
     model_bag.atom_array = [];
     let ligand_balls = null;
+    const ligand_sticks = (model_bag.conf.ligand_style === 'sticks');
     if (model_bag.conf.ligand_style === 'ball&stick' && this.has_frag_depth()) {
       ligand_balls = this.config.ball_size;
     }
     switch (model_bag.conf.render_style) {
       case 'lines':
-        if (ligand_balls === null) {
+        if (ligand_balls === null && !ligand_sticks) {
           model_bag.add_bonds(true, true);
+        } else if (ligand_sticks) {
+          model_bag.add_bonds(true, false);
+          model_bag.add_sticks(false, true, THIN_STICK_RADIUS);
         } else {
           model_bag.add_bonds(true, false);
           model_bag.add_bonds(false, true, ligand_balls);
@@ -7327,11 +7331,19 @@ class Viewer {
         break;
       case 'backbone':
         model_bag.add_trace();
-        model_bag.add_bonds(false, true, ligand_balls);
+        if (ligand_sticks) {
+          model_bag.add_sticks(false, true, THIN_STICK_RADIUS);
+        } else {
+          model_bag.add_bonds(false, true, ligand_balls);
+        }
         break;
       case 'ribbon':
         model_bag.add_ribbon(8);
-        model_bag.add_bonds(false, true, ligand_balls);
+        if (ligand_sticks) {
+          model_bag.add_sticks(false, true, THIN_STICK_RADIUS);
+        } else {
+          model_bag.add_bonds(false, true, ligand_balls);
+        }
         break;
     }
     for (const o of model_bag.objects) {
