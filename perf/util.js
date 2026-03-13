@@ -13,7 +13,7 @@ function data_path(filename) {
   const path = __dirname + '/../data/' + filename;
   try {
     fs.statSync(path);
-  } catch (e) {
+  } catch {
     console.log('we need to download ' + filename + ' (only once)');
     const url = 'http://uglymol.github.io/data/' + filename;
     const cmd = 'curl -f ' + url + ' -o ' + path;

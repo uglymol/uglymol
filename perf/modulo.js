@@ -1,6 +1,6 @@
 'use strict';
 
-var Benchmark = Benchmark || require('benchmark'); // eslint-disable-line
+var Benchmark = Benchmark || require('benchmark');
 let suite = new Benchmark.Suite();
 
 const VALUES = [21.2, 30.5, 25.9, -7.2, 0.4, -0.4];
@@ -54,7 +54,6 @@ suite.add('Number|0', function () {
 
 suite.add('parseInt()', function () {
   res[3] = 0;
-  // eslint-disable-next-line radix
   for (let i = 0; i < NUMBERS.length; i++) res[3] += parseInt(NUMBERS[i]);
 });
 

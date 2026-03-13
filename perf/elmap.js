@@ -1,7 +1,7 @@
 'use strict';
 
-var util = util || require('./util'); // eslint-disable-line
-var GM = GM || require('../gemmimol'); // eslint-disable-line
+var util = util || require('./util');
+var GM = GM || require('../gemmimol');
 
 const dsn6_buf = util.open_as_array_buffer('1mru.omap');
 const map2_buf = util.open_as_array_buffer('1mru.map');

@@ -261,8 +261,11 @@ export class ReciprocalViewer extends Viewer {
     kb[68] = function () { this.change_slab_width_by(-0.01); };
     // f
     kb[70] = function (evt) {
-      evt.shiftKey ? this.toggle_full_screen()
-                   : this.change_slab_width_by(0.01);
+      if (evt.shiftKey) {
+        this.toggle_full_screen();
+      } else {
+        this.change_slab_width_by(0.01);
+      }
     };
     // p
     kb[80] = function () { this.permalink(); };
@@ -293,11 +296,19 @@ export class ReciprocalViewer extends Viewer {
     };
     // x
     kb[88] = function (evt) {
-      evt.shiftKey ? this.change_map_line(0.1) : this.change_point_size(0.5);
+      if (evt.shiftKey) {
+        this.change_map_line(0.1);
+      } else {
+        this.change_point_size(0.5);
+      }
     };
     // z
     kb[90] = function (evt) {
-      evt.shiftKey ? this.change_map_line(-0.1) : this.change_point_size(-0.5);
+      if (evt.shiftKey) {
+        this.change_map_line(-0.1);
+      } else {
+        this.change_point_size(-0.5);
+      }
     };
     // comma
     kb[188] = function (evt) { if (evt.shiftKey) this.shift_clip(0.1); };

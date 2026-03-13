@@ -1,8 +1,6 @@
 'use strict';
 
-var util = util || require('./util'); // eslint-disable-line
-var GM = GM || require('../gemmimol'); // eslint-disable-line
-
+var util = util || require('./util');
 let model;
 
 var setup = Promise.all([util.load_gemmi(), util.load_models_from_gemmi('1mru.pdb')])

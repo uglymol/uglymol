@@ -39,10 +39,6 @@
     "version": "npm run build && git add -A gemmimol.js",
     "watch": "rollup -c --watch"
   },
-  "eslintIgnore": [
-    "src/wasm/*",
-    "src/three/*"
-  ],
   "prettier": {
     "trailingComma": "es5",
     "tabWidth": 2,
@@ -50,16 +46,17 @@
     "singleQuote": true
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@rollup/plugin-buble": "^1.0.3",
     "@rollup/plugin-sucrase": "^5.1.0",
     "@types/node": "^25.4.0",
     "benchmark": "^2.1.0",
-    "eslint": "^8.57.1",
+    "eslint": "^10.0.3",
     "jest": "^29.7.0",
     "rollup": "^4.59.0",
     "serve": "^14.2.6",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^7.18.0",
+    "typescript-eslint": "^8.57.0",
     "uglify-js": "^3.19.3"
   }
 }

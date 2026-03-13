@@ -1,9 +1,7 @@
 // Copyright 2010-2023 Three.js Authors
 // SPDX-License-Identifier: MIT
 
-/* eslint-disable max-len, one-var, guard-for-in */
-/* eslint-disable prefer-rest-params, no-invalid-this, no-useless-escape */
-/* eslint-disable new-cap, no-extend-native */
+/* eslint-disable no-useless-escape */
 
 import {
   Quaternion, Vector3, Vector4, Matrix4, Color, Ray, generateUUID
@@ -521,7 +519,7 @@ function parseUniform(activeInfo, addr, container) {
     pathLength = path.length;
   // reset RegExp object, because of the early exit of a previous run
   RePathPart.lastIndex = 0;
-  while (true) {  // eslint-disable-line no-constant-condition
+  while (true) {
     const match = RePathPart.exec(path),
       matchEnd = RePathPart.lastIndex;
     let id = match[1];
@@ -2775,7 +2773,7 @@ class Points extends Object3D {
 
 // kept for compatibility with THREE (lights/AmbientLight.js)
 class AmbientLight {
-  constructor(color) {} // eslint-disable-line no-unused-vars
+  constructor() {}
 }
 
 

@@ -1,6 +1,6 @@
 
-var util = util || require('./util'); // eslint-disable-line
-var GM = GM || require('../gemmimol'); // eslint-disable-line
+var util = util || require('./util');
+var GM = GM || require('../gemmimol');
 
 (function () {  // namespace is needed for perf.html
 'use strict';

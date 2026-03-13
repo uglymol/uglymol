@@ -43,7 +43,7 @@ var UnitCell = function UnitCell(a, b, c,
   // Zeros in the matrices below are kept to make matrix multiplication
   // faster: they make extract_block() 2x (!) faster on V8 4.5.103,
   // no difference on FF 50.
-  /* eslint-disable no-multi-spaces, comma-spacing */
+  /* eslint-disable no-multi-spaces */
   this.orth = [a, b * cos_gamma,c * cos_beta,
                0.0, b * sin_gamma, -c * cos_alpha_star_sin_beta,
                0.0, 0.0        ,c * sin_beta * s1rca2];
@@ -72,7 +72,7 @@ UnitCell.prototype.orthogonalize = function orthogonalize (xyz) {
 // This function is only used with matrices frac and orth, which have 3 zeros.
 // We skip these elements, but it doesn't affect performance (on FF50 and V8).
 function multiply(xyz, mat) {
-  /* eslint-disable indent */
+  /* eslint-disable indent, no-multi-spaces */
   return [mat[0] * xyz[0]  + mat[1] * xyz[1]  + mat[2] * xyz[2],
         /*mat[3] * xyz[0]*/+ mat[4] * xyz[1]  + mat[5] * xyz[2],
         /*mat[6] * xyz[0]  + mat[7] * xyz[1]*/+ mat[8] * xyz[2]];
@@ -315,7 +315,7 @@ Model.prototype.calculate_tangent_vector = function calculate_tangent_vector (re
 };
 
 Model.prototype.get_center = function get_center () {
-  var xsum = 0, ysum = 0, zsum = 0;// eslint-disable-line
+  var xsum = 0, ysum = 0, zsum = 0;
   var n_atoms = this.atoms.length;
   for (var i = 0; i < n_atoms; i++) {
     var xyz = this.atoms[i].xyz;
@@ -2930,7 +2930,7 @@ function parseUniform(activeInfo, addr, container) {
     pathLength = path.length;
   // reset RegExp object, because of the early exit of a previous run
   RePathPart.lastIndex = 0;
-  while (true) {  // eslint-disable-line no-constant-condition
+  while (true) {
     var match = RePathPart.exec(path),
       matchEnd = RePathPart.lastIndex;
     var id = match[1];
@@ -5244,7 +5244,7 @@ var Points = /*@__PURE__*/(function (Object3D) {
 }(Object3D));
 
 // kept for compatibility with THREE (lights/AmbientLight.js)
-var AmbientLight = function AmbientLight(color) {};
+var AmbientLight = function AmbientLight() {};
 
 // Copyright 2010-2023 Three.js Authors
 // SPDX-License-Identifier: MIT
@@ -6854,7 +6854,7 @@ var Viewer = function Viewer(options) {
 
   try {
     this.renderer = new WebGLRenderer({antialias: true});
-  } catch (e) {
+  } catch (e2) {
     this.hud('No WebGL in your browser?', 'ERR');
     this.renderer = null;
     return;
@@ -7156,7 +7156,7 @@ Viewer.prototype.toggle_label = function toggle_label (pick, show) {
 };
 
 Viewer.prototype.redraw_labels = function redraw_labels () {
-  for (var uid in this.labels) { // eslint-disable-line guard-for-in
+  for (var uid in this.labels) {
     var text = uid;
     this.labels[uid].o.redraw(text, {
       font: this.config.label_font,
@@ -7617,11 +7617,19 @@ Viewer.prototype.set_real_space_key_bindings = function set_real_space_key_bindi
   var kb = this.key_bindings;
   // Home
   kb[36] = function ( evt) {
-    evt.shiftKey ? this.change_map_line(0.1) : this.change_bond_line(0.2);
+    if (evt.shiftKey) {
+      this.change_map_line(0.1);
+    } else {
+      this.change_bond_line(0.2);
+    }
   };
   // End
   kb[35] = function ( evt) {
-    evt.shiftKey ? this.change_map_line(-0.1) : this.change_bond_line(-0.2);
+    if (evt.shiftKey) {
+      this.change_map_line(-0.1);
+    } else {
+      this.change_bond_line(-0.2);
+    }
   };
   // Space
   kb[32] = function ( evt) {
@@ -7633,7 +7641,11 @@ Viewer.prototype.set_real_space_key_bindings = function set_real_space_key_bindi
   };
   // f
   kb[70] = function ( evt) {
-    evt.shiftKey ? this.toggle_full_screen() : this.change_slab_width_by(0.1);
+    if (evt.shiftKey) {
+      this.toggle_full_screen();
+    } else {
+      this.change_slab_width_by(0.1);
+    }
   };
   // l
   kb[76] = function ( evt) {
@@ -7642,7 +7654,11 @@ Viewer.prototype.set_real_space_key_bindings = function set_real_space_key_bindi
   };
   // p
   kb[80] = function ( evt) {
-    evt.shiftKey ? this.permalink() : this.go_to_nearest_Ca();
+    if (evt.shiftKey) {
+      this.permalink();
+    } else {
+      this.go_to_nearest_Ca();
+    }
   };
   // s
   kb[83] = function ( evt) {
@@ -7895,7 +7911,7 @@ Viewer.prototype.center_on_selection = function center_on_selection (cid, option
     this.hud('No atoms match selection: ' + cid);
     return;
   }
-  var x = 0, y = 0, z = 0; // eslint-disable-line one-var
+  var x = 0, y = 0, z = 0;
   for (var i = 0, list = sel.atoms; i < list.length; i += 1) {
     var atom = list[i];
 
@@ -8332,7 +8348,7 @@ Viewer.prototype.KEYBOARD_HELP = [
 Viewer.prototype.ABOUT_HELP =
   '&nbsp; <a href="https://uglymol.github.io">GemmiMol</a> ' +
   // @ts-expect-error Cannot find name 'VERSION'
-  (typeof VERSION === 'string' ? VERSION : 'dev'); // eslint-disable-line
+  (typeof VERSION === 'string' ? VERSION : 'dev');
 
 Viewer.prototype.ColorSchemes = ColorSchemes$1;
 
@@ -8548,8 +8564,11 @@ var ReciprocalViewer = /*@__PURE__*/(function (Viewer) {
     kb[68] = function () { this.change_slab_width_by(-0.01); };
     // f
     kb[70] = function (evt) {
-      evt.shiftKey ? this.toggle_full_screen()
-                   : this.change_slab_width_by(0.01);
+      if (evt.shiftKey) {
+        this.toggle_full_screen();
+      } else {
+        this.change_slab_width_by(0.01);
+      }
     };
     // p
     kb[80] = function () { this.permalink(); };
@@ -8580,11 +8599,19 @@ var ReciprocalViewer = /*@__PURE__*/(function (Viewer) {
     };
     // x
     kb[88] = function (evt) {
-      evt.shiftKey ? this.change_map_line(0.1) : this.change_point_size(0.5);
+      if (evt.shiftKey) {
+        this.change_map_line(0.1);
+      } else {
+        this.change_point_size(0.5);
+      }
     };
     // z
     kb[90] = function (evt) {
-      evt.shiftKey ? this.change_map_line(-0.1) : this.change_point_size(-0.5);
+      if (evt.shiftKey) {
+        this.change_map_line(-0.1);
+      } else {
+        this.change_point_size(-0.5);
+      }
     };
     // comma
     kb[188] = function (evt) { if (evt.shiftKey) { this.shift_clip(0.1); } };

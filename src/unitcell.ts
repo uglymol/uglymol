@@ -5,7 +5,6 @@ export class UnitCell {
   orth: number[];
   frac: number[];
 
-  // eslint-disable-next-line max-params
   constructor(a: number, b: number, c: number,
               alpha: number, beta: number, gamma: number) {
     if (a <= 0 || b <= 0 || c <= 0 || alpha <= 0 || beta <= 0 || gamma <= 0) {
@@ -35,7 +34,7 @@ export class UnitCell {
     // Zeros in the matrices below are kept to make matrix multiplication
     // faster: they make extract_block() 2x (!) faster on V8 4.5.103,
     // no difference on FF 50.
-    /* eslint-disable no-multi-spaces, comma-spacing */
+    /* eslint-disable no-multi-spaces */
     this.orth = [a,   b * cos_gamma,  c * cos_beta,
                  0.0, b * sin_gamma, -c * cos_alpha_star_sin_beta,
                  0.0, 0.0          ,  c * sin_beta * s1rca2];
@@ -66,9 +65,8 @@ export class UnitCell {
 // This function is only used with matrices frac and orth, which have 3 zeros.
 // We skip these elements, but it doesn't affect performance (on FF50 and V8).
 function multiply(xyz: Num3, mat: number[]): Num3 {
-  /* eslint-disable indent */
+  /* eslint-disable indent, no-multi-spaces */
   return [mat[0] * xyz[0]  + mat[1] * xyz[1]  + mat[2] * xyz[2],
         /*mat[3] * xyz[0]*/+ mat[4] * xyz[1]  + mat[5] * xyz[2],
         /*mat[6] * xyz[0]  + mat[7] * xyz[1]*/+ mat[8] * xyz[2]];
 }
-

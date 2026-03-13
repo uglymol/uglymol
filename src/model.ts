@@ -254,7 +254,7 @@ export class Model {
   }
 
   get_center(): Num3 {
-    let xsum = 0, ysum = 0, zsum = 0;  // eslint-disable-line
+    let xsum = 0, ysum = 0, zsum = 0;
     const n_atoms = this.atoms.length;
     for (let i = 0; i < n_atoms; i++) {
       const xyz = this.atoms[i].xyz;

@@ -727,7 +727,7 @@ export class Viewer {
 
     try {
       this.renderer = new WebGLRenderer({antialias: true});
-    } catch (e) {
+    } catch {
       this.hud('No WebGL in your browser?', 'ERR');
       this.renderer = null;
       return;
@@ -1015,7 +1015,7 @@ export class Viewer {
   }
 
   redraw_labels() {
-    for (const uid in this.labels) { // eslint-disable-line guard-for-in
+    for (const uid in this.labels) {
       const text = uid;
       this.labels[uid].o.redraw(text, {
         font: this.config.label_font,
@@ -1470,11 +1470,19 @@ export class Viewer {
     const kb = this.key_bindings;
     // Home
     kb[36] = function (this: Viewer, evt: KeyboardEvent) {
-      evt.shiftKey ? this.change_map_line(0.1) : this.change_bond_line(0.2);
+      if (evt.shiftKey) {
+        this.change_map_line(0.1);
+      } else {
+        this.change_bond_line(0.2);
+      }
     };
     // End
     kb[35] = function (this: Viewer, evt: KeyboardEvent) {
-      evt.shiftKey ? this.change_map_line(-0.1) : this.change_bond_line(-0.2);
+      if (evt.shiftKey) {
+        this.change_map_line(-0.1);
+      } else {
+        this.change_bond_line(-0.2);
+      }
     };
     // Space
     kb[32] = function (this: Viewer, evt: KeyboardEvent) {
@@ -1486,7 +1494,11 @@ export class Viewer {
     };
     // f
     kb[70] = function (this: Viewer, evt: KeyboardEvent) {
-      evt.shiftKey ? this.toggle_full_screen() : this.change_slab_width_by(0.1);
+      if (evt.shiftKey) {
+        this.toggle_full_screen();
+      } else {
+        this.change_slab_width_by(0.1);
+      }
     };
     // l
     kb[76] = function (this: Viewer, evt: KeyboardEvent) {
@@ -1495,7 +1507,11 @@ export class Viewer {
     };
     // p
     kb[80] = function (this: Viewer, evt: KeyboardEvent) {
-      evt.shiftKey ? this.permalink() : this.go_to_nearest_Ca();
+      if (evt.shiftKey) {
+        this.permalink();
+      } else {
+        this.go_to_nearest_Ca();
+      }
     };
     // s
     kb[83] = function (this: Viewer, evt: KeyboardEvent) {
@@ -1744,7 +1760,7 @@ export class Viewer {
       this.hud('No atoms match selection: ' + cid);
       return;
     }
-    let x = 0, y = 0, z = 0; // eslint-disable-line one-var
+    let x = 0, y = 0, z = 0;
     for (const atom of sel.atoms) {
       x += atom.xyz[0];
       y += atom.xyz[1];
@@ -2192,6 +2208,6 @@ Viewer.prototype.KEYBOARD_HELP = [
 Viewer.prototype.ABOUT_HELP =
   '&nbsp; <a href="https://uglymol.github.io">GemmiMol</a> ' +
   // @ts-expect-error Cannot find name 'VERSION'
-  (typeof VERSION === 'string' ? VERSION : 'dev'); // eslint-disable-line
+  (typeof VERSION === 'string' ? VERSION : 'dev');
 
 Viewer.prototype.ColorSchemes = ColorSchemes;
