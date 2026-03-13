@@ -2168,8 +2168,8 @@ function WebGLRenderer( parameters ) {
     _width = width;
     _height = height;
 
-    _canvas.width = width * _pixelRatio;
-    _canvas.height = height * _pixelRatio;
+    _canvas.width = Math.floor(width * _pixelRatio);
+    _canvas.height = Math.floor(height * _pixelRatio);
 
     if ( updateStyle !== false ) {
       _canvas.style.width = width + 'px';
@@ -2203,7 +2203,9 @@ function WebGLRenderer( parameters ) {
     if ( color === undefined || color ) bits |= _gl.COLOR_BUFFER_BIT;
     if ( depth === undefined || depth ) bits |= _gl.DEPTH_BUFFER_BIT;
 
-    _gl.clear( bits );
+    if ( bits !== 0 ) {
+      _gl.clear( bits );
+    }
   };
 
   this.clearColor = function () {
