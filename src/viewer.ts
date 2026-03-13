@@ -54,7 +54,6 @@ export type ViewerConfig = {
   ligand_style: string,
   water_style: string,
   color_prop: string,
-  line_style: string,
   label_font: string,
   color_scheme: string,
   colors?: ColorScheme,
@@ -153,7 +152,6 @@ const RENDER_STYLES = ['sticks', 'lines', 'backbone', 'ribbon', 'ball&stick'];
 const LIGAND_STYLES = ['ball&stick', 'sticks', 'lines'];
 const WATER_STYLES = ['cross', 'dot', 'invisible'];
 const MAP_STYLES = ['marching cubes', 'squarish'/*, 'snapped MC'*/];
-const LINE_STYLES = ['normal', 'simplistic'];
 const LABEL_FONTS = ['bold 14px', '14px', '16px', 'bold 16px'];
 const THIN_STICK_RADIUS = 0.08;
 
@@ -376,10 +374,8 @@ class ModelBag {
         metal_obj.userData.bond_types = metal_bond_type_arr;
         this.objects.push(metal_obj);
       }
-      if (this.conf.line_style !== 'simplistic') {
-        // wheels (discs) as round caps
-        this.objects.push(makeWheels(sphere_arr, sphere_color_arr, linewidth));
-      }
+      // wheels (discs) as round caps
+      this.objects.push(makeWheels(sphere_arr, sphere_color_arr, linewidth));
     }
 
     sphere_arr.forEach(function (v) { this.atom_array.push(v); }, this);
@@ -657,7 +653,6 @@ export class Viewer {
       ligand_style: LIGAND_STYLES[0],
       water_style: WATER_STYLES[0],
       color_prop: COLOR_PROPS[0],
-      line_style: LINE_STYLES[0],
       label_font: LABEL_FONTS[0],
       color_scheme: 'coot dark',
       // `colors` is assigned in set_colors()
@@ -1486,11 +1481,6 @@ export class Viewer {
     kb[219] = function (this: Viewer) { this.change_map_radius(-2); };
     // ]
     kb[221] = function (this: Viewer) { this.change_map_radius(2); };
-    // \ (backslash)
-    kb[220] = function (this: Viewer, evt: KeyboardEvent) {
-      this.select_next('bond lines', 'line_style', LINE_STYLES, evt.shiftKey);
-      this.redraw_models();
-    };
     // shift, ctrl, alt, altgr
     kb[16] = kb[17] = kb[18] = kb[225] = function () {};
     // slash, single quote
@@ -2231,7 +2221,6 @@ Viewer.prototype.KEYBOARD_HELP = [
   'I = spin',
   'K = rock',
   'Home/End = bond width',
-  '\\ = bond caps',
   'P = nearest Cα',
   'Ctrl+G = go to CID',
   'Shift+P = permalink',
