@@ -149,7 +149,7 @@ const INIT_HUD_TEXT = 'This is GemmiMol not Coot. ' +
 // options handled by select_next()
 
 const COLOR_PROPS = ['element', 'B-factor', 'pLDDT', 'occupancy', 'index', 'chain'];
-const RENDER_STYLES = ['lines', 'sticks', 'trace', 'ribbon', 'ball&stick'];
+const RENDER_STYLES = ['lines', 'sticks', 'backbone', 'ribbon', 'ball&stick'];
 const LIGAND_STYLES = ['ball&stick', 'lines'];
 const WATER_STYLES = ['cross', 'dot', 'invisible'];
 const MAP_STYLES = ['marching cubes', 'squarish'/*, 'snapped MC'*/];
@@ -505,15 +505,8 @@ class ModelBag {
       }
       k += seg.length;
     }
-    const linewidth = scale_by_height(this.conf.bond_line, this.win_size);
-    const material = makeLineMaterial({
-      linewidth: linewidth,
-      win_size: this.win_size,
-    });
-    this.objects.push(makeLineSegments(material, vertex_arr, color_arr));
-    if (this.conf.line_style !== 'simplistic') {
-      // wheels (discs) as round caps
-      this.objects.push(makeWheels(visible_atoms, colors, linewidth));
+    if (vertex_arr.length !== 0) {
+      this.objects.push(makeSticks(vertex_arr, color_arr, this.conf.ball_size / 2));
     }
     this.atom_array = visible_atoms;
   }
@@ -970,7 +963,7 @@ export class Viewer {
           model_bag.add_bonds(true, true, this.config.ball_size);
         }
         break;
-      case 'trace':
+      case 'backbone':
         model_bag.add_trace();
         model_bag.add_bonds(false, true, ligand_balls);
         break;
